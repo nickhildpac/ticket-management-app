@@ -1,0 +1,19 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "./internal/db/query/"
+    schema: "./internal/db/migrations/000001_create_tables.up.sql"
+    gen:
+      go:
+        package: "db"
+        out: "./internal/db/sqlc"
+        emit_interface: true
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "jsonb"
+            go_type:
+              import: "github.com/jackc/pgx/v5/pgtype"
+              type: "JSONB" # Or a custom struct if you parse JSONB yourself
