@@ -1,21 +1,36 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 import { useAuth } from "../context/AuthContext";
 
 const LoginPage = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useAuth();
+  const { isAuthenticated, login, logout } = useAuth()
   const navigate = useNavigate();
-  
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // In a real app, you would validate credentials here
-    if (email && password) {
-      login();
-      navigate('/');
+    console.log(username)
+    console.log(password)
+    const reqBody = {
+      username,
+      password
+    }
+    if (username && password) {
+      fetch(`http://localhost:8080/v1/login`, {
+        method: "POST",
+        body: JSON.stringify(reqBody)
+      })
+        .then((res) => res.json())
+        .then(data => {
+          console.log(data)
+          if (data && data.access_token) {
+            login(data.access_token)
+            navigate('/');
+          }
+        })
     }
   };
   return (
@@ -25,11 +40,11 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm space-y-4">
             <Input
-              type={"email"}
-              name={"email"}
-              label={"Email"}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type={"text"}
+              name={"username"}
+              label={"Username"}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
             <Input
               type={"password"}
@@ -39,7 +54,7 @@ const LoginPage = () => {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <Button label="Login" onClick={() => {}} />
+          <Button label="Login" onClick={() => { }} />
           <div className="text-sm text-center mt-4">
             <p>
               Don't have an account?{" "}
