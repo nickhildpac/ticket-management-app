@@ -3,22 +3,43 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 
+interface ticket {
+  id: number;
+  title: string;
+  description: string;
+  created_by: string;
+  assignedTo: string;
+  priority: string;
+  status: string;
+  comments: [comment: {
+    id: number;
+    ticket_id: number;
+    description: string;
+    created_by: string;
+    created_at: string;
+  }]
+}
+
 const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
   // Mock data for demonstration
-  const [ticket, setTicket] = useState({
-    id: '1',
-    title: 'Fix login page',
-    priority: 'High',
-    assignedTo: 'John Doe',
-    description: 'The login page is not working properly. Users are unable to log in with correct credentials.',
-    skills: ['React', 'TypeScript', 'Tailwind CSS'],
-    comments: [
-      { id: '1', author: 'Jane Smith', text: 'I will look into this issue.', date: '2023-06-15' },
-      { id: '2', author: 'John Doe', text: 'I found the issue. Working on a fix.', date: '2023-06-16' }
-    ]
+  const [ticket, setTicket] = useState<ticket>({
+    id: 0,
+    title: '',
+    description: '',
+    created_by: '',
+    assignedTo: '',
+    priority: '',
+    status: '',
+    comments: [{
+      id: 0,
+      ticket_id: 0,
+      description: '',
+      created_by: '',
+      created_at: '',
+    }]
   });
 
   const [newComment, setNewComment] = useState('');
@@ -28,7 +49,15 @@ const TicketDetails = () => {
   useEffect(() => {
     // Simulate API call with setTimeout
     setTimeout(() => {
-      // In a real app, this would fetch the ticket with the given ID from an API
+      fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`)
+        .then((response) => response.json())
+        .then((data) => setTicket(data));
+      fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}/comments`)
+        .then((response) => response.json())
+        .then((data) => {
+          console.log(data)
+          setTicket({...ticket, comments: data});
+        });
       setLoading(false);
     }, 500);
   }, [id]);
@@ -37,15 +66,16 @@ const TicketDetails = () => {
     if (newComment.trim() === '') return;
     
     const comment = {
-      id: ticket.comments.length + 1,
-      text: newComment,
-      author: 'Current User', // In a real app, this would be the logged-in user
-      timestamp: new Date().toLocaleString()
+      id: -1,
+      description: newComment,
+      ticket_id: Number(id),
+      created_by: 'dpac', // In a real app, this would be the logged-in user
     };
+    const comments = [...ticket.comments, comment];
     
     setTicket({
       ...ticket,
-      comments: [...ticket.comments, comment]
+      comments: comments as typeof ticket.comments
     });
     
     setNewComment('');
@@ -95,9 +125,9 @@ const TicketDetails = () => {
         <div className="mb-6">
           <p className="text-sm text-gray-500 mb-2">Skills</p>
           <div className="flex flex-wrap gap-2">
-            {ticket.skills.map((skill, index) => (
+            {/* {ticket.skills.map((skill, index) => (
               <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{skill}</span>
-            ))}
+            ))} */}
           </div>
         </div>
         
@@ -105,23 +135,24 @@ const TicketDetails = () => {
           <h2 className="text-lg font-semibold mb-4">Comments</h2>
           
           <div className="space-y-4 mb-6">
-            {ticket.comments.map((comment) => (
+            {ticket.comments && ticket.comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 p-4 rounded">
                 <div className="flex justify-between mb-2">
-                  <p className="font-medium">{comment.author}</p>
-                  <p className="text-sm text-gray-500">{comment.timestamp}</p>
+                  <p className="font-medium">{comment.created_by}</p>
+                  <p className="text-sm text-gray-500">{comment.created_at}</p>
                 </div>
-                <p>{comment.text}</p>
-              </div>
+                 <p>{comment.description}</p>
+               </div>
             ))}
           </div>
           
           <div className="mt-4">
             <Input
+              type="text"
               label="Add a comment"
               name="comment"
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewComment(e.target.value)}
             />
             <div className="mt-2">
               <Button label="Add Comment" onClick={handleAddComment} />

@@ -1,37 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+interface ticket {
+  id: number;
+  title: string;
+  description: string;
+  created_by: string;
+  assignedTo: string;
+  priority: string;
+  status: string;
+}
 
 const TicketList = () => {
   const navigate = useNavigate();
   
-  // Mock data for demonstration
-  const [tickets, setTickets] = useState([
-    {
-      id: '1',
-      title: 'Fix login page',
-      description: 'The login page is not working properly. Users are unable to log in with correct credentials.',
-      assignedTo: 'John Doe',
-      priority: 'High',
-    },
-    {
-      id: '2',
-      title: 'Update user profile',
-      description: 'Add ability to update user profile picture and personal information.',
-      assignedTo: 'Jane Smith',
-      priority: 'Medium',
-    },
-    {
-      id: '3',
-      title: 'Implement dark mode',
-      description: 'Add dark mode support to the application for better user experience at night.',
-      assignedTo: 'Bob Johnson',
-      priority: 'Low',
-    },
-  ]);
+  const [tickets, setTickets] = useState<ticket[]>([]);
 
-  const handleRowClick = (ticketId) => {
+  const handleRowClick = (ticketId: number) => {
     navigate(`/ticket/${ticketId}`);
   };
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/user/dpac/tickets`)
+      .then((response) => response.json())
+      .then((data) => {
+        setTickets(data);
+      });
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8">

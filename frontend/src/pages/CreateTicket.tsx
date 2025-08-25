@@ -1,14 +1,33 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 
 const CreateTicket = () => {
   const [description, setDescription] = useState("");
   const [title, setTitle] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const ticket = {
+      title: title,
+      description: description,
+      created_by: "dpac"
+    };
+    fetch(`${import.meta.env.VITE_SERVER_URL}/ticket`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(ticket),
+    })
+    .then((response) => {
+      if (response.ok) {
+        alert("Ticket created successfully");
+        navigate("/tickets");
+      }
+    })
   };
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -21,12 +40,14 @@ const CreateTicket = () => {
               name={"title"}
               label={"Title"}
               value={title}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
             />
             <Input
               type={"textarea"}
               name={"description"}
               label={"Description"}
               value={description}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
             />
           </div>
           <Button label="Create ticket" onClick={""} />

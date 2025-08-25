@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { isAuthenticated, login, logout } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -19,8 +19,11 @@ const LoginPage = () => {
       password
     }
     if (username && password) {
-      fetch(`http://localhost:8080/v1/login`, {
+      fetch(`${import.meta.env.VITE_SERVER_URL}/login`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify(reqBody)
       })
         .then((res) => res.json())
@@ -44,14 +47,14 @@ const LoginPage = () => {
               name={"username"}
               label={"Username"}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
             />
             <Input
               type={"password"}
               name={"password"}
               label={"Password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             />
           </div>
           <Button label="Login" onClick={() => { }} />
