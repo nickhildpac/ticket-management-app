@@ -1,10 +1,11 @@
-package main
+package handlers
 
 import (
 	"encoding/json"
 	"net/http"
 	"strconv"
 
+	"github.com/nickhildpac/ticket-management-app/internal/config"
 	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
 )
 
@@ -14,14 +15,14 @@ type Ticket struct {
 	CreatedBy   string `json:"created_by"`
 }
 
-func (app *application) getTicketsHandler(w http.ResponseWriter, r *http.Request) {
-	username := r.PathValue("username")
+func (repo *Repository) GetTicketsHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.Context().Value(config.UsernameKey).(string)
 	arg := db.ListTicketsParams{
 		CreatedBy: username,
 		Limit:     20,
 		Offset:    0,
 	}
-	tickets, err := app.Store.ListTickets(r.Context(), arg)
+	tickets, err := repo.Store.ListTickets(r.Context(), arg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -34,13 +35,13 @@ func (app *application) getTicketsHandler(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (app *application) getTicketHandler(w http.ResponseWriter, r *http.Request) {
+func (repo *Repository) GetTicketHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	tid, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	ticket, err := app.Store.GetTicket(r.Context(), tid)
+	ticket, err := repo.Store.GetTicket(r.Context(), tid)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -53,8 +54,9 @@ func (app *application) getTicketHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
-func (app *application) createTicketHandler(w http.ResponseWriter, r *http.Request) {
+func (repo *Repository) CreateTicketHandler(w http.ResponseWriter, r *http.Request) {
 	var payload Ticket
+	username := r.Context().Value(config.UsernameKey).(string)
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -63,9 +65,9 @@ func (app *application) createTicketHandler(w http.ResponseWriter, r *http.Reque
 	arg := db.CreateTicketParams{
 		Title:       payload.Title,
 		Description: payload.Description,
-		CreatedBy:   payload.CreatedBy,
+		CreatedBy:   username,
 	}
-	ticket, err := app.Store.CreateTicket(r.Context(), arg)
+	ticket, err := repo.Store.CreateTicket(r.Context(), arg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -76,5 +78,4 @@ func (app *application) createTicketHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
-
 }

@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"errors"
@@ -8,50 +8,41 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/nickhildpac/ticket-management-app/internal/config"
 )
 
-type Auth struct {
-	Issuer        string
-	Audience      string
-	Secret        string
-	TokenExpiry   time.Duration
-	RefreshExpiry time.Duration
-	CookieDomain  string
-	CookiePath    string
-	CookieName    string
+type Claims struct {
+	jwt.RegisteredClaims
 }
 
-type jwtUser struct {
+type JWTUser struct {
 	Username  string `json:"username"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
 }
 type TokenPairs struct {
 	Token        string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
-type Claims struct {
-	jwt.RegisteredClaims
-}
-
-func (j *Auth) GenerateTokenPair(user *jwtUser) (TokenPairs, error) {
+func GenerateTokenPair(conf *config.Config, user *JWTUser) (TokenPairs, error) {
 	// create a token
 	token := jwt.New(jwt.SigningMethodHS256)
 	// set the clains
 	claims := token.Claims.(jwt.MapClaims)
 	claims["name"] = fmt.Sprintf("%s %s", user.FirstName, user.LastName)
 	claims["sub"] = fmt.Sprint(user.Username)
-	claims["aud"] = j.Audience
-	claims["iss"] = j.Issuer
+	claims["aud"] = conf.JWTAudience
+	claims["iss"] = conf.JWTIssuer
 	claims["iat"] = time.Now().UTC().Unix()
 	claims["typ"] = "JWT"
 
 	// set expiry for JWT
-	claims["exp"] = time.Now().UTC().Add(j.TokenExpiry).Unix()
+	claims["exp"] = time.Now().UTC().Add(conf.TokenExpiry).Unix()
 
 	// create a signed token
-	signedAccessToken, err := token.SignedString([]byte(j.Secret))
+	signedAccessToken, err := token.SignedString([]byte(conf.JWTSecret))
 	if err != nil {
 		return TokenPairs{}, err
 	}
@@ -62,9 +53,9 @@ func (j *Auth) GenerateTokenPair(user *jwtUser) (TokenPairs, error) {
 	refreshTokenClaims["sub"] = fmt.Sprint(user.Username)
 	refreshTokenClaims["iat"] = time.Now().UTC().Unix()
 
-	refreshTokenClaims["exp"] = time.Now().UTC().Add(j.RefreshExpiry).Unix()
+	refreshTokenClaims["exp"] = time.Now().UTC().Add(conf.RefreshExpiry).Unix()
 	// create signed refresh token
-	signedRefreshToken, err := refreshToken.SignedString([]byte(j.Secret))
+	signedRefreshToken, err := refreshToken.SignedString([]byte(conf.JWTSecret))
 
 	if err != nil {
 		return TokenPairs{}, err
@@ -79,34 +70,34 @@ func (j *Auth) GenerateTokenPair(user *jwtUser) (TokenPairs, error) {
 
 }
 
-func (j *Auth) GetExpiredRefreshCookie() *http.Cookie {
+func GetExpiredRefreshCookie(conf *config.Config) *http.Cookie {
 	return &http.Cookie{
-		Name:     j.CookieName,
-		Path:     j.CookiePath,
+		Name:     conf.CookieName,
+		Path:     conf.CookiePath,
 		Value:    "",
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		SameSite: http.SameSiteStrictMode,
-		Domain:   j.CookieDomain,
+		Domain:   conf.CookieDomain,
 		HttpOnly: true,
 		Secure:   true,
 	}
 }
-func (j *Auth) GetRefreshCookie(refreshToken string) *http.Cookie {
+func GetRefreshCookie(conf *config.Config, refreshToken string) *http.Cookie {
 	return &http.Cookie{
-		Name:     j.CookieName,
-		Path:     j.CookiePath,
+		Name:     conf.CookieName,
+		Path:     conf.CookiePath,
 		Value:    refreshToken,
-		Expires:  time.Now().Add(j.RefreshExpiry),
-		MaxAge:   int(j.RefreshExpiry.Seconds()),
+		Expires:  time.Now().Add(conf.RefreshExpiry),
+		MaxAge:   int(conf.RefreshExpiry.Seconds()),
 		SameSite: http.SameSiteStrictMode,
-		Domain:   j.CookieDomain,
+		Domain:   conf.CookieDomain,
 		HttpOnly: true,
 		Secure:   true,
 	}
 }
 
-func (j *Auth) GetTokenFromHeaderAndVerify(w http.ResponseWriter, r *http.Request) (string, *Claims, error) {
+func GetTokenFromHeaderAndVerify(conf *config.Config, w http.ResponseWriter, r *http.Request) (string, *Claims, error) {
 	w.Header().Add("Vary", "Authorization")
 	// get auth header
 	authHeader := r.Header.Get("Authorization")
@@ -128,7 +119,7 @@ func (j *Auth) GetTokenFromHeaderAndVerify(w http.ResponseWriter, r *http.Reques
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method %v", token.Header["alg"])
 		}
-		return []byte(j.Secret), nil
+		return []byte(conf.JWTSecret), nil
 	})
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "token is expired by") {
@@ -136,9 +127,10 @@ func (j *Auth) GetTokenFromHeaderAndVerify(w http.ResponseWriter, r *http.Reques
 		}
 		return "", nil, err
 	}
+	username := claims.Subject
 
-	if claims.Issuer != j.Issuer {
+	if claims.Issuer != conf.JWTIssuer {
 		return "", nil, errors.New("invalid issuer")
 	}
-	return token, claims, nil
+	return username, claims, nil
 }

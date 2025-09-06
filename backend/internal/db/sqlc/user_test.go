@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nickhildpac/ticket-management-app/internal/util"
+	"github.com/nickhildpac/ticket-management-app/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 

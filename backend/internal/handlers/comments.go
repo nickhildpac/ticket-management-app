@@ -1,10 +1,11 @@
-package main
+package handlers
 
 import (
 	"encoding/json"
 	"net/http"
 	"strconv"
 
+	"github.com/nickhildpac/ticket-management-app/internal/config"
 	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
 )
 
@@ -14,7 +15,7 @@ type Comment struct {
 	CreatedBy   string `json:"created_by"`
 }
 
-func (app *application) getCommentsHandler(w http.ResponseWriter, r *http.Request) {
+func (repo *Repository) GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	tid, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -25,7 +26,7 @@ func (app *application) getCommentsHandler(w http.ResponseWriter, r *http.Reques
 		Offset:   0,
 		Limit:    10,
 	}
-	comments, err := app.Store.ListComment(r.Context(), arg)
+	comments, err := repo.Store.ListComment(r.Context(), arg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -35,13 +36,13 @@ func (app *application) getCommentsHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (app *application) getCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (repo *Repository) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	tid, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	comment, err := app.Store.GetComment(r.Context(), tid)
+	comment, err := repo.Store.GetComment(r.Context(), tid)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -54,8 +55,9 @@ func (app *application) getCommentHandler(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (repo *Repository) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	var payload Comment
+	username := r.Context().Value(config.UsernameKey).(string)
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -64,9 +66,9 @@ func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Requ
 	arg := db.CreateCommentParams{
 		TicketID:    payload.TicketID,
 		Description: payload.Description,
-		CreatedBy:   payload.CreatedBy,
+		CreatedBy:   username,
 	}
-	comment, err := app.Store.CreateComment(r.Context(), arg)
+	comment, err := repo.Store.CreateComment(r.Context(), arg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

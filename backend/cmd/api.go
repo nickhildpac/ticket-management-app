@@ -5,28 +5,35 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/nickhildpac/ticket-management-app/internal/config"
+	"github.com/nickhildpac/ticket-management-app/internal/handlers"
+	"github.com/nickhildpac/ticket-management-app/internal/middlewares"
 )
 
-func (app *application) mount() http.Handler {
+func mount(conf *config.Config) http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	// r.Use(middleware.RequestID)
+	// r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
-	r.Use(app.enableCORS)
+	r.Use(middlewares.EnableCORS)
 
 	r.Route("/v1", func(r chi.Router) {
-		r.Get("/health", app.healthCheckHandler)
-		r.Post("/login", app.login)
-		r.Post("/user", app.createUserHandler)
-		r.Get("/user/{username}", app.getUserHandler)
-		r.Get("/user/{username}/tickets", app.getTicketsHandler)
-		r.Get("/tickets", app.getTicketsHandler)
-		r.Post("/ticket", app.createTicketHandler)
-		r.Get("/ticket/{id}", app.getTicketHandler)
-		r.Get("/ticket/{id}/comments", app.getCommentsHandler)
-		r.Post("/comment", app.createCommentHandler)
-		r.Get("/comment/{id}", app.getCommentHandler)
+		r.Get("/health", handlers.Repo.HealthCheckHandler)
+		r.Post("/login", handlers.Repo.Login)
+		r.Post("/user", handlers.Repo.CreateUserHandler)
+		r.Get("/user/{username}", handlers.Repo.GetUserHandler)
+		r.Get("/refresh", handlers.Repo.RefreshToken)
+		r.Get("/admin/tickets", handlers.Repo.GetTicketsHandler)
+		r.Route("/ticket", func(mux chi.Router) {
+			mux.Use(middlewares.AuthRequired(conf))
+			mux.Get("/all", handlers.Repo.GetTicketsHandler)
+			mux.Post("/", handlers.Repo.CreateTicketHandler)
+			mux.Get("/{id}", handlers.Repo.GetTicketHandler)
+			mux.Get("/{id}/comments", handlers.Repo.GetCommentsHandler)
+		})
+		r.With(middlewares.AuthRequired(conf)).Post("/comment", handlers.Repo.CreateCommentHandler)
+		r.Get("/comment/{id}", handlers.Repo.GetCommentHandler)
 	})
 	return r
 }
