@@ -28,31 +28,23 @@ func (repo *Repository) GetCommentsHandler(w http.ResponseWriter, r *http.Reques
 	}
 	comments, err := repo.Store.ListComment(r.Context(), arg)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 	}
-	err = json.NewEncoder(w).Encode(comments)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	writeJson(w, http.StatusOK, comments)
 }
 
 func (repo *Repository) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	tid, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 	}
 	comment, err := repo.Store.GetComment(r.Context(), tid)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(comment)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+	writeJson(w, http.StatusOK, comment)
 }
 
 func (repo *Repository) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +52,7 @@ func (repo *Repository) CreateCommentHandler(w http.ResponseWriter, r *http.Requ
 	username := r.Context().Value(config.UsernameKey).(string)
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 	arg := db.CreateCommentParams{
@@ -70,14 +62,8 @@ func (repo *Repository) CreateCommentHandler(w http.ResponseWriter, r *http.Requ
 	}
 	comment, err := repo.Store.CreateComment(r.Context(), arg)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(comment)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusAccepted)
-
+	writeJson(w, http.StatusAccepted, comment)
 }

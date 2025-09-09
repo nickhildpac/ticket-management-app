@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -24,42 +25,33 @@ func (repo *Repository) GetTicketsHandler(w http.ResponseWriter, r *http.Request
 	}
 	tickets, err := repo.Store.ListTickets(r.Context(), arg)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(tickets)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+	writeJson(w, http.StatusOK, tickets)
 }
 
 func (repo *Repository) GetTicketHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	tid, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 	}
 	ticket, err := repo.Store.GetTicket(r.Context(), tid)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(ticket)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+	writeJson(w, http.StatusOK, ticket)
 }
 
 func (repo *Repository) CreateTicketHandler(w http.ResponseWriter, r *http.Request) {
 	var payload Ticket
 	username := r.Context().Value(config.UsernameKey).(string)
+	log.Println(username)
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 	arg := db.CreateTicketParams{
@@ -69,13 +61,8 @@ func (repo *Repository) CreateTicketHandler(w http.ResponseWriter, r *http.Reque
 	}
 	ticket, err := repo.Store.CreateTicket(r.Context(), arg)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(ticket)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusAccepted)
+	writeJson(w, http.StatusAccepted, ticket)
 }

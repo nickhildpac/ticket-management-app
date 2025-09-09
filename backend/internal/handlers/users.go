@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -29,19 +30,20 @@ func (repo *Repository) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			cookieNotFound = false
 			claims := &util.Claims{}
 			refreshToken := cookie.Value
+			log.Println(refreshToken)
 			// parse token to get the claims
 			_, err := jwt.ParseWithClaims(refreshToken, claims, func(token *jwt.Token) (interface{}, error) {
 				return []byte(repo.Config.JWTSecret), nil
 			})
 			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
+				errorResponse(w, http.StatusUnauthorized, err)
 				return
 			}
 			// get user id from token claim
 			username := claims.Subject
 			user, err := repo.Store.GetUser(r.Context(), username)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
+				errorResponse(w, http.StatusInternalServerError, err)
 				return
 			}
 			u := util.JWTUser{
@@ -52,27 +54,21 @@ func (repo *Repository) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			}
 			tokenPairs, err := util.GenerateTokenPair(repo.Config, &u)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
+				errorResponse(w, http.StatusInternalServerError, err)
 				return
 			}
 			http.SetCookie(w, util.GetRefreshCookie(repo.Config, tokenPairs.RefreshToken))
-
-			err = json.NewEncoder(w).Encode(struct {
+			writeJson(w, http.StatusAccepted, struct {
 				AccessToken string       `json:"access_token"`
 				User        util.JWTUser `json:"user"`
 			}{
 				AccessToken: tokenPairs.Token,
 				User:        u,
 			})
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			w.WriteHeader(http.StatusAccepted)
 		}
 	}
 	if cookieNotFound {
-		http.Error(w, errors.New("error generating token").Error(), http.StatusUnauthorized)
+		errorResponse(w, http.StatusUnauthorized, errors.New("error generating token"))
 	}
 }
 
@@ -83,16 +79,16 @@ func (repo *Repository) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&requestPayload)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 	user, err := repo.Store.GetUser(r.Context(), requestPayload.Username)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	if err = util.CheckPassword(user.HashedPassword, requestPayload.Password); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	u := util.JWTUser{
@@ -103,40 +99,29 @@ func (repo *Repository) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	tokens, err := util.GenerateTokenPair(repo.Config, &u)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	refreshCookie := util.GetRefreshCookie(repo.Config, tokens.RefreshToken)
-	http.SetCookie(w, refreshCookie)
 	rsp := struct {
-		AccessToken string       `json:"access-token"`
+		AccessToken string       `json:"access_token"`
 		User        util.JWTUser `json:"user"`
 	}{
 		AccessToken: tokens.Token,
 		User:        u,
 	}
-	err = json.NewEncoder(w).Encode(rsp)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusAccepted)
-
+	http.SetCookie(w, refreshCookie)
+	writeJson(w, http.StatusAccepted, rsp)
 }
 
 func (repo *Repository) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 	user, err := repo.Store.GetUser(r.Context(), username)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+	writeJson(w, http.StatusOK, user)
 }
 
 func (repo *Repository) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,14 +145,32 @@ func (repo *Repository) CreateUserHandler(w http.ResponseWriter, r *http.Request
 	}
 	user, err := repo.Store.CreateUser(r.Context(), arg)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(user)
+	writeJson(w, http.StatusAccepted, user)
+}
+
+func writeJson(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.WriteHeader(status)
+}
+
+func errorResponse(w http.ResponseWriter, status int, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(struct {
+		Error string `json:"error"`
+	}{
+		Error: err.Error(),
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
-
+	w.WriteHeader(status)
 }

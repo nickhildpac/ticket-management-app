@@ -12,8 +12,8 @@ import (
 
 func mount(conf *config.Config) http.Handler {
 	r := chi.NewRouter()
-	// r.Use(middleware.RequestID)
-	// r.Use(middleware.RealIP)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
 	r.Use(middlewares.EnableCORS)
@@ -24,9 +24,9 @@ func mount(conf *config.Config) http.Handler {
 		r.Post("/user", handlers.Repo.CreateUserHandler)
 		r.Get("/user/{username}", handlers.Repo.GetUserHandler)
 		r.Get("/refresh", handlers.Repo.RefreshToken)
-		r.Get("/admin/tickets", handlers.Repo.GetTicketsHandler)
 		r.Route("/ticket", func(mux chi.Router) {
 			mux.Use(middlewares.AuthRequired(conf))
+			mux.Get("/admin/tickets", handlers.Repo.GetTicketsHandler)
 			mux.Get("/all", handlers.Repo.GetTicketsHandler)
 			mux.Post("/", handlers.Repo.CreateTicketHandler)
 			mux.Get("/{id}", handlers.Repo.GetTicketHandler)

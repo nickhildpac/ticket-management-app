@@ -37,6 +37,8 @@ func LoadConfig() (*Config, error) {
 	flag.StringVar(&config.CookieDomain, "cookie-domain", env.GetString("CookieDomain", "localhost"), "cookie domain")
 	flag.StringVar(&config.Domain, "domain", env.GetString("Domain", "example.com"), "domain")
 	flag.Parse()
+	config.CookieName = env.GetString("RefreshCookieName", "refresh_token")
+	config.CookiePath = env.GetString("CookiePath", "/")
 	config.TokenExpiry = time.Minute * time.Duration(env.GetInt("TokenExpiry", 15))
 	config.RefreshExpiry = time.Hour * time.Duration(env.GetInt("RefreshTokenExpiry", 24))
 	return &config, nil
