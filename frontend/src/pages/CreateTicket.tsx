@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
+import { useAuth } from "../context/AuthContext";
 
 const CreateTicket = () => {
   const [description, setDescription] = useState("");
   const [title, setTitle] = useState("");
+  const {token} = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -15,10 +17,11 @@ const CreateTicket = () => {
       description: description,
       created_by: "dpac"
     };
-    fetch(`${import.meta.env.VITE_SERVER_URL}/ticket`, {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": token
       },
       body: JSON.stringify(ticket),
     })
@@ -50,7 +53,7 @@ const CreateTicket = () => {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
             />
           </div>
-          <Button label="Create ticket" onClick={""} />
+          <Button label="Create ticket" onClick={() => {}} />
         </form>
       </div>
     </div>

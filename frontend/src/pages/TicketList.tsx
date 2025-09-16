@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 interface ticket {
   id: number;
@@ -13,7 +14,7 @@ interface ticket {
 
 const TicketList = () => {
   const navigate = useNavigate();
-  
+  const {token} = useAuth();
   const [tickets, setTickets] = useState<ticket[]>([]);
 
   const handleRowClick = (ticketId: number) => {
@@ -21,7 +22,14 @@ const TicketList = () => {
   };
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_SERVER_URL}/user/dpac/tickets`)
+    console.log(token)
+    const requestOptions = {
+      method: "GET",
+      headers: {
+        "Authorization": token
+      }
+    }
+    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket/all`,requestOptions)
       .then((response) => response.json())
       .then((data) => {
         setTickets(data);

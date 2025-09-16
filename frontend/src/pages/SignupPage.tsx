@@ -25,7 +25,7 @@ export default function SignupPage() {
       email: email,
       password: password,
     };
-    fetch(`${import.meta.env.VITE_SERVER_URL}/user`, {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

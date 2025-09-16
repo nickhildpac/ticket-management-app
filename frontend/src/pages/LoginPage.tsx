@@ -19,18 +19,19 @@ const LoginPage = () => {
       password
     }
     if (username && password) {
-      fetch(`${import.meta.env.VITE_SERVER_URL}/login`, {
+      fetch(`${import.meta.env.VITE_SERVER_URL}/v1/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify(reqBody)
       })
         .then((res) => res.json())
         .then(data => {
           console.log(data)
           if (data && data.access_token) {
-            login(data.access_token)
+            login(data.access_token, data.user.username)
             navigate('/');
           }
         })

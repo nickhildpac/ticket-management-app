@@ -8,11 +8,31 @@ import LoginPage from "./pages/LoginPage";
 import TicketList from "./pages/TicketList";
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
-import { AuthProvider } from "./context/AuthContext";
+import { useEffect } from "react";
+import { useAuth } from "./context/AuthContext";
 
 function App() {
+  const {login} = useAuth();
+  useEffect(() => {
+    const requestOptions = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json"
+      },
+    }
+    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/refresh`, {
+      ...requestOptions,
+      credentials: 'include' as RequestCredentials
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data)
+      login(data.access_token, data.user.username)
+    })
+  }, [])
+
   return (
-    <AuthProvider>
+    <>
       <Navbar />
       <Routes>
         <Route path="/" element={<HomePage />}></Route>
@@ -23,7 +43,7 @@ function App() {
         <Route path="/tickets" element={<TicketList />}></Route>
         <Route path="/ticket/:id" element={<TicketDetails />}></Route>
       </Routes>
-    </AuthProvider>
+    </>
   );
 }
 

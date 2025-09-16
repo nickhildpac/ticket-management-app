@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 interface AuthContextType {
   isAuthenticated: boolean;
   token: string;
-  login: (token: string) => void;
+  user: string;
+  login: (token: string, user: string) => void;
   logout: () => void;
 }
 
@@ -13,10 +14,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState("");
+  const [user, setUser] = useState("");
 
-  const login = (token: string) => {
+  const login = (token: string, user: string) => {
     // In a real app, this would validate credentials and set tokens
     setIsAuthenticated(true);
+    setUser(user)
     setToken("Bearer " + token);
 
   };
@@ -25,10 +28,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // In a real app, this would clear tokens
     setIsAuthenticated(false);
     setToken("")
+    setUser("")
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, token, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated,user, token, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

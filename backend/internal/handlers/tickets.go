@@ -5,15 +5,20 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/nickhildpac/ticket-management-app/internal/config"
 	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
 )
 
 type Ticket struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	CreatedBy   string `json:"created_by"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	CreatedBy   string    `json:"created_by"`
+	ID          int64     `json:"id"`
+	AssignedTo  string    `json:"assigned_to"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (repo *Repository) GetTicketsHandler(w http.ResponseWriter, r *http.Request) {
@@ -38,11 +43,20 @@ func (repo *Repository) GetTicketHandler(w http.ResponseWriter, r *http.Request)
 		errorResponse(w, http.StatusInternalServerError, err)
 	}
 	ticket, err := repo.Store.GetTicket(r.Context(), tid)
+	resp := Ticket{
+		Title:       ticket.Title,
+		Description: ticket.Description,
+		CreatedBy:   ticket.CreatedBy,
+		ID:          ticket.ID,
+		AssignedTo:  ticket.AssignedTo.String,
+		CreatedAt:   ticket.CreatedAt,
+		UpdatedAt:   ticket.UpdatedAt.Time,
+	}
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusOK, ticket)
+	writeJson(w, http.StatusOK, resp)
 }
 
 func (repo *Repository) CreateTicketHandler(w http.ResponseWriter, r *http.Request) {

@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { useAuth } from '../context/AuthContext';
 
 interface ticket {
   id: number;
   title: string;
   description: string;
   created_by: string;
-  assignedTo: string;
+  assigned_to: string;
   priority: string;
   status: string;
   comments: [comment: {
@@ -23,6 +24,7 @@ interface ticket {
 const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const {token,user} = useAuth();
   
   // Mock data for demonstration
   const [ticket, setTicket] = useState<ticket>({
@@ -30,7 +32,7 @@ const TicketDetails = () => {
     title: '',
     description: '',
     created_by: '',
-    assignedTo: '',
+    assigned_to: '',
     priority: '',
     status: '',
     comments: [{
@@ -48,17 +50,26 @@ const TicketDetails = () => {
   // Fetch ticket data based on ID
   useEffect(() => {
     // Simulate API call with setTimeout
+    const requestOptions = {
+      method: "GET",
+      headers: {
+        "Authorization": token
+      }
+    }
     setTimeout(() => {
-      fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`)
-        .then((response) => response.json())
-        .then((data) => setTicket(data));
-      fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}/comments`)
+      fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket/${id}`,requestOptions)
         .then((response) => response.json())
         .then((data) => {
           console.log(data)
-          setTicket({...ticket, comments: data});
-        });
-      setLoading(false);
+          setTicket(prev => ({...prev, ...data}));
+          fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket/${id}/comments`,requestOptions)
+            .then((response) => response.json())
+            .then((data) => {
+              console.log(data)
+              setTicket(prev => ({...prev, comments: data}));
+              setLoading(false);
+            });
+        })
     }, 500);
   }, [id]);
 
@@ -69,16 +80,25 @@ const TicketDetails = () => {
       id: -1,
       description: newComment,
       ticket_id: Number(id),
-      created_by: 'dpac', // In a real app, this would be the logged-in user
+      created_by: user, // In a real app, this would be the logged-in user
+      created_at: new Date().toISOString(),
     };
-    const comments = [...ticket.comments, comment];
-    
-    setTicket({
-      ...ticket,
-      comments: comments as typeof ticket.comments
-    });
-    
-    setNewComment('');
+    console.log(comment)
+    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/comment`, {
+      method: "POST",
+      headers: {
+        "Authorization": token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(comment)
+    }).then((response) => response.json())
+      .then((data) => {
+        console.log(data)
+        const newc = data
+        const comments = [...ticket.comments, newc] as unknown as typeof ticket.comments
+        setTicket({...ticket, comments});
+        setNewComment("");
+      })
   };
 
   if (loading) {
@@ -113,7 +133,7 @@ const TicketDetails = () => {
           </div>
           <div>
             <p className="text-sm text-gray-500">Assigned To</p>
-            <p className="font-medium">{ticket.assignedTo}</p>
+            <p className="font-medium">{ticket.assigned_to}</p>
           </div>
         </div>
         

@@ -163,6 +163,7 @@ func writeJson(w http.ResponseWriter, status int, data any) {
 
 func errorResponse(w http.ResponseWriter, status int, err error) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	err = json.NewEncoder(w).Encode(struct {
 		Error string `json:"error"`
 	}{
@@ -172,5 +173,4 @@ func errorResponse(w http.ResponseWriter, status int, err error) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(status)
 }
