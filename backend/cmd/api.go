@@ -21,6 +21,7 @@ func mount(conf *config.Config) http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", handlers.Repo.HealthCheckHandler)
 		r.Post("/login", handlers.Repo.Login)
+		r.Get("/logout", handlers.Repo.Logout)
 		r.Post("/user", handlers.Repo.CreateUserHandler)
 		r.Get("/user/{username}", handlers.Repo.GetUserHandler)
 		r.Get("/refresh", handlers.Repo.RefreshToken)

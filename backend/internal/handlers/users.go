@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -30,7 +29,6 @@ func (repo *Repository) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			cookieNotFound = false
 			claims := &util.Claims{}
 			refreshToken := cookie.Value
-			log.Println(refreshToken)
 			// parse token to get the claims
 			_, err := jwt.ParseWithClaims(refreshToken, claims, func(token *jwt.Token) (interface{}, error) {
 				return []byte(repo.Config.JWTSecret), nil
@@ -70,6 +68,11 @@ func (repo *Repository) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	if cookieNotFound {
 		errorResponse(w, http.StatusUnauthorized, errors.New("error generating token"))
 	}
+}
+
+func (repo *Repository) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, util.GetExpiredRefreshCookie(repo.Config))
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (repo *Repository) Login(w http.ResponseWriter, r *http.Request) {
