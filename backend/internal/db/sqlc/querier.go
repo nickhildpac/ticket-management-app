@@ -17,8 +17,10 @@ type Querier interface {
 	GetComment(ctx context.Context, id int64) (Comment, error)
 	GetTicket(ctx context.Context, id int64) (Ticket, error)
 	GetUser(ctx context.Context, username string) (User, error)
+	ListAllTickets(ctx context.Context, arg ListAllTicketsParams) ([]Ticket, error)
 	ListComment(ctx context.Context, arg ListCommentParams) ([]Comment, error)
 	ListTickets(ctx context.Context, arg ListTicketsParams) ([]Ticket, error)
+	ListTicketsAssigned(ctx context.Context, arg ListTicketsAssignedParams) ([]Ticket, error)
 }
 
 var _ Querier = (*Queries)(nil)

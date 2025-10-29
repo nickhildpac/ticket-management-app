@@ -12,7 +12,7 @@ import { useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
 
 function App() {
-  const {login} = useAuth();
+  const {user,login} = useAuth();
   useEffect(() => {
     const requestOptions = {
       method: "GET",
@@ -37,11 +37,11 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />}></Route>
         <Route path="/about" element={<AboutPage />}></Route>
-        <Route path="/create" element={<CreateTicket />}></Route>
-        <Route path="/login" element={<LoginPage />}></Route>
-        <Route path="/signup" element={<SignupPage />}></Route>
-        <Route path="/tickets" element={<TicketList />}></Route>
-        <Route path="/ticket/:id" element={<TicketDetails />}></Route>
+        <Route path="/create" element={user?<CreateTicket />: <LoginPage />}></Route>
+        <Route path="/login" element={user?<HomePage />: <LoginPage />}></Route>
+        <Route path="/signup" element={user?<HomePage />: <SignupPage />}></Route>
+        <Route path="/tickets" element={user?<TicketList />: <LoginPage />}></Route>
+        <Route path="/ticket/:id" element={user?<TicketDetails />: <LoginPage />}></Route>
       </Routes>
     </>
   );

@@ -7,5 +7,10 @@ SELECT * FROM tickets WHERE id = $1 LIMIT 1;
 -- name: ListTickets :many
 SELECT * FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3;
 
+-- name: ListAllTickets :many
+SELECT * FROM tickets ORDER BY id LIMIT $1 OFFSET $2;
+
+-- name: ListTicketsAssigned :many
+SELECT * FROM tickets WHERE assigned_to=$1 ORDER BY id LIMIT $2 OFFSET $3;
 -- name: DeleteTicket :exec
 DELETE FROM tickets WHERE id = $1;

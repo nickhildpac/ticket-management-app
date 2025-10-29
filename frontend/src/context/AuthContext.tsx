@@ -26,9 +26,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     // In a real app, this would clear tokens
-    setIsAuthenticated(false);
-    setToken("")
-    setUser("")
+    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/logout`,{
+      method:"GET",
+      credentials:"include"
+    })
+      .then((res) => {
+        console.log(res)
+        if (res.ok) {
+          setIsAuthenticated(false);
+          setToken("")
+          setUser("")
+        }
+      })
+
   };
 
   return (

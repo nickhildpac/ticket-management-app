@@ -27,12 +27,12 @@ func mount(conf *config.Config) http.Handler {
 		r.Get("/refresh", handlers.Repo.RefreshToken)
 		r.Route("/ticket", func(mux chi.Router) {
 			mux.Use(middlewares.AuthRequired(conf))
-			mux.Get("/admin/tickets", handlers.Repo.GetTicketsHandler)
 			mux.Get("/all", handlers.Repo.GetTicketsHandler)
 			mux.Post("/", handlers.Repo.CreateTicketHandler)
 			mux.Get("/{id}", handlers.Repo.GetTicketHandler)
 			mux.Get("/{id}/comments", handlers.Repo.GetCommentsHandler)
 		})
+		r.With(middlewares.AdminRequired(conf)).Get("/admin/tickets", handlers.Repo.GetAllTicketsHandler)
 		r.With(middlewares.AuthRequired(conf)).Post("/comment", handlers.Repo.CreateCommentHandler)
 		r.Get("/comment/{id}", handlers.Repo.GetCommentHandler)
 	})

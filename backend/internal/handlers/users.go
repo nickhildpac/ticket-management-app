@@ -49,6 +49,7 @@ func (repo *Repository) RefreshToken(w http.ResponseWriter, r *http.Request) {
 				FirstName: user.FirstName,
 				LastName:  user.LastName,
 				Email:     user.Email,
+				Role:      user.Role.String,
 			}
 			tokenPairs, err := util.GenerateTokenPair(repo.Config, &u)
 			if err != nil {
@@ -99,6 +100,7 @@ func (repo *Repository) Login(w http.ResponseWriter, r *http.Request) {
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Email:     user.Email,
+		Role:      user.Role.String,
 	}
 	tokens, err := util.GenerateTokenPair(repo.Config, &u)
 	if err != nil {

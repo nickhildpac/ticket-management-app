@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createTicket = `-- name: CreateTicket :one
@@ -62,6 +63,46 @@ func (q *Queries) GetTicket(ctx context.Context, id int64) (Ticket, error) {
 	return i, err
 }
 
+const listAllTickets = `-- name: ListAllTickets :many
+SELECT id, created_by, assigned_to, title, description, created_at, updated_at FROM tickets ORDER BY id LIMIT $1 OFFSET $2
+`
+
+type ListAllTicketsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) ([]Ticket, error) {
+	rows, err := q.db.QueryContext(ctx, listAllTickets, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Ticket{}
+	for rows.Next() {
+		var i Ticket
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedBy,
+			&i.AssignedTo,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTickets = `-- name: ListTickets :many
 SELECT id, created_by, assigned_to, title, description, created_at, updated_at FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3
 `
@@ -74,6 +115,47 @@ type ListTicketsParams struct {
 
 func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Ticket, error) {
 	rows, err := q.db.QueryContext(ctx, listTickets, arg.CreatedBy, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Ticket{}
+	for rows.Next() {
+		var i Ticket
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedBy,
+			&i.AssignedTo,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTicketsAssigned = `-- name: ListTicketsAssigned :many
+SELECT id, created_by, assigned_to, title, description, created_at, updated_at FROM tickets WHERE assigned_to=$1 ORDER BY id LIMIT $2 OFFSET $3
+`
+
+type ListTicketsAssignedParams struct {
+	AssignedTo sql.NullString `json:"assigned_to"`
+	Limit      int32          `json:"limit"`
+	Offset     int32          `json:"offset"`
+}
+
+func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssignedParams) ([]Ticket, error) {
+	rows, err := q.db.QueryContext(ctx, listTicketsAssigned, arg.AssignedTo, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

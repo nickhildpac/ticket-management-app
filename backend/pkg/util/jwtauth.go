@@ -13,6 +13,7 @@ import (
 
 type Claims struct {
 	jwt.RegisteredClaims
+	Role string `json:"role"`
 }
 
 type JWTUser struct {
@@ -20,6 +21,7 @@ type JWTUser struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
+	Role      string `json:"role"`
 }
 type TokenPairs struct {
 	Token        string `json:"access_token"`
@@ -33,6 +35,7 @@ func GenerateTokenPair(conf *config.Config, user *JWTUser) (TokenPairs, error) {
 	claims := token.Claims.(jwt.MapClaims)
 	claims["name"] = fmt.Sprintf("%s %s", user.FirstName, user.LastName)
 	claims["sub"] = fmt.Sprint(user.Username)
+	claims["role"] = fmt.Sprint(user.Role)
 	claims["aud"] = conf.JWTAudience
 	claims["iss"] = conf.JWTIssuer
 	claims["iat"] = time.Now().UTC().Unix()
@@ -97,20 +100,20 @@ func GetRefreshCookie(conf *config.Config, refreshToken string) *http.Cookie {
 	}
 }
 
-func GetTokenFromHeaderAndVerify(conf *config.Config, w http.ResponseWriter, r *http.Request) (string, *Claims, error) {
+func GetTokenFromHeaderAndVerify(conf *config.Config, w http.ResponseWriter, r *http.Request) (*Claims, error) {
 	w.Header().Add("Vary", "Authorization")
 	// get auth header
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return "", nil, errors.New("no auth header")
+		return nil, errors.New("no auth header")
 	}
 
 	headerParts := strings.Split(authHeader, " ")
 	if len(headerParts) != 2 {
-		return "", nil, errors.New("invalid auth header")
+		return nil, errors.New("invalid auth header")
 	}
 	if headerParts[0] != "Bearer" {
-		return "", nil, errors.New("invalid auth header")
+		return nil, errors.New("invalid auth header")
 	}
 	token := headerParts[1]
 	// declare empty claims
@@ -123,14 +126,13 @@ func GetTokenFromHeaderAndVerify(conf *config.Config, w http.ResponseWriter, r *
 	})
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "token is expired by") {
-			return "", nil, errors.New("expired token")
+			return nil, errors.New("expired token")
 		}
-		return "", nil, err
+		return nil, err
 	}
-	username := claims.Subject
 
 	if claims.Issuer != conf.JWTIssuer {
-		return "", nil, errors.New("invalid issuer")
+		return nil, errors.New("invalid issuer")
 	}
-	return username, claims, nil
+	return claims, nil
 }

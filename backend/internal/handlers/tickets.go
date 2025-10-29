@@ -21,6 +21,18 @@ type Ticket struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+func (repo *Repository) GetAllTicketsHandler(w http.ResponseWriter, r *http.Request) {
+	arg := db.ListAllTicketsParams{
+		Limit:  20,
+		Offset: 0,
+	}
+	tickets, err := repo.Store.ListAllTickets(r.Context(), arg)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJson(w, http.StatusOK, tickets)
+}
 func (repo *Repository) GetTicketsHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(config.UsernameKey).(string)
 	arg := db.ListTicketsParams{

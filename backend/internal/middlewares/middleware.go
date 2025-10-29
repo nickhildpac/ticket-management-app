@@ -29,12 +29,30 @@ func EnableCORS(h http.Handler) http.Handler {
 func AuthRequired(conf *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			username, _, err := util.GetTokenFromHeaderAndVerify(conf, w, r)
+			claims, err := util.GetTokenFromHeaderAndVerify(conf, w, r)
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			ctx := context.WithValue(r.Context(), config.UsernameKey, username)
+			ctx := context.WithValue(r.Context(), config.UsernameKey, claims.Subject)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func AdminRequired(conf *config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, err := util.GetTokenFromHeaderAndVerify(conf, w, r)
+			if err != nil {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if claims.Role != "admin" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			ctx := context.WithValue(r.Context(), config.UsernameKey, claims.Subject)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
@@ -9,6 +9,24 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const { login } = useAuth()
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const requestOptions = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json"
+      },
+    }
+    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/refresh`, {
+      ...requestOptions,
+      credentials: 'include' as RequestCredentials
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data)
+      login(data.access_token, data.user.username)
+    })
+  },[])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
