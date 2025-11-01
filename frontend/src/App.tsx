@@ -9,10 +9,10 @@ import TicketList from "./pages/TicketList";
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
 import { useEffect } from "react";
-import { useAuth } from "./context/AuthContext";
+import { useAuth } from "./context/useAuth";
 
 function App() {
-  const {user,login} = useAuth();
+  const {isAuthenticated,login} = useAuth();
   useEffect(() => {
     const requestOptions = {
       method: "GET",
@@ -24,12 +24,20 @@ function App() {
       ...requestOptions,
       credentials: 'include' as RequestCredentials
     })
-    .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return res.json()
+    })
     .then((data) => {
       console.log(data)
       login(data.access_token, data.user.username)
     })
-  }, [])
+    .catch((err) => {
+      console.error(err)
+    })
+  }, [login])
 
   return (
     <>
@@ -37,11 +45,11 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />}></Route>
         <Route path="/about" element={<AboutPage />}></Route>
-        <Route path="/create" element={user?<CreateTicket />: <LoginPage />}></Route>
-        <Route path="/login" element={user?<HomePage />: <LoginPage />}></Route>
-        <Route path="/signup" element={user?<HomePage />: <SignupPage />}></Route>
-        <Route path="/tickets" element={user?<TicketList />: <LoginPage />}></Route>
-        <Route path="/ticket/:id" element={user?<TicketDetails />: <LoginPage />}></Route>
+        <Route path="/create" element={isAuthenticated?<CreateTicket />: <LoginPage />}></Route>
+        <Route path="/login" element={isAuthenticated?<HomePage />: <LoginPage />}></Route>
+        <Route path="/signup" element={isAuthenticated?<HomePage />: <SignupPage />}></Route>
+        <Route path="/tickets" element={isAuthenticated?<TicketList />: <LoginPage />}></Route>
+        <Route path="/ticket/:id" element={isAuthenticated?<TicketDetails />: <LoginPage />}></Route>
       </Routes>
     </>
   );

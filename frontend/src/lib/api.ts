@@ -1,4 +1,4 @@
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   data: T;
   status: number;
 }
@@ -97,7 +97,7 @@ class ApiClient {
   // POST request
   async post<T>(
     endpoint: string, 
-    data?: any, 
+    data?: unknown, 
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     return this.makeRequest<T>(endpoint, {
@@ -114,7 +114,7 @@ class ApiClient {
   // PUT request
   async put<T>(
     endpoint: string, 
-    data?: any, 
+    data?: unknown, 
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     return this.makeRequest<T>(endpoint, {

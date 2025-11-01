@@ -13,7 +13,10 @@ import (
 )
 
 func main() {
-	conf, _ := config.LoadConfig()
+	conf, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal("failed to load config ", err)
+	}
 	conn, err := sql.Open("postgres", conf.DSN)
 	if err != nil {
 		log.Fatal("failed to connect to db ", err)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 interface ticket {
   id: number;
@@ -34,7 +34,7 @@ const TicketList = () => {
       .then((data) => {
         setTickets(data);
       });
-  }, []);
+  }, [token]);
 
   return (
     <div className="container mx-auto px-4 py-8">

@@ -158,24 +158,24 @@ func (repo *Repository) CreateUserHandler(w http.ResponseWriter, r *http.Request
 
 func writeJson(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	err := json.NewEncoder(w).Encode(data)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	w.WriteHeader(status)
 }
 
 func errorResponse(w http.ResponseWriter, status int, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	err = json.NewEncoder(w).Encode(struct {
+	encodeErr := json.NewEncoder(w).Encode(struct {
 		Error string `json:"error"`
 	}{
 		Error: err.Error(),
 	})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if encodeErr != nil {
+		http.Error(w, encodeErr.Error(), http.StatusInternalServerError)
 		return
 	}
 }

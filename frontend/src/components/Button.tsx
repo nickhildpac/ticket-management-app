@@ -1,4 +1,4 @@
-export const Button = ({ label, onClick }: { label: string; onClick: any;}) => {
+export const Button = ({ label, onClick }: { label: string; onClick: () => void;}) => {
   return (
     <button
       type="submit"

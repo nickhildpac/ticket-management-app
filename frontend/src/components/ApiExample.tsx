@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { apiClient, ApiError } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
+interface Ticket {
+  id: number;
+  title: string;
+  description: string;
+}
+
 const ApiExample = () => {
-  const [tickets, setTickets] = useState([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { isAuthenticated } = useAuth();
@@ -20,7 +26,7 @@ const ApiExample = () => {
     try {
       // This will automatically handle token refresh if the access token expires
       const response = await apiClient.get('/ticket/all');
-      setTickets(response.data);
+      setTickets(response.data as Ticket[]);
       console.log('Tickets fetched successfully:', response.data);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -110,7 +116,7 @@ const ApiExample = () => {
         <div className="space-y-2">
           <h3 className="font-semibold">Tickets:</h3>
           <div className="max-h-40 overflow-y-auto">
-            {tickets.map((ticket: any) => (
+            {tickets.map((ticket) => (
               <div key={ticket.id} className="p-2 bg-gray-100 rounded text-sm">
                 <strong>{ticket.title}</strong> - {ticket.description}
               </div>

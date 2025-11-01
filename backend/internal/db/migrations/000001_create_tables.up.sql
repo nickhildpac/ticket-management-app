@@ -28,10 +28,10 @@ CREATE TABLE "comments" (
   "updated_at" timestamptz
 );
 
-ALTER TABLE "tickets" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("username");
+ALTER TABLE "tickets" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("username") ON DELETE SET NULL;
 
-ALTER TABLE "tickets" ADD FOREIGN KEY ("assigned_to") REFERENCES "users" ("username");
+ALTER TABLE "tickets" ADD FOREIGN KEY ("assigned_to") REFERENCES "users" ("username") ON DELETE SET NULL;
 
-ALTER TABLE "comments" ADD FOREIGN KEY ("ticket_id") REFERENCES "tickets" ("id");
+ALTER TABLE "comments" ADD FOREIGN KEY ("ticket_id") REFERENCES "tickets" ("id") ON DELETE CASCADE;
 
-ALTER TABLE "comments" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("username");
+ALTER TABLE "comments" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("username") ON DELETE SET NULL;

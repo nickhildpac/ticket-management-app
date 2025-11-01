@@ -16,6 +16,10 @@ type Claims struct {
 	Role string `json:"role"`
 }
 
+type RefreshClaims struct {
+	jwt.RegisteredClaims
+}
+
 type JWTUser struct {
 	Username  string `json:"username"`
 	FirstName string `json:"first_name"`
@@ -30,33 +34,31 @@ type TokenPairs struct {
 
 func GenerateTokenPair(conf *config.Config, user *JWTUser) (TokenPairs, error) {
 	// create a token
-	token := jwt.New(jwt.SigningMethodHS256)
-	// set the clains
-	claims := token.Claims.(jwt.MapClaims)
-	claims["name"] = fmt.Sprintf("%s %s", user.FirstName, user.LastName)
-	claims["sub"] = fmt.Sprint(user.Username)
-	claims["role"] = fmt.Sprint(user.Role)
-	claims["aud"] = conf.JWTAudience
-	claims["iss"] = conf.JWTIssuer
-	claims["iat"] = time.Now().UTC().Unix()
-	claims["typ"] = "JWT"
-
-	// set expiry for JWT
-	claims["exp"] = time.Now().UTC().Add(conf.TokenExpiry).Unix()
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.Username,
+			Issuer:    conf.JWTIssuer,
+			Audience:  jwt.ClaimStrings{conf.JWTAudience},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(conf.TokenExpiry)),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+		Role: user.Role,
+	})
 
 	// create a signed token
-	signedAccessToken, err := token.SignedString([]byte(conf.JWTSecret))
+	signedAccessToken, err := accessToken.SignedString([]byte(conf.JWTSecret))
 	if err != nil {
 		return TokenPairs{}, err
 	}
 
 	// create refresh token and set claims
-	refreshToken := jwt.New(jwt.SigningMethodHS256)
-	refreshTokenClaims := refreshToken.Claims.(jwt.MapClaims)
-	refreshTokenClaims["sub"] = fmt.Sprint(user.Username)
-	refreshTokenClaims["iat"] = time.Now().UTC().Unix()
-
-	refreshTokenClaims["exp"] = time.Now().UTC().Add(conf.RefreshExpiry).Unix()
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &RefreshClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.Username,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(conf.RefreshExpiry)),
+		},
+	})
 	// create signed refresh token
 	signedRefreshToken, err := refreshToken.SignedString([]byte(conf.JWTSecret))
 

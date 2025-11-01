@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -26,7 +26,7 @@ const LoginPage = () => {
       console.log(data)
       login(data.access_token, data.user.username)
     })
-  },[])
+  },[login])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

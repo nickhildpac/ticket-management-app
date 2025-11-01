@@ -19,7 +19,7 @@ func (repo *Repository) GetCommentsHandler(w http.ResponseWriter, r *http.Reques
 	id := r.PathValue("id")
 	tid, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err)
 	}
 	arg := db.ListCommentParams{
 		TicketID: tid,

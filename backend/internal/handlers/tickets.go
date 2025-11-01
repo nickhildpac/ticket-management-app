@@ -53,8 +53,13 @@ func (repo *Repository) GetTicketHandler(w http.ResponseWriter, r *http.Request)
 	tid, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err)
+		return
 	}
 	ticket, err := repo.Store.GetTicket(r.Context(), tid)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
 	resp := Ticket{
 		Title:       ticket.Title,
 		Description: ticket.Description,
@@ -63,10 +68,6 @@ func (repo *Repository) GetTicketHandler(w http.ResponseWriter, r *http.Request)
 		AssignedTo:  ticket.AssignedTo.String,
 		CreatedAt:   ticket.CreatedAt,
 		UpdatedAt:   ticket.UpdatedAt.Time,
-	}
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
-		return
 	}
 	writeJson(w, http.StatusOK, resp)
 }

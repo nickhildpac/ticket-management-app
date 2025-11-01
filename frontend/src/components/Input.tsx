@@ -1,4 +1,12 @@
-export const Input = ({ label, name, value, type, onChange }) => {
+interface Props {
+  label: string;
+  name: string;
+  value: string;
+  type: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+export const Input = ({ label, name, value, type, onChange }: Props) => {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700">{label}</label>

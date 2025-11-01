@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 import { Link, useNavigate } from "react-router";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 export default function SignupPage() {
   const {login} = useAuth();
@@ -30,7 +30,7 @@ export default function SignupPage() {
       console.log(data)
       login(data.access_token, data.user.username)
     })
-  },[])
+  },[login])
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password !== confirmPassword) {

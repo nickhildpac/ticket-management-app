@@ -1,24 +1,25 @@
-import { createContext, useState, useContext } from 'react';
+import { createContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
-interface AuthContextType {
+export interface AuthContextType {
   isAuthenticated: boolean;
   token: string;
-  user: string;
+  user: string | null;
   login: (token: string, user: string) => void;
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState("");
-  const [user, setUser] = useState("");
+  const [user, setUser] = useState<string | null>(null);
+  const isAuthenticated = token !== "";
 
   const login = (token: string, user: string) => {
     // In a real app, this would validate credentials and set tokens
-    setIsAuthenticated(true);
     setUser(user)
     setToken("Bearer " + token);
 
@@ -33,9 +34,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .then((res) => {
         console.log(res)
         if (res.ok) {
-          setIsAuthenticated(false);
           setToken("")
-          setUser("")
+          setUser(null)
         }
       })
 
@@ -46,12 +46,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };
