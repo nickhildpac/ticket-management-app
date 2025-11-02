@@ -30,7 +30,7 @@ func (repo *Repository) GetCommentsHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err)
 	}
-	writeJson(w, http.StatusOK, comments)
+	writeJSON(w, http.StatusOK, comments)
 }
 
 func (repo *Repository) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +44,7 @@ func (repo *Repository) GetCommentHandler(w http.ResponseWriter, r *http.Request
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusOK, comment)
+	writeJSON(w, http.StatusOK, comment)
 }
 
 func (repo *Repository) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
@@ -65,5 +65,5 @@ func (repo *Repository) CreateCommentHandler(w http.ResponseWriter, r *http.Requ
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusAccepted, comment)
+	writeJSON(w, http.StatusAccepted, comment)
 }

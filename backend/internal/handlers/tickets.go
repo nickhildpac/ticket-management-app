@@ -1,3 +1,4 @@
+// Package handlers consists of user and ticket controllers
 package handlers
 
 import (
@@ -31,8 +32,9 @@ func (repo *Repository) GetAllTicketsHandler(w http.ResponseWriter, r *http.Requ
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusOK, tickets)
+	writeJSON(w, http.StatusOK, tickets)
 }
+
 func (repo *Repository) GetTicketsHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(config.UsernameKey).(string)
 	arg := db.ListTicketsParams{
@@ -45,7 +47,7 @@ func (repo *Repository) GetTicketsHandler(w http.ResponseWriter, r *http.Request
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusOK, tickets)
+	writeJSON(w, http.StatusOK, tickets)
 }
 
 func (repo *Repository) GetTicketHandler(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +71,7 @@ func (repo *Repository) GetTicketHandler(w http.ResponseWriter, r *http.Request)
 		CreatedAt:   ticket.CreatedAt,
 		UpdatedAt:   ticket.UpdatedAt.Time,
 	}
-	writeJson(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (repo *Repository) CreateTicketHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,5 +93,5 @@ func (repo *Repository) CreateTicketHandler(w http.ResponseWriter, r *http.Reque
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusAccepted, ticket)
+	writeJSON(w, http.StatusAccepted, ticket)
 }

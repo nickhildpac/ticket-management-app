@@ -1,3 +1,4 @@
+// Package util contains helper fn used for jwt-tokens
 package util
 
 import (
@@ -61,18 +62,16 @@ func GenerateTokenPair(conf *config.Config, user *JWTUser) (TokenPairs, error) {
 	})
 	// create signed refresh token
 	signedRefreshToken, err := refreshToken.SignedString([]byte(conf.JWTSecret))
-
 	if err != nil {
 		return TokenPairs{}, err
 	}
 	// create token pair and populate signed token
-	var tokenPairs = TokenPairs{
+	tokenPairs := TokenPairs{
 		Token:        signedAccessToken,
 		RefreshToken: signedRefreshToken,
 	}
 	// return toke pair
 	return tokenPairs, nil
-
 }
 
 func GetExpiredRefreshCookie(conf *config.Config) *http.Cookie {
@@ -88,6 +87,7 @@ func GetExpiredRefreshCookie(conf *config.Config) *http.Cookie {
 		Secure:   true,
 	}
 }
+
 func GetRefreshCookie(conf *config.Config, refreshToken string) *http.Cookie {
 	return &http.Cookie{
 		Name:     conf.CookieName,

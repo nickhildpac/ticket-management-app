@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -27,7 +28,7 @@ func (repo *Repository) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	for _, cookie := range r.Cookies() {
 		if cookie.Name == repo.Config.CookieName {
 			cookieNotFound = false
-			claims := &util.Claims{}
+			claims := &util.RefreshClaims{}
 			refreshToken := cookie.Value
 			// parse token to get the claims
 			_, err := jwt.ParseWithClaims(refreshToken, claims, func(token *jwt.Token) (interface{}, error) {
@@ -57,7 +58,7 @@ func (repo *Repository) RefreshToken(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			http.SetCookie(w, util.GetRefreshCookie(repo.Config, tokenPairs.RefreshToken))
-			writeJson(w, http.StatusAccepted, struct {
+			writeJSON(w, http.StatusAccepted, struct {
 				AccessToken string       `json:"access_token"`
 				User        util.JWTUser `json:"user"`
 			}{
@@ -107,6 +108,7 @@ func (repo *Repository) Login(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+	log.Println(tokens.RefreshToken)
 	refreshCookie := util.GetRefreshCookie(repo.Config, tokens.RefreshToken)
 	rsp := struct {
 		AccessToken string       `json:"access_token"`
@@ -116,7 +118,7 @@ func (repo *Repository) Login(w http.ResponseWriter, r *http.Request) {
 		User:        u,
 	}
 	http.SetCookie(w, refreshCookie)
-	writeJson(w, http.StatusAccepted, rsp)
+	writeJSON(w, http.StatusAccepted, rsp)
 }
 
 func (repo *Repository) GetUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -126,7 +128,7 @@ func (repo *Repository) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, user)
 }
 
 func (repo *Repository) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -153,10 +155,10 @@ func (repo *Repository) CreateUserHandler(w http.ResponseWriter, r *http.Request
 		errorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJson(w, http.StatusAccepted, user)
+	writeJSON(w, http.StatusAccepted, user)
 }
 
-func writeJson(w http.ResponseWriter, status int, data any) {
+func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	err := json.NewEncoder(w).Encode(data)

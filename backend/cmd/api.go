@@ -18,7 +18,7 @@ func mount(conf *config.Config) http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middlewares.EnableCORS)
 
-	r.Route("/v1", func(r chi.Router) {
+	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handlers.Repo.HealthCheckHandler)
 		r.Post("/login", handlers.Repo.Login)
 		r.Get("/logout", handlers.Repo.Logout)
