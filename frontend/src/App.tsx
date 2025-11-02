@@ -9,35 +9,16 @@ import TicketList from "./pages/TicketList";
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
 import { useEffect } from "react";
-import { useAuth } from "./context/useAuth";
+import { useAppDispatch, useAppSelector } from "./hooks/redux";
+import { refreshToken } from "./store/slices/authSlice";
 
 function App() {
-  const {isAuthenticated,login} = useAuth();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
+
   useEffect(() => {
-    const requestOptions = {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json"
-      },
-    }
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/refresh`, {
-      ...requestOptions,
-      credentials: 'include' as RequestCredentials
-    })
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return res.json()
-    })
-    .then((data) => {
-      console.log(data)
-      login(data.access_token, data.user.username)
-    })
-    .catch((err) => {
-      console.error(err)
-    })
-  }, [login])
+    dispatch(refreshToken());
+  }, [dispatch]);
 
   return (
     <>
@@ -45,11 +26,11 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />}></Route>
         <Route path="/about" element={<AboutPage />}></Route>
-        <Route path="/create" element={isAuthenticated?<CreateTicket />: <LoginPage />}></Route>
-        <Route path="/login" element={isAuthenticated?<HomePage />: <LoginPage />}></Route>
-        <Route path="/signup" element={isAuthenticated?<HomePage />: <SignupPage />}></Route>
-        <Route path="/tickets" element={isAuthenticated?<TicketList />: <LoginPage />}></Route>
-        <Route path="/ticket/:id" element={isAuthenticated?<TicketDetails />: <LoginPage />}></Route>
+        <Route path="/create" element={isAuthenticated ? <CreateTicket /> : <LoginPage />}></Route>
+        <Route path="/login" element={isAuthenticated ? <HomePage /> : <LoginPage />}></Route>
+        <Route path="/signup" element={isAuthenticated ? <HomePage /> : <SignupPage />}></Route>
+        <Route path="/tickets" element={isAuthenticated ? <TicketList /> : <LoginPage />}></Route>
+        <Route path="/ticket/:id" element={isAuthenticated ? <TicketDetails /> : <LoginPage />}></Route>
       </Routes>
     </>
   );

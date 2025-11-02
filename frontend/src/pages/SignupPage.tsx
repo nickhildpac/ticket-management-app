@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 import { Link, useNavigate } from "react-router";
-import { useAuth } from "../context/useAuth";
 
 export default function SignupPage() {
-  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -28,9 +26,9 @@ export default function SignupPage() {
       .then((res) => res.json())
       .then((data) => {
         console.log(data)
-        login(data.access_token, data.user.username)
+        // login(data.access_token, data.user.username)
       })
-  }, [login])
+  }, [])
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password !== confirmPassword) {

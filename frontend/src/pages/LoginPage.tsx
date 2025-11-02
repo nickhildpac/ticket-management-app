@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { useAuth } from "../context/useAuth";
+import { useAppDispatch, useAppSelector } from "../hooks/redux";
+import { login } from "../store/slices/authSlice";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useAuth()
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +25,7 @@ const LoginPage = () => {
       .then((res) => res.json())
       .then((data) => {
         console.log(data)
-        login(data.access_token, data.user.username)
+        dispatch(login({ token: data.access_token, user: data.user.username }))
       })
   }, [login])
 
@@ -49,7 +50,7 @@ const LoginPage = () => {
         .then(data => {
           console.log(data)
           if (data && data.access_token) {
-            login(data.access_token, data.user.username)
+            dispatch(login({ token: data.access_token, user: data.user.username }))
             navigate('/');
           }
         })

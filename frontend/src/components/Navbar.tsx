@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/useAuth";
+import { useAppDispatch, useAppSelector } from "../hooks/redux";
+import { logoutAsync } from "../store/slices/authSlice";
 
 const Navbar = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const dispatch = useAppDispatch();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   return (
     <div className="flex justify-between items-center bg-gray-800 px-6 py-4">
@@ -32,7 +34,7 @@ const Navbar = () => {
           {isAuthenticated ? (
             <li>
               <button 
-                onClick={logout}
+                onClick={() => dispatch(logoutAsync())}
                 className="ml-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors"
               >
                 Logout

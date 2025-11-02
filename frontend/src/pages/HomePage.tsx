@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/useAuth';
+import { useAppSelector } from '../hooks/redux';
 
 const HomePage = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -11,17 +11,17 @@ const HomePage = () => {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl font-bold mb-4">Ticket Management System</h1>
           <p className="text-xl mb-8">Streamline your support process with our easy-to-use ticket system</p>
-          
+
           {isAuthenticated ? (
             <div className="flex justify-center gap-4">
-              <Link 
-                to="/create" 
+              <Link
+                to="/create"
                 className="bg-white text-indigo-700 px-6 py-3 rounded-md font-medium hover:bg-gray-100 transition-colors"
               >
                 Create New Ticket
               </Link>
-              <Link 
-                to="/tickets" 
+              <Link
+                to="/tickets"
                 className="bg-indigo-600 text-white px-6 py-3 rounded-md font-medium hover:bg-indigo-500 transition-colors"
               >
                 View Tickets
@@ -29,14 +29,14 @@ const HomePage = () => {
             </div>
           ) : (
             <div className="flex justify-center gap-4">
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="bg-white text-indigo-700 px-6 py-3 rounded-md font-medium hover:bg-gray-100 transition-colors"
               >
                 Login
               </Link>
-              <Link 
-                to="/signup" 
+              <Link
+                to="/signup"
                 className="bg-indigo-600 text-white px-6 py-3 rounded-md font-medium hover:bg-indigo-500 transition-colors"
               >
                 Sign Up
@@ -50,7 +50,7 @@ const HomePage = () => {
       <div className="py-16">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="text-indigo-600 mb-4">
@@ -61,7 +61,7 @@ const HomePage = () => {
               <h3 className="text-xl font-semibold mb-2">Ticket Management</h3>
               <p className="text-gray-600">Create, track, and manage support tickets in one centralized location.</p>
             </div>
-            
+
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="text-indigo-600 mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -71,7 +71,7 @@ const HomePage = () => {
               <h3 className="text-xl font-semibold mb-2">Communication</h3>
               <p className="text-gray-600">Seamless communication between support staff and users through ticket comments.</p>
             </div>
-            
+
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="text-indigo-600 mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">

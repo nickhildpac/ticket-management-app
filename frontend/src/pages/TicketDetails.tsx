@@ -2,80 +2,44 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { useAuth } from '../context/useAuth';
-
-interface ticket {
-  id: number;
-  title: string;
-  description: string;
-  created_by: string;
-  assigned_to: string;
-  priority: string;
-  status: string;
-  comments: [comment: {
-    id: number;
-    ticket_id: number;
-    description: string;
-    created_by: string;
-    created_at: string;
-  }]
-}
+import { useAppDispatch, useAppSelector } from '../hooks/redux';
+import { fetchTicketById } from '../store/slices/ticketsSlice';
+import { store } from '../store/store';
 
 const TicketDetails = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { token, user } = useAuth();
-
-  // Mock data for demonstration
-  const [ticket, setTicket] = useState<ticket>({
-    id: 0,
-    title: '',
-    description: '',
-    created_by: '',
-    assigned_to: '',
-    priority: '',
-    status: '',
-    comments: [{
-      id: 0,
-      ticket_id: 0,
-      description: '',
-      created_by: '',
-      created_at: '',
-    }]
-  });
+  const dispatch = useAppDispatch();
+  const { currentTicket, loading, error } = useAppSelector((state) => state.tickets);
 
   const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [comments, setComments] = useState<any[]>([]);
 
   // Fetch ticket data based on ID
   useEffect(() => {
-    // Simulate API call with setTimeout
-    const requestOptions = {
-      method: "GET",
-      headers: {
-        "Authorization": token
-      }
-    }
-    setTimeout(() => {
-      fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, requestOptions)
+    if (id) {
+      dispatch(fetchTicketById(Number(id)));
+
+      // Fetch comments separately
+      const token = store.getState().auth.token;
+      fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}/comments`, {
+        method: "GET",
+        headers: {
+          "Authorization": token
+        }
+      })
         .then((response) => response.json())
         .then((data) => {
-          console.log(data)
-          setTicket(prev => ({ ...prev, ...data }));
-          fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}/comments`, requestOptions)
-            .then((response) => response.json())
-            .then((data) => {
-              console.log(data)
-              setTicket(prev => ({ ...prev, comments: data }));
-              setLoading(false);
-            });
-        })
-    }, 500);
-  }, [id, token]);
+          setComments(data);
+        });
+    }
+  }, [id, dispatch]);
 
   const handleAddComment = () => {
     if (newComment.trim() === '') return;
 
+    const token = store.getState().auth.token;
+    const user = store.getState().auth.user;
     const comment = {
       id: -1,
       description: newComment,
@@ -83,7 +47,7 @@ const TicketDetails = () => {
       created_by: user, // In a real app, this would be the logged-in user
       created_at: new Date().toISOString(),
     };
-    console.log(comment)
+
     fetch(`${import.meta.env.VITE_SERVER_URL}/comment`, {
       method: "POST",
       headers: {
@@ -93,10 +57,7 @@ const TicketDetails = () => {
       body: JSON.stringify(comment)
     }).then((response) => response.json())
       .then((data) => {
-        console.log(data)
-        const newc = data
-        const comments = [...ticket.comments, newc] as unknown as typeof ticket.comments
-        setTicket({ ...ticket, comments });
+        setComments(prev => [...prev, data]);
         setNewComment("");
       })
   };
@@ -105,6 +66,22 @@ const TicketDetails = () => {
     return (
       <div className="container mx-auto px-4 py-8 flex justify-center items-center h-64">
         <p className="text-lg">Loading ticket details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-red-600">
+        Error: {error}
+      </div>
+    );
+  }
+
+  if (!currentTicket) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p className="text-lg">Ticket not found</p>
       </div>
     );
   }
@@ -124,22 +101,22 @@ const TicketDetails = () => {
       </div>
 
       <div className="bg-white shadow-md rounded-lg p-6">
-        <h1 className="text-2xl font-bold mb-4">{ticket.title}</h1>
+        <h1 className="text-2xl font-bold mb-4">{currentTicket.title}</h1>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
-            <p className="text-sm text-gray-500">Priority</p>
-            <p className="font-medium">{ticket.priority}</p>
+            <p className="text-sm text-gray-500">Created By</p>
+            <p className="font-medium">{currentTicket.created_by}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Assigned To</p>
-            <p className="font-medium">{ticket.assigned_to}</p>
+            <p className="font-medium">{currentTicket.assigned_to || 'Unassigned'}</p>
           </div>
         </div>
 
         <div className="mb-6">
           <p className="text-sm text-gray-500 mb-2">Description</p>
-          <p className="text-gray-700">{ticket.description}</p>
+          <p className="text-gray-700">{currentTicket.description}</p>
         </div>
 
         <div className="mb-6">
@@ -155,7 +132,7 @@ const TicketDetails = () => {
           <h2 className="text-lg font-semibold mb-4">Comments</h2>
 
           <div className="space-y-4 mb-6">
-            {ticket.comments && ticket.comments.map((comment) => (
+            {comments && comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 p-4 rounded">
                 <div className="flex justify-between mb-2">
                   <p className="font-medium">{comment.created_by}</p>

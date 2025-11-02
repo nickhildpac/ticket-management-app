@@ -1,40 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/useAuth';
-
-interface ticket {
-  id: number;
-  title: string;
-  description: string;
-  created_by: string;
-  assignedTo: string;
-  priority: string;
-  status: string;
-}
+import { useAppDispatch, useAppSelector } from '../hooks/redux';
+import { fetchTickets } from '../store/slices/ticketsSlice';
 
 const TicketList = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
-  const [tickets, setTickets] = useState<ticket[]>([]);
-
+  const dispatch = useAppDispatch();
+  const { tickets, loading, error } = useAppSelector((state) => state.tickets);
+  console.log(tickets)
   const handleRowClick = (ticketId: number) => {
     navigate(`/ticket/${ticketId}`);
   };
 
   useEffect(() => {
-    console.log(token)
-    const requestOptions = {
-      method: "GET",
-      headers: {
-        "Authorization": token
-      }
-    }
-    fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/all`, requestOptions)
-      .then((response) => response.json())
-      .then((data) => {
-        setTickets(data);
-      });
-  }, [token]);
+    dispatch(fetchTickets());
+  }, [dispatch]);
+
+  if (loading) {
+    return <div className="container mx-auto px-4 py-8">Loading tickets...</div>;
+  }
+
+  if (error) {
+    return <div className="container mx-auto px-4 py-8 text-red-600">Error: {error}</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -60,7 +48,7 @@ const TicketList = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {tickets.map((ticket) => (
-              <tr
+              < tr
                 key={ticket.id}
                 onClick={() => handleRowClick(ticket.id)}
                 className="hover:bg-gray-100 cursor-pointer"
@@ -72,22 +60,14 @@ const TicketList = () => {
                   <div className="text-sm text-gray-500 truncate max-w-xs">{ticket.description}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{ticket.assignedTo}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ticket.priority === 'High' ? 'bg-red-100 text-red-800' :
-                      ticket.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                    }`}>
-                    {ticket.priority}
-                  </span>
+                  <div className="text-sm text-gray-900">{'Unassigned'}</div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </div >
   );
 };
 
