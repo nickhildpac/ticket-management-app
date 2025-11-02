@@ -27,9 +27,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     // In a real app, this would clear tokens
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/logout`,{
-      method:"GET",
-      credentials:"include"
+    fetch(`${import.meta.env.VITE_SERVER_URL}/logout`, {
+      method: "GET",
+      credentials: "include"
     })
       .then((res) => {
         console.log(res)
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated,user, token, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, token, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

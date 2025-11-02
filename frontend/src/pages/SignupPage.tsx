@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { useAuth } from "../context/useAuth";
 
 export default function SignupPage() {
-  const {login} = useAuth();
+  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -21,16 +21,16 @@ export default function SignupPage() {
         "Content-Type": "application/json"
       },
     }
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/refresh`, {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/refresh`, {
       ...requestOptions,
       credentials: 'include' as RequestCredentials
     })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data)
-      login(data.access_token, data.user.username)
-    })
-  },[login])
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data)
+        login(data.access_token, data.user.username)
+      })
+  }, [login])
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -44,19 +44,19 @@ export default function SignupPage() {
       email: email,
       password: password,
     };
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/user`, {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(user),
     })
-    .then((response) => {
-      if (response.ok) {
-        alert("User created successfully");
-        navigate("/");
-      }
-    })
+      .then((response) => {
+        if (response.ok) {
+          alert("User created successfully");
+          navigate("/");
+        }
+      })
   };
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -107,7 +107,7 @@ export default function SignupPage() {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
             />
           </div>
-          <Button label="Signup" onClick={handleSubmit} />
+          <Button label="Signup" onClick={() => { }} />
           <div className="text-sm text-center mt-4">
             <p>
               Already have an account?{" "}

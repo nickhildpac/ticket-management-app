@@ -17,16 +17,16 @@ const LoginPage = () => {
         "Content-Type": "application/json"
       },
     }
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/refresh`, {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/refresh`, {
       ...requestOptions,
       credentials: 'include' as RequestCredentials
     })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data)
-      login(data.access_token, data.user.username)
-    })
-  },[login])
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data)
+        login(data.access_token, data.user.username)
+      })
+  }, [login])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,7 +37,7 @@ const LoginPage = () => {
       password
     }
     if (username && password) {
-      fetch(`${import.meta.env.VITE_SERVER_URL}/v1/login`, {
+      fetch(`${import.meta.env.VITE_SERVER_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

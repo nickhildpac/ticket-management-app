@@ -24,8 +24,8 @@ interface ticket {
 const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const {token,user} = useAuth();
-  
+  const { token, user } = useAuth();
+
   // Mock data for demonstration
   const [ticket, setTicket] = useState<ticket>({
     id: 0,
@@ -57,16 +57,16 @@ const TicketDetails = () => {
       }
     }
     setTimeout(() => {
-      fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket/${id}`,requestOptions)
+      fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, requestOptions)
         .then((response) => response.json())
         .then((data) => {
           console.log(data)
-          setTicket(prev => ({...prev, ...data}));
-          fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket/${id}/comments`,requestOptions)
+          setTicket(prev => ({ ...prev, ...data }));
+          fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}/comments`, requestOptions)
             .then((response) => response.json())
             .then((data) => {
               console.log(data)
-              setTicket(prev => ({...prev, comments: data}));
+              setTicket(prev => ({ ...prev, comments: data }));
               setLoading(false);
             });
         })
@@ -75,7 +75,7 @@ const TicketDetails = () => {
 
   const handleAddComment = () => {
     if (newComment.trim() === '') return;
-    
+
     const comment = {
       id: -1,
       description: newComment,
@@ -84,7 +84,7 @@ const TicketDetails = () => {
       created_at: new Date().toISOString(),
     };
     console.log(comment)
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/comment`, {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/comment`, {
       method: "POST",
       headers: {
         "Authorization": token,
@@ -96,7 +96,7 @@ const TicketDetails = () => {
         console.log(data)
         const newc = data
         const comments = [...ticket.comments, newc] as unknown as typeof ticket.comments
-        setTicket({...ticket, comments});
+        setTicket({ ...ticket, comments });
         setNewComment("");
       })
   };
@@ -112,8 +112,8 @@ const TicketDetails = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-4">
-        <button 
-          onClick={() => navigate('/tickets')} 
+        <button
+          onClick={() => navigate('/tickets')}
           className="text-blue-600 hover:text-blue-800 flex items-center"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -122,10 +122,10 @@ const TicketDetails = () => {
           Back to Tickets
         </button>
       </div>
-      
+
       <div className="bg-white shadow-md rounded-lg p-6">
         <h1 className="text-2xl font-bold mb-4">{ticket.title}</h1>
-        
+
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
             <p className="text-sm text-gray-500">Priority</p>
@@ -136,12 +136,12 @@ const TicketDetails = () => {
             <p className="font-medium">{ticket.assigned_to}</p>
           </div>
         </div>
-        
+
         <div className="mb-6">
           <p className="text-sm text-gray-500 mb-2">Description</p>
           <p className="text-gray-700">{ticket.description}</p>
         </div>
-        
+
         <div className="mb-6">
           <p className="text-sm text-gray-500 mb-2">Skills</p>
           <div className="flex flex-wrap gap-2">
@@ -150,10 +150,10 @@ const TicketDetails = () => {
             ))} */}
           </div>
         </div>
-        
+
         <div className="border-t pt-6">
           <h2 className="text-lg font-semibold mb-4">Comments</h2>
-          
+
           <div className="space-y-4 mb-6">
             {ticket.comments && ticket.comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 p-4 rounded">
@@ -161,11 +161,11 @@ const TicketDetails = () => {
                   <p className="font-medium">{comment.created_by}</p>
                   <p className="text-sm text-gray-500">{comment.created_at}</p>
                 </div>
-                 <p>{comment.description}</p>
-               </div>
+                <p>{comment.description}</p>
+              </div>
             ))}
           </div>
-          
+
           <div className="mt-4">
             <Input
               type="text"

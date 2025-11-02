@@ -14,7 +14,7 @@ interface ticket {
 
 const TicketList = () => {
   const navigate = useNavigate();
-  const {token} = useAuth();
+  const { token } = useAuth();
   const [tickets, setTickets] = useState<ticket[]>([]);
 
   const handleRowClick = (ticketId: number) => {
@@ -29,7 +29,7 @@ const TicketList = () => {
         "Authorization": token
       }
     }
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket/all`,requestOptions)
+    fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/all`, requestOptions)
       .then((response) => response.json())
       .then((data) => {
         setTickets(data);
@@ -39,7 +39,7 @@ const TicketList = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Tickets</h1>
-      
+
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -60,8 +60,8 @@ const TicketList = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {tickets.map((ticket) => (
-              <tr 
-                key={ticket.id} 
+              <tr
+                key={ticket.id}
                 onClick={() => handleRowClick(ticket.id)}
                 className="hover:bg-gray-100 cursor-pointer"
               >
@@ -75,11 +75,10 @@ const TicketList = () => {
                   <div className="text-sm text-gray-900">{ticket.assignedTo}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    ticket.priority === 'High' ? 'bg-red-100 text-red-800' : 
-                    ticket.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-green-100 text-green-800'
-                  }`}>
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ticket.priority === 'High' ? 'bg-red-100 text-red-800' :
+                      ticket.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                    }`}>
                     {ticket.priority}
                   </span>
                 </td>

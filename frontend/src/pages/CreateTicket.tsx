@@ -7,7 +7,7 @@ import { useAuth } from "../context/useAuth";
 const CreateTicket = () => {
   const [description, setDescription] = useState("");
   const [title, setTitle] = useState("");
-  const {token} = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -17,7 +17,7 @@ const CreateTicket = () => {
       description: description,
       created_by: "dpac"
     };
-    fetch(`${import.meta.env.VITE_SERVER_URL}/v1/ticket`, {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/ticket`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -25,12 +25,12 @@ const CreateTicket = () => {
       },
       body: JSON.stringify(ticket),
     })
-    .then((response) => {
-      if (response.ok) {
-        alert("Ticket created successfully");
-        navigate("/tickets");
-      }
-    })
+      .then((response) => {
+        if (response.ok) {
+          alert("Ticket created successfully");
+          navigate("/tickets");
+        }
+      })
   };
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -53,7 +53,7 @@ const CreateTicket = () => {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
             />
           </div>
-          <Button label="Create ticket" onClick={() => {}} />
+          <Button label="Create ticket" onClick={() => { }} />
         </form>
       </div>
     </div>
