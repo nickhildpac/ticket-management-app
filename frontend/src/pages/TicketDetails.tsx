@@ -100,27 +100,27 @@ const TicketDetails = () => {
         </button>
       </div>
 
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h1 className="text-2xl font-bold mb-4">{currentTicket.title}</h1>
+      <div className="bg-white shadow-md rounded-lg p-6 dark:bg-gray-800 transition-colors duration-200">
+        <h1 className="text-2xl font-bold mb-4 dark:text-white">{currentTicket.title}</h1>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
-            <p className="text-sm text-gray-500">Created By</p>
-            <p className="font-medium">{currentTicket.created_by}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Created By</p>
+            <p className="font-medium dark:text-white">{currentTicket.created_by}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Assigned To</p>
-            <p className="font-medium">{currentTicket.assigned_to || 'Unassigned'}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Assigned To</p>
+            <p className="font-medium dark:text-white">{currentTicket.assigned_to || 'Unassigned'}</p>
           </div>
         </div>
 
         <div className="mb-6">
-          <p className="text-sm text-gray-500 mb-2">Description</p>
-          <p className="text-gray-700">{currentTicket.description}</p>
+          <p className="text-sm text-gray-500 mb-2 dark:text-gray-400">Description</p>
+          <p className="text-gray-700 dark:text-gray-300">{currentTicket.description}</p>
         </div>
 
         <div className="mb-6">
-          <p className="text-sm text-gray-500 mb-2">Skills</p>
+          <p className="text-sm text-gray-500 mb-2 dark:text-gray-400">Skills</p>
           <div className="flex flex-wrap gap-2">
             {/* {ticket.skills.map((skill, index) => (
               <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{skill}</span>
@@ -128,17 +128,17 @@ const TicketDetails = () => {
           </div>
         </div>
 
-        <div className="border-t pt-6">
-          <h2 className="text-lg font-semibold mb-4">Comments</h2>
+        <div className="border-t pt-6 dark:border-gray-700">
+          <h2 className="text-lg font-semibold mb-4 dark:text-white">Comments</h2>
 
           <div className="space-y-4 mb-6">
             {comments && comments.map((comment) => (
-              <div key={comment.id} className="bg-gray-50 p-4 rounded">
+              <div key={comment.id} className="bg-gray-50 p-4 rounded dark:bg-gray-700">
                 <div className="flex justify-between mb-2">
-                  <p className="font-medium">{comment.created_by}</p>
-                  <p className="text-sm text-gray-500">{comment.created_at}</p>
+                  <p className="font-medium dark:text-white">{comment.created_by}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{comment.created_at}</p>
                 </div>
-                <p>{comment.description}</p>
+                <p className="dark:text-gray-300">{comment.description}</p>
               </div>
             ))}
           </div>
@@ -151,7 +151,7 @@ const TicketDetails = () => {
               value={newComment}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewComment(e.target.value)}
             />
-            <div className="mt-2">
+            <div className="mt-2 flex justify-start">
               <Button label="Add Comment" onClick={handleAddComment} />
             </div>
           </div>

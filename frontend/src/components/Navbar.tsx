@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../hooks/redux";
 import { logoutAsync } from "../store/slices/authSlice";
+import { useDarkMode } from "../hooks/useDarkMode";
 
 const Navbar = () => {
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   return (
-    <div className="flex justify-between items-center bg-gray-800 px-6 py-4">
+    <div className="flex justify-between items-center bg-gray-800 px-6 py-4 transition-colors duration-200 dark:bg-gray-900">
       <div className="flex items-center">
         <Link to="/" className="flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
@@ -16,7 +18,7 @@ const Navbar = () => {
           <span className="ml-2 text-xl font-bold text-white">Ticket Management</span>
         </Link>
       </div>
-      
+
       <nav>
         <ul className="flex gap-6 items-center">
           <li>
@@ -31,9 +33,26 @@ const Navbar = () => {
           <li>
             <Link to="/about" className="text-white hover:text-indigo-300 transition-colors">About</Link>
           </li>
+          <li>
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-full text-white hover:bg-gray-700 transition-colors focus:outline-none"
+              aria-label="Toggle dark mode"
+            >
+              {isDarkMode ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+          </li>
           {isAuthenticated ? (
             <li>
-              <button 
+              <button
                 onClick={() => dispatch(logoutAsync())}
                 className="ml-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors"
               >
@@ -42,7 +61,7 @@ const Navbar = () => {
             </li>
           ) : (
             <li>
-              <Link 
+              <Link
                 to="/login"
                 className="ml-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors"
               >
