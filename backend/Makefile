@@ -5,13 +5,13 @@ createdb:
 dropdb:
 	docker exec -it ticketmgmt dropdb ticket_management
 migrateup:
-	migrate -path internal/db/migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose up
+	migrate -path migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose up
 migratedown:
-	migrate -path internal/db/migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose down
+	migrate -path migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose down
 migrateup1:
-	migrate -path internal/db/migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose up 1
+	migrate -path migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose up 1
 migratedown1:
-	migrate -path internal/db/migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose down 1
+	migrate -path migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose down 1
 sqlc:
 	sqlc generate
 test:
