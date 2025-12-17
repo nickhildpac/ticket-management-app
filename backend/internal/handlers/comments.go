@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nickhildpac/ticket-management-app/internal/config"
+	"github.com/nickhildpac/ticket-management-app/configs"
 	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
 )
 
@@ -49,7 +49,7 @@ func (repo *Repository) GetCommentHandler(w http.ResponseWriter, r *http.Request
 
 func (repo *Repository) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	var payload Comment
-	username := r.Context().Value(config.UsernameKey).(string)
+	username := r.Context().Value(configs.UsernameKey).(string)
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		errorResponse(w, http.StatusBadRequest, err)

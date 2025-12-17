@@ -5,12 +5,12 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
-	"github.com/nickhildpac/ticket-management-app/internal/config"
+	"github.com/nickhildpac/ticket-management-app/configs"
 	"github.com/nickhildpac/ticket-management-app/internal/handlers"
 	"github.com/nickhildpac/ticket-management-app/internal/middlewares"
 )
 
-func mount(conf *config.Config) http.Handler {
+func mount(conf *configs.Config) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)

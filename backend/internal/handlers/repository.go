@@ -3,18 +3,18 @@ package handlers
 import (
 	"log"
 
-	"github.com/nickhildpac/ticket-management-app/internal/config"
+	"github.com/nickhildpac/ticket-management-app/configs"
 	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
 )
 
 type Repository struct {
-	Config *config.Config
+	Config *configs.Config
 	Store  db.Store
 }
 
 var Repo *Repository
 
-func NewRepo(config *config.Config, store db.Store) *Repository {
+func NewRepo(config *configs.Config, store db.Store) *Repository {
 	log.Println(config)
 	return &Repository{
 		Config: config,

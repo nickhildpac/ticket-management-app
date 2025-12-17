@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nickhildpac/ticket-management-app/internal/config"
+	config "github.com/nickhildpac/ticket-management-app/configs"
 	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
 )
 

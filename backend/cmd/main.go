@@ -7,13 +7,13 @@ import (
 	"net/http"
 
 	_ "github.com/lib/pq"
-	"github.com/nickhildpac/ticket-management-app/internal/config"
+	"github.com/nickhildpac/ticket-management-app/configs"
 	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
 	"github.com/nickhildpac/ticket-management-app/internal/handlers"
 )
 
 func main() {
-	conf, err := config.LoadConfig()
+	conf, err := configs.LoadConfig()
 	if err != nil {
 		log.Fatal("failed to load config ", err)
 	}

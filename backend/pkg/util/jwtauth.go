@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/nickhildpac/ticket-management-app/internal/config"
+	"github.com/nickhildpac/ticket-management-app/configs"
 )
 
 type Claims struct {
@@ -33,7 +33,7 @@ type TokenPairs struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func GenerateTokenPair(conf *config.Config, user *JWTUser) (TokenPairs, error) {
+func GenerateTokenPair(conf *configs.Config, user *JWTUser) (TokenPairs, error) {
 	// create a token
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -74,7 +74,7 @@ func GenerateTokenPair(conf *config.Config, user *JWTUser) (TokenPairs, error) {
 	return tokenPairs, nil
 }
 
-func GetExpiredRefreshCookie(conf *config.Config) *http.Cookie {
+func GetExpiredRefreshCookie(conf *configs.Config) *http.Cookie {
 	return &http.Cookie{
 		Name:     conf.CookieName,
 		Path:     conf.CookiePath,
@@ -88,7 +88,7 @@ func GetExpiredRefreshCookie(conf *config.Config) *http.Cookie {
 	}
 }
 
-func GetRefreshCookie(conf *config.Config, refreshToken string) *http.Cookie {
+func GetRefreshCookie(conf *configs.Config, refreshToken string) *http.Cookie {
 	return &http.Cookie{
 		Name:     conf.CookieName,
 		Path:     conf.CookiePath,
@@ -102,7 +102,7 @@ func GetRefreshCookie(conf *config.Config, refreshToken string) *http.Cookie {
 	}
 }
 
-func GetTokenFromHeaderAndVerify(conf *config.Config, w http.ResponseWriter, r *http.Request) (*Claims, error) {
+func GetTokenFromHeaderAndVerify(conf *configs.Config, w http.ResponseWriter, r *http.Request) (*Claims, error) {
 	w.Header().Add("Vary", "Authorization")
 	// get auth header
 	authHeader := r.Header.Get("Authorization")

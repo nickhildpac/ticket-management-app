@@ -1,3 +1,6 @@
 GEMINI.md
 WARP.md
 .gemini
+.gemini/
+gha-creds-*.json
+.vscode/
