@@ -3,14 +3,14 @@ package http
 import (
 	"net/http"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nickhildpac/ticket-management-app/configs"
+	"github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
 	middlewares "github.com/nickhildpac/ticket-management-app/internal/adapters/http/middleware"
-	"github.com/nickhildpac/ticket-management-app/internal/handlers"
 )
 
-func Router(conf *configs.Config) http.Handler {
+func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -19,22 +19,24 @@ func Router(conf *configs.Config) http.Handler {
 	r.Use(middlewares.EnableCORS)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/health", handlers.Repo.HealthCheckHandler)
-		r.Post("/login", handlers.Repo.Login)
-		r.Get("/logout", handlers.Repo.Logout)
-		r.Post("/user", handlers.Repo.CreateUserHandler)
-		r.Get("/user/{username}", handlers.Repo.GetUserHandler)
-		r.Get("/refresh", handlers.Repo.RefreshToken)
+		r.Get("/health", h.HealthCheck)
+		r.Post("/login", h.Login)
+		r.Get("/logout", h.Logout)
+		r.Post("/user", h.CreateUser)
+		r.Get("/user/{username}", h.GetUser)
+		r.Get("/refresh", h.RefreshToken)
+
 		r.Route("/ticket", func(mux chi.Router) {
 			mux.Use(middlewares.AuthRequired(conf))
-			mux.Get("/all", handlers.Repo.GetTicketsHandler)
-			mux.Post("/", handlers.Repo.CreateTicketHandler)
-			mux.Get("/{id}", handlers.Repo.GetTicketHandler)
-			mux.Get("/{id}/comments", handlers.Repo.GetCommentsHandler)
+			mux.Get("/all", h.GetTickets)
+			mux.Post("/", h.CreateTicket)
+			mux.Get("/{id}", h.GetTicket)
+			mux.Get("/{id}/comments", h.GetComments)
 		})
-		r.With(middlewares.AdminRequired(conf)).Get("/admin/tickets", handlers.Repo.GetAllTicketsHandler)
-		r.With(middlewares.AuthRequired(conf)).Post("/comment", handlers.Repo.CreateCommentHandler)
-		r.Get("/comment/{id}", handlers.Repo.GetCommentHandler)
+
+		r.With(middlewares.AdminRequired(conf)).Get("/admin/tickets", h.GetAllTickets)
+		r.With(middlewares.AuthRequired(conf)).Post("/comment", h.CreateComment)
+		r.Get("/comment/{id}", h.GetComment)
 	})
 	return r
 }

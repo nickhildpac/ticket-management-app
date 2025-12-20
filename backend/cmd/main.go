@@ -8,8 +8,11 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/nickhildpac/ticket-management-app/configs"
-	db "github.com/nickhildpac/ticket-management-app/internal/db/sqlc"
-	"github.com/nickhildpac/ticket-management-app/internal/handlers"
+	adapterdb "github.com/nickhildpac/ticket-management-app/internal/adapters/db"
+	sqldb "github.com/nickhildpac/ticket-management-app/internal/adapters/db/sqlc"
+	httpadapter "github.com/nickhildpac/ticket-management-app/internal/adapters/http"
+	httphandlers "github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
+	"github.com/nickhildpac/ticket-management-app/internal/usecase"
 )
 
 func main() {
@@ -22,11 +25,20 @@ func main() {
 		log.Fatal("failed to connect to db ", err)
 	}
 	log.Println("DB connected successfully")
-	store := db.NewStore(conn)
-	repo := handlers.NewRepo(conf, store)
-	handlers.NewHandlers(repo)
+
+	store := sqldb.NewStore(conn)
+	userRepo := adapterdb.NewUserRepository(store)
+	ticketRepo := adapterdb.NewTicketRepository(store)
+	commentRepo := adapterdb.NewCommentRepository(store)
+
+	userSvc := usecase.NewUserService(userRepo)
+	ticketSvc := usecase.NewTicketService(ticketRepo)
+	commentSvc := usecase.NewCommentService(commentRepo)
+
+	handler := httphandlers.NewHandler(conf, userSvc, ticketSvc, commentSvc)
+
 	log.Printf("server is listening on port %d ", conf.ADDR)
-	err = http.ListenAndServe(fmt.Sprintf(":%d", conf.ADDR), mount(conf))
+	err = http.ListenAndServe(fmt.Sprintf(":%d", conf.ADDR), httpadapter.Router(conf, handler))
 	if err != nil {
 		log.Fatal(err)
 	}
