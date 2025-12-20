@@ -44,11 +44,17 @@ const TicketList = () => {
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
                 Priority
               </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                Created By
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                Created At
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
             {tickets.map((ticket) => (
-              < tr
+              <tr
                 key={ticket.id}
                 onClick={() => handleRowClick(ticket.id)}
                 className="hover:bg-gray-100 cursor-pointer dark:hover:bg-gray-700 transition-colors duration-150"
@@ -60,7 +66,16 @@ const TicketList = () => {
                   <div className="text-sm text-gray-500 truncate max-w-xs dark:text-gray-400">{ticket.description}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">{'Unassigned'}</div>
+                  <div className="text-sm text-gray-900 dark:text-white">{ticket.assigned_to || 'Unassigned'}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">-</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">{ticket.created_by}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">{new Date(ticket.created_at).toLocaleString()}</div>
                 </td>
               </tr>
             ))}

@@ -27,7 +27,7 @@ const LoginPage = () => {
         console.log(data)
         dispatch(login({ token: data.access_token, user: data.user.username }))
       })
-  }, [login])
+  }, [dispatch])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
