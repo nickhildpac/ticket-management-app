@@ -24,6 +24,8 @@ type Ticket struct {
 	AssignedTo  sql.NullString `json:"assigned_to"`
 	Title       string         `json:"title"`
 	Description string         `json:"description"`
+	State       int32          `json:"state"`
+	Priority    int32          `json:"priority"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }

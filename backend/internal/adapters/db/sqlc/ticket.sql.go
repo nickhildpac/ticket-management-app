@@ -11,7 +11,7 @@ import (
 )
 
 const createTicket = `-- name: CreateTicket :one
-INSERT INTO tickets (title, description, created_by ) VALUES ($1, $2, $3) RETURNING id, created_by, assigned_to, title, description, created_at, updated_at
+INSERT INTO tickets (title, description, created_by ) VALUES ($1, $2, $3) RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at
 `
 
 type CreateTicketParams struct {
@@ -29,6 +29,8 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.AssignedTo,
 		&i.Title,
 		&i.Description,
+		&i.State,
+		&i.Priority,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -45,7 +47,7 @@ func (q *Queries) DeleteTicket(ctx context.Context, id int64) error {
 }
 
 const getTicket = `-- name: GetTicket :one
-SELECT id, created_by, assigned_to, title, description, created_at, updated_at FROM tickets WHERE id = $1 LIMIT 1
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetTicket(ctx context.Context, id int64) (Ticket, error) {
@@ -57,6 +59,8 @@ func (q *Queries) GetTicket(ctx context.Context, id int64) (Ticket, error) {
 		&i.AssignedTo,
 		&i.Title,
 		&i.Description,
+		&i.State,
+		&i.Priority,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -64,7 +68,7 @@ func (q *Queries) GetTicket(ctx context.Context, id int64) (Ticket, error) {
 }
 
 const listAllTickets = `-- name: ListAllTickets :many
-SELECT id, created_by, assigned_to, title, description, created_at, updated_at FROM tickets ORDER BY id LIMIT $1 OFFSET $2
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets ORDER BY id LIMIT $1 OFFSET $2
 `
 
 type ListAllTicketsParams struct {
@@ -87,6 +91,8 @@ func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) 
 			&i.AssignedTo,
 			&i.Title,
 			&i.Description,
+			&i.State,
+			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -104,7 +110,7 @@ func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) 
 }
 
 const listTickets = `-- name: ListTickets :many
-SELECT id, created_by, assigned_to, title, description, created_at, updated_at FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3
 `
 
 type ListTicketsParams struct {
@@ -128,6 +134,8 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 			&i.AssignedTo,
 			&i.Title,
 			&i.Description,
+			&i.State,
+			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -145,7 +153,7 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 }
 
 const listTicketsAssigned = `-- name: ListTicketsAssigned :many
-SELECT id, created_by, assigned_to, title, description, created_at, updated_at FROM tickets WHERE assigned_to=$1 ORDER BY id LIMIT $2 OFFSET $3
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets WHERE assigned_to=$1 ORDER BY id LIMIT $2 OFFSET $3
 `
 
 type ListTicketsAssignedParams struct {
@@ -169,6 +177,8 @@ func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssign
 			&i.AssignedTo,
 			&i.Title,
 			&i.Description,
+			&i.State,
+			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

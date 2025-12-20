@@ -15,6 +15,8 @@ CREATE TABLE "tickets" (
   "assigned_to" varchar,
   "title" varchar NOT NULL,
   "description" varchar NOT NULL,
+  "state" INT NOT NULL DEFAULT 1,
+  "priority" INT NOT NULL DEFAULT 4,
   "created_at" timestamptz NOT NULL DEFAULT (now()),
   "updated_at" timestamptz
 );

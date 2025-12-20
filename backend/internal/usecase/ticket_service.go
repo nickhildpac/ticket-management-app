@@ -28,6 +28,8 @@ func (s *TicketService) GetTicket(ctx context.Context, id int64) (*domain.Ticket
 }
 
 func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
+	ticket.State = domain.TicketStateOpen
+	ticket.Priority = domain.TicketPriorityLow
 	return s.repo.Create(ctx, ticket)
 }
 
