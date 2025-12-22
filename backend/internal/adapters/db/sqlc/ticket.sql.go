@@ -67,6 +67,84 @@ func (q *Queries) GetTicket(ctx context.Context, id int64) (Ticket, error) {
 	return i, err
 }
 
+const getTicketsByAssignee = `-- name: GetTicketsByAssignee :many
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets
+WHERE assigned_to = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetTicketsByAssignee(ctx context.Context, assignedTo sql.NullString) ([]Ticket, error) {
+	rows, err := q.db.QueryContext(ctx, getTicketsByAssignee, assignedTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Ticket{}
+	for rows.Next() {
+		var i Ticket
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedBy,
+			&i.AssignedTo,
+			&i.Title,
+			&i.Description,
+			&i.State,
+			&i.Priority,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTicketsByCreator = `-- name: GetTicketsByCreator :many
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets
+WHERE created_by = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy string) ([]Ticket, error) {
+	rows, err := q.db.QueryContext(ctx, getTicketsByCreator, createdBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Ticket{}
+	for rows.Next() {
+		var i Ticket
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedBy,
+			&i.AssignedTo,
+			&i.Title,
+			&i.Description,
+			&i.State,
+			&i.Priority,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAllTickets = `-- name: ListAllTickets :many
 SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets ORDER BY id LIMIT $1 OFFSET $2
 `
@@ -193,4 +271,52 @@ func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssign
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateTicket = `-- name: UpdateTicket :one
+UPDATE tickets
+SET 
+    title = $2,
+    description = $3,
+    state = $4,
+    priority = $5,
+    assigned_to = $6,
+    updated_at = $7
+WHERE id = $1
+RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at
+`
+
+type UpdateTicketParams struct {
+	ID          int64          `json:"id"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	State       int32          `json:"state"`
+	Priority    int32          `json:"priority"`
+	AssignedTo  sql.NullString `json:"assigned_to"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error) {
+	row := q.db.QueryRowContext(ctx, updateTicket,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.State,
+		arg.Priority,
+		arg.AssignedTo,
+		arg.UpdatedAt,
+	)
+	var i Ticket
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedBy,
+		&i.AssignedTo,
+		&i.Title,
+		&i.Description,
+		&i.State,
+		&i.Priority,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

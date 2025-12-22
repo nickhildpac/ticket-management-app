@@ -1,17 +1,17 @@
-package usecase
+package service
 
 import (
 	"context"
 
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
-	"github.com/nickhildpac/ticket-management-app/internal/usecase/port"
+	"github.com/nickhildpac/ticket-management-app/internal/ports"
 )
 
 type CommentService struct {
-	repo port.CommentRepository
+	repo ports.CommentRepository
 }
 
-func NewCommentService(r port.CommentRepository) *CommentService {
+func NewCommentService(r ports.CommentRepository) *CommentService {
 	return &CommentService{repo: r}
 }
 
@@ -26,5 +26,3 @@ func (s *CommentService) GetComment(ctx context.Context, id int64) (*domain.Comm
 func (s *CommentService) CreateComment(ctx context.Context, comment domain.Comment) (*domain.Comment, error) {
 	return s.repo.Create(ctx, comment)
 }
-
-var _ port.CommentService = (*CommentService)(nil)

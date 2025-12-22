@@ -26,7 +26,7 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	refreshCookie, err := r.Cookie(h.config.CookieName)
 	if err != nil {
-		errorResponse(w, http.StatusUnauthorized, errors.New("missing refresh token"))
+		util.ErrorResponse(w, http.StatusUnauthorized, errors.New("missing refresh token"))
 		return
 	}
 
@@ -36,13 +36,13 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return []byte(h.config.JWTSecret), nil
 	})
 	if err != nil {
-		errorResponse(w, http.StatusUnauthorized, err)
+		util.ErrorResponse(w, http.StatusUnauthorized, err)
 		return
 	}
 
 	user, err := h.userService.GetUser(r.Context(), claims.Subject)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -55,12 +55,12 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 	tokenPairs, err := util.GenerateTokenPair(h.config, &u)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	http.SetCookie(w, util.GetRefreshCookie(h.config, tokenPairs.RefreshToken))
-	writeJSON(w, http.StatusAccepted, struct {
+	util.WriteResponse(w, http.StatusAccepted, struct {
 		AccessToken string       `json:"access_token"`
 		User        util.JWTUser `json:"user"`
 	}{
@@ -80,17 +80,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&requestPayload); err != nil {
-		errorResponse(w, http.StatusBadRequest, err)
+		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
 	user, err := h.userService.GetUser(r.Context(), requestPayload.Username)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	if err = util.CheckPassword(user.HashedPassword, requestPayload.Password); err != nil {
-		errorResponse(w, http.StatusUnauthorized, err)
+		util.ErrorResponse(w, http.StatusUnauthorized, err)
 		return
 	}
 
@@ -103,12 +103,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	tokens, err := util.GenerateTokenPair(h.config, &u)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	http.SetCookie(w, util.GetRefreshCookie(h.config, tokens.RefreshToken))
-	writeJSON(w, http.StatusAccepted, struct {
+	util.WriteResponse(w, http.StatusAccepted, struct {
 		AccessToken string       `json:"access_token"`
 		User        util.JWTUser `json:"user"`
 	}{
@@ -121,22 +121,22 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	user, err := h.userService.GetUser(r.Context(), username)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, user)
+	util.WriteResponse(w, http.StatusOK, user)
 }
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var payload UserPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		errorResponse(w, http.StatusBadRequest, err)
+		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
 	hashedPassword, err := util.HashPassword(payload.Password)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -148,8 +148,8 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		HashedPassword: hashedPassword,
 	})
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusAccepted, user)
+	util.WriteResponse(w, http.StatusAccepted, user)
 }

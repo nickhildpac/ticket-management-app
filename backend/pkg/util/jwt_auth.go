@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/nickhildpac/ticket-management-app/configs"
+	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 )
 
 type Claims struct {

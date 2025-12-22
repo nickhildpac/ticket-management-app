@@ -1,17 +1,17 @@
-package usecase
+package service
 
 import (
 	"context"
 
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
-	"github.com/nickhildpac/ticket-management-app/internal/usecase/port"
+	"github.com/nickhildpac/ticket-management-app/internal/ports"
 )
 
 type UserService struct {
-	repo port.UserRepository
+	repo ports.UserRepository
 }
 
-func NewUserService(r port.UserRepository) *UserService {
+func NewUserService(r ports.UserRepository) *UserService {
 	return &UserService{
 		repo: r,
 	}
@@ -24,5 +24,3 @@ func (s *UserService) GetUser(ctx context.Context, username string) (*domain.Use
 func (s *UserService) CreateUser(ctx context.Context, u domain.User) (*domain.User, error) {
 	return s.repo.CreateUser(ctx, u)
 }
-
-var _ port.UserService = (*UserService)(nil)

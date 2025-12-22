@@ -6,9 +6,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/nickhildpac/ticket-management-app/configs"
 	"github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
 	middlewares "github.com/nickhildpac/ticket-management-app/internal/adapters/http/middleware"
+	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 )
 
 func Router(conf *configs.Config, h *handlers.Handler) http.Handler {

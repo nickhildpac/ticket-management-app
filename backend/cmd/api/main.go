@@ -7,12 +7,12 @@ import (
 	"net/http"
 
 	_ "github.com/lib/pq"
-	"github.com/nickhildpac/ticket-management-app/configs"
 	adapterdb "github.com/nickhildpac/ticket-management-app/internal/adapters/db"
 	sqldb "github.com/nickhildpac/ticket-management-app/internal/adapters/db/sqlc"
 	httpadapter "github.com/nickhildpac/ticket-management-app/internal/adapters/http"
 	httphandlers "github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
-	"github.com/nickhildpac/ticket-management-app/internal/usecase"
+	"github.com/nickhildpac/ticket-management-app/internal/application/service"
+	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 )
 
 func main() {
@@ -31,9 +31,9 @@ func main() {
 	ticketRepo := adapterdb.NewTicketRepository(store)
 	commentRepo := adapterdb.NewCommentRepository(store)
 
-	userSvc := usecase.NewUserService(userRepo)
-	ticketSvc := usecase.NewTicketService(ticketRepo)
-	commentSvc := usecase.NewCommentService(commentRepo)
+	userSvc := service.NewUserService(userRepo)
+	ticketSvc := service.NewTicketService(ticketRepo)
+	commentSvc := service.NewCommentService(commentRepo)
 
 	handler := httphandlers.NewHandler(conf, userSvc, ticketSvc, commentSvc)
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/nickhildpac/ticket-management-app/configs"
+	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
 )
 

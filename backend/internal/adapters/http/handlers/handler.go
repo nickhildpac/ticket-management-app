@@ -2,39 +2,22 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-
-	"github.com/nickhildpac/ticket-management-app/configs"
-	"github.com/nickhildpac/ticket-management-app/internal/usecase/port"
+	"github.com/nickhildpac/ticket-management-app/internal/ports"
+	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 )
 
 type Handler struct {
 	config         *configs.Config
-	userService    port.UserService
-	ticketService  port.TicketService
-	commentService port.CommentService
+	userService    ports.UserService
+	ticketService  ports.TicketService
+	commentService ports.CommentService
 }
 
-func NewHandler(cfg *configs.Config, u port.UserService, t port.TicketService, c port.CommentService) *Handler {
+func NewHandler(cfg *configs.Config, u ports.UserService, t ports.TicketService, c ports.CommentService) *Handler {
 	return &Handler{
 		config:         cfg,
 		userService:    u,
 		ticketService:  t,
 		commentService: c,
 	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
-}
-
-func errorResponse(w http.ResponseWriter, status int, err error) {
-	writeJSON(w, status, struct {
-		Error string `json:"error"`
-	}{
-		Error: err.Error(),
-	})
 }

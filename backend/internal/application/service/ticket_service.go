@@ -1,18 +1,18 @@
-package usecase
+package service
 
 import (
 	"context"
 
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
-	"github.com/nickhildpac/ticket-management-app/internal/usecase/port"
+	"github.com/nickhildpac/ticket-management-app/internal/ports"
 )
 
 type TicketService struct {
-	repo port.TicketRepository
+	repo ports.TicketRepository
 }
 
-func NewTicketService(r port.TicketRepository) *TicketService {
-	return &TicketService{repo: r}
+func NewTicketService(repo ports.TicketRepository) *TicketService {
+	return &TicketService{repo: repo}
 }
 
 func (s *TicketService) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
@@ -32,5 +32,3 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 	ticket.Priority = domain.TicketPriorityLow
 	return s.repo.Create(ctx, ticket)
 }
-
-var _ port.TicketService = (*TicketService)(nil)

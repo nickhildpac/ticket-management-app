@@ -1,12 +1,12 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "./internal/adapters/db/query/"
-    schema: "./migrations/000001_create_tables.up.sql"
+    queries: "./query/"
+    schema: "../migrations"
     gen:
       go:
         package: "db"
-        out: "./internal/adapters/db/sqlc"
+        out: "../internal/adapters/db/sqlc"
         emit_interface: true
         emit_json_tags: true
         emit_empty_slices: true

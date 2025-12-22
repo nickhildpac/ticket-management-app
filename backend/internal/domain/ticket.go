@@ -9,10 +9,11 @@ type TicketPriority int
 
 const (
 	// States
-	TicketStateOpen     TicketState = iota + 1 // 1
-	TicketStatePending                         // 2
-	TicketStateResolved                        // 3
-	TicketStateClosed                          // 4
+	TicketStateOpen      TicketState = iota + 1 // 1
+	TicketStatePending                          // 2
+	TicketStateResolved                         // 3
+	TicketStateClosed                           // 4
+	TicketStateCancelled                        // 5
 )
 
 const (
@@ -33,6 +34,8 @@ func (s TicketState) String() string {
 		return "resolved"
 	case TicketStateClosed:
 		return "closed"
+	case TicketStateCancelled:
+		return "cancel"
 	default:
 		return "unknown"
 	}
