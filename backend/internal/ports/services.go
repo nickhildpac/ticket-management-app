@@ -14,8 +14,10 @@ type UserService interface {
 type TicketService interface {
 	ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error)
 	ListByCreator(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error)
+	ListByAssignee(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error)
 	GetTicket(ctx context.Context, id int64) (*domain.Ticket, error)
 	CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	UpdateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 }
 
 type CommentService interface {

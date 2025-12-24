@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/internal/ports"
@@ -23,6 +24,10 @@ func (s *TicketService) ListByCreator(ctx context.Context, username string, limi
 	return s.repo.ListByCreator(ctx, username, limit, offset)
 }
 
+func (s *TicketService) ListByAssignee(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error) {
+	return s.repo.ListByAssignee(ctx, username, limit, offset)
+}
+
 func (s *TicketService) GetTicket(ctx context.Context, id int64) (*domain.Ticket, error) {
 	return s.repo.Get(ctx, id)
 }
@@ -31,4 +36,9 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 	ticket.State = domain.TicketStateOpen
 	ticket.Priority = domain.TicketPriorityLow
 	return s.repo.Create(ctx, ticket)
+}
+
+func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
+	ticket.UpdatedAt = time.Now()
+	return s.repo.Update(ctx, ticket)
 }

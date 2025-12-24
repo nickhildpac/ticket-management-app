@@ -30,8 +30,10 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 		r.Route("/ticket", func(mux chi.Router) {
 			mux.Use(middlewares.AuthRequired(conf))
 			mux.Get("/all", h.GetTickets)
+			mux.Get("/assigned", h.GetAssignedTickets)
 			mux.Post("/", h.CreateTicket)
 			mux.Get("/{id}", h.GetTicket)
+			mux.Patch("/{id}", h.UpdateTicket)
 			mux.Get("/{id}/comments", h.GetComments)
 		})
 

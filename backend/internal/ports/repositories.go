@@ -14,8 +14,10 @@ type UserRepository interface {
 type TicketRepository interface {
 	ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error)
 	ListByCreator(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error)
+	ListByAssignee(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error)
 	Get(ctx context.Context, id int64) (*domain.Ticket, error)
 	Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 }
 
 type CommentRepository interface {
