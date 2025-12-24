@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
+import { Toast } from "../components/Toast";
 import { Link, useNavigate } from "react-router";
 
 export default function SignupPage() {
@@ -10,6 +11,7 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export default function SignupPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      alert("Passwords do not match");
+      setToast({ message: "Passwords do not match", variant: "error" });
       return;
     }
     const user = {
@@ -51,10 +53,13 @@ export default function SignupPage() {
     })
       .then((response) => {
         if (response.ok) {
-          alert("User created successfully");
-          navigate("/");
+          setToast({ message: "User created successfully", variant: "success" });
+          setTimeout(() => navigate("/"), 1200);
+        } else {
+          setToast({ message: "Failed to create user", variant: "error" });
         }
       })
+      .catch(() => setToast({ message: "Something went wrong. Please try again.", variant: "error" }));
   };
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
@@ -119,6 +124,13 @@ export default function SignupPage() {
           </div>
         </form>
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

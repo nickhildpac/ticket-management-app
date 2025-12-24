@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,21 @@ func (s TicketState) String() string {
 		return "cancel"
 	default:
 		return "unknown"
+	}
+}
+
+func GetTicketPriority(s string) TicketPriority {
+	switch strings.ToLower(s) {
+	case "critical":
+		return TicketPriorityCritical
+	case "high":
+		return TicketPriorityHigh
+	case "medium":
+		return TicketPriorityMedium
+	case "low":
+		return TicketPriorityLow
+	default:
+		return -1
 	}
 }
 

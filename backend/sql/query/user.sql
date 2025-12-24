@@ -22,6 +22,10 @@ SELECT * FROM users
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2;
 
+-- name: GetAllUsers :many
+SELECT username, first_name, last_name, email FROM users
+ORDER BY username;
+
 -- name: UpdateUser :one
 UPDATE users
 SET email = $2, first_name = $3, last_name = $4, role = $5, updated_at = $6

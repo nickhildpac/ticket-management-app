@@ -153,3 +153,12 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	util.WriteResponse(w, http.StatusAccepted, user)
 }
+
+func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.userService.GetAllUsers(r.Context())
+	if err != nil {
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	util.WriteResponse(w, http.StatusOK, users)
+}

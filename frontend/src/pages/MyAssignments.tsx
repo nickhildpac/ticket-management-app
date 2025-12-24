@@ -1,0 +1,122 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../hooks/redux';
+import { fetchAssignedTickets } from '../store/slices/ticketsSlice';
+
+const PRIORITY_LABELS: Record<string | number, string> = {
+  1: 'Critical',
+  2: 'High',
+  3: 'Medium',
+  4: 'Low',
+  critical: 'Critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+
+const STATE_LABELS: Record<string | number, string> = {
+  1: 'Open',
+  2: 'Pending',
+  3: 'Resolved',
+  4: 'Closed',
+  5: 'Cancelled',
+  open: 'Open',
+  pending: 'Pending',
+  resolved: 'Resolved',
+  closed: 'Closed',
+  cancel: 'Cancelled',
+  cancelled: 'Cancelled',
+};
+
+const normalizeKey = (value?: number | string) => {
+  if (value === undefined || value === null) return '';
+  return typeof value === 'string' ? value.toLowerCase() : value;
+};
+
+const formatPriority = (priority?: number | string) => PRIORITY_LABELS[normalizeKey(priority)] ?? 'Unknown';
+const formatState = (state?: number | string) => STATE_LABELS[normalizeKey(state)] ?? 'Unknown';
+
+const MyAssignments = () => {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { assignedTickets, assignedLoading, error } = useAppSelector((state) => state.tickets);
+
+  const handleRowClick = (ticketId: number) => {
+    navigate(`/ticket/${ticketId}`);
+  };
+
+  useEffect(() => {
+    dispatch(fetchAssignedTickets());
+  }, [dispatch]);
+
+  if (assignedLoading) {
+    return <div className="container mx-auto px-4 py-8">Loading assignments...</div>;
+  }
+
+  if (error) {
+    return <div className="container mx-auto px-4 py-8 text-red-600">Error: {error}</div>;
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-6">My Assignments</h1>
+
+      <div className="bg-white shadow-md rounded-lg overflow-hidden dark:bg-gray-800 transition-colors duration-200">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                Title
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                Description
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                Priority
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                State
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                Created By
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                Created At
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+            {assignedTickets.map((ticket) => (
+              <tr
+                key={ticket.id}
+                onClick={() => handleRowClick(ticket.id)}
+                className="hover:bg-gray-100 cursor-pointer dark:hover:bg-gray-700 transition-colors duration-150"
+              >
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{ticket.title}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-gray-500 truncate max-w-xs dark:text-gray-400">{ticket.description}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">{formatPriority(ticket.priority)}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">{formatState(ticket.state)}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">{ticket.created_by}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">{new Date(ticket.created_at).toLocaleString()}</div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default MyAssignments;

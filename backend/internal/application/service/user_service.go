@@ -24,3 +24,7 @@ func (s *UserService) GetUser(ctx context.Context, username string) (*domain.Use
 func (s *UserService) CreateUser(ctx context.Context, u domain.User) (*domain.User, error) {
 	return s.repo.CreateUser(ctx, u)
 }
+
+func (s *UserService) GetAllUsers(ctx context.Context) ([]domain.User, error) {
+	return s.repo.GetAllUsers(ctx)
+}

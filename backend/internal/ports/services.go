@@ -9,6 +9,7 @@ import (
 type UserService interface {
 	GetUser(ctx context.Context, username string) (*domain.User, error)
 	CreateUser(ctx context.Context, user domain.User) (*domain.User, error)
+	GetAllUsers(ctx context.Context) ([]domain.User, error)
 }
 
 type TicketService interface {

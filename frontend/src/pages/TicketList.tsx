@@ -3,11 +3,43 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { fetchTickets } from '../store/slices/ticketsSlice';
 
+const PRIORITY_LABELS: Record<string | number, string> = {
+  1: 'Critical',
+  2: 'High',
+  3: 'Medium',
+  4: 'Low',
+  critical: 'Critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+
+const STATE_LABELS: Record<string | number, string> = {
+  1: 'Open',
+  2: 'Pending',
+  3: 'Resolved',
+  4: 'Closed',
+  5: 'Cancelled',
+  open: 'Open',
+  pending: 'Pending',
+  resolved: 'Resolved',
+  closed: 'Closed',
+  cancel: 'Cancelled',
+  cancelled: 'Cancelled',
+};
+
+const normalizeKey = (value?: number | string) => {
+  if (value === undefined || value === null) return '';
+  return typeof value === 'string' ? value.toLowerCase() : value;
+};
+
+const formatPriority = (priority?: number | string) => PRIORITY_LABELS[normalizeKey(priority)] ?? 'Unknown';
+const formatState = (state?: number | string) => STATE_LABELS[normalizeKey(state)] ?? 'Unknown';
+
 const TicketList = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { tickets, loading, error } = useAppSelector((state) => state.tickets);
-  console.log(tickets)
   const handleRowClick = (ticketId: number) => {
     navigate(`/ticket/${ticketId}`);
   };
@@ -45,6 +77,9 @@ const TicketList = () => {
                 Priority
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                State
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
                 Created By
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
@@ -69,7 +104,10 @@ const TicketList = () => {
                   <div className="text-sm text-gray-900 dark:text-white">{ticket.assigned_to || 'Unassigned'}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">-</div>
+                  <div className="text-sm text-gray-900 dark:text-white">{formatPriority(ticket.priority)}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 dark:text-white">{formatState(ticket.state)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900 dark:text-white">{ticket.created_by}</div>

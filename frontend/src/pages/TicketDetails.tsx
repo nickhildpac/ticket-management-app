@@ -1,10 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { Input } from '../components/Input';
+import { Select } from '../components/Select';
+import { Textarea } from '../components/Textarea';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-import { fetchTicketById } from '../store/slices/ticketsSlice';
+import { fetchTicketById, updateTicketState, updateTicket } from '../store/slices/ticketsSlice';
 import { fetchCommentsByTicketId, createComment } from '../store/slices/commentsSlice';
+import { fetchUsers } from '../store/slices/usersSlice';
+
+
+
+const STATE_LABELS: Record<string , string> = {
+  open: 'Open',
+  pending: 'Pending',
+  resolved: 'Resolved',
+  closed: 'Closed',
+  cancel: 'Cancelled',
+  cancelled: 'Cancelled',
+};
+
+const normalizeKey = (value?: number | string): string => {
+  if (value === undefined || value === null) return '';
+  return typeof value === 'string' ? value.toLowerCase() : String(value);
+};
+
+type StepStatus = 'complete' | 'current' | 'upcoming';
+
+const formatState = (state?: number | string) => STATE_LABELS[normalizeKey(state)] ?? 'Unknown';
+
 
 const TicketDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -12,16 +35,45 @@ const TicketDetails = () => {
   const dispatch = useAppDispatch();
   const { currentTicket, loading: ticketLoading, error: ticketError } = useAppSelector((state) => state.tickets);
   const { comments, loading: commentsLoading, error: commentsError } = useAppSelector((state) => state.comments);
+  const { users, loading: usersLoading } = useAppSelector((state) => state.users);
 
   const [newComment, setNewComment] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
+  const [priority, setPriority] = useState('low');
+  const [description, setDescription] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
 
   // Fetch ticket data based on ID
   useEffect(() => {
     if (id) {
       dispatch(fetchTicketById(Number(id)));
       dispatch(fetchCommentsByTicketId(Number(id)));
+      dispatch(fetchUsers());
     }
   }, [id, dispatch]);
+
+  // Update form fields when currentTicket changes
+  useEffect(() => {
+    if (currentTicket) {
+      setAssignedTo(currentTicket.assigned_to || '');
+      const priorityValue = normalizeKey(currentTicket.priority);
+      const validPriority = ['low', 'medium', 'high', 'critical'].includes(priorityValue) ? priorityValue : 'low';
+      setPriority(validPriority);
+      setDescription(currentTicket.description || '');
+      setHasChanges(false);
+    }
+  }, [currentTicket]);
+
+  // Check for changes
+  useEffect(() => {
+    if (currentTicket) {
+      const changed =
+        assignedTo !== (currentTicket.assigned_to || '') ||
+        priority !== normalizeKey(currentTicket.priority) ||
+        description !== (currentTicket.description || '');
+      setHasChanges(changed);
+    }
+  }, [assignedTo, priority, description, currentTicket]);
 
   const handleAddComment = () => {
     if (newComment.trim() === '' || !id) return;
@@ -32,6 +84,49 @@ const TicketDetails = () => {
     })).then(() => {
       setNewComment("");
     });
+  };
+
+  const handleCancelTicket = async () => {
+    if (!id || ticketLoading) return;
+    await dispatch(updateTicketState({ id: Number(id), state: 'cancelled' }));
+    dispatch(fetchTicketById(Number(id)));
+  };
+  const handleResolveTicket = async () => {
+    if (!id || ticketLoading) return;
+    await dispatch(updateTicketState({ id: Number(id), state: 'resolved' }));
+    dispatch(fetchTicketById(Number(id)));
+  };
+  const handleCancelClick = () => {
+    void handleCancelTicket();
+  };
+  const handleResolveClick = () => {
+    void handleResolveTicket();
+  };
+
+  const handleAssignmentChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.target.value;
+    setAssignedTo(newValue);
+  };
+
+  const handlePriorityChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setPriority(e.target.value);
+  };
+
+  const handleDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setDescription(e.target.value);
+  };
+
+  const handleUpdateTicket = async () => {
+    if (!id || !hasChanges || ticketLoading) return;
+
+    await dispatch(updateTicket({ 
+      id: Number(id), 
+      assignedTo: assignedTo || null,
+      priority: priority,
+      description: description
+    }));
+    
+    dispatch(fetchTicketById(Number(id)));
   };
 
   if (ticketLoading || commentsLoading) {
@@ -66,6 +161,30 @@ const TicketDetails = () => {
     );
   }
 
+  const lifecycleSteps = [
+    { key: 'open', label: 'Open', aliases: ['open'] },
+    { key: 'pending', label: 'Pending', aliases: ['pending'] },
+    { key: 'resolved', label: 'Resolved', aliases: ['resolved'] },
+    { key: 'closed', label: 'Closed', aliases: ['closed'] },
+    { key: 'cancelled', label: 'Cancelled', aliases: ['cancelled', 'cancel'] },
+  ];
+  const activeKey = normalizeKey(currentTicket.state);
+  const activeIndex = lifecycleSteps.findIndex((item) => item.aliases.includes(activeKey));
+  const isCancelable = activeKey !== 'cancelled' && activeKey !== 'closed';
+  const isResolvable = activeKey !== 'resolved' && activeKey !== 'closed' && activeKey !== 'cancelled';
+
+  const userOptions = users.map(user => ({
+    value: user.username,
+    label: `${user.first_name} ${user.last_name} (${user.username})`
+  }));
+
+  const priorityOptions = [
+    { value: 'critical', label: 'Critical' },
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' }
+  ];
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-4">
@@ -81,7 +200,63 @@ const TicketDetails = () => {
       </div>
 
       <div className="bg-white shadow-md rounded-lg p-6 dark:bg-gray-800 transition-colors duration-200">
-        <h1 className="text-2xl font-bold mb-4 dark:text-white">{currentTicket.title}</h1>
+        <div className="flex items-start justify-between mb-4">
+          <h1 className="text-2xl font-bold dark:text-white">{currentTicket.title}</h1>
+          <div className="flex items-center gap-2">
+            <Button
+              label="Resolve"
+              onClick={handleResolveClick}
+              disabled={!isResolvable || ticketLoading}
+            />
+            <Button
+              label="Update"
+              onClick={handleUpdateTicket}
+              disabled={!hasChanges || ticketLoading}
+            />
+            <Button
+              label="Cancel Ticket"
+              onClick={handleCancelClick}
+              disabled={!isCancelable || ticketLoading}
+            />
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <div className="flex items-center gap-2 md:gap-4">
+            {lifecycleSteps.map((step, index) => {
+              const status: StepStatus = activeIndex === -1
+                ? 'upcoming'
+                : index < activeIndex
+                  ? 'complete'
+                  : index === activeIndex
+                    ? 'current'
+                    : 'upcoming';
+              const isLast = index === lifecycleSteps.length - 1;
+              const dotColor = status === 'complete'
+                ? 'bg-blue-600'
+                : status === 'current'
+                  ? 'bg-blue-100 ring-2 ring-blue-600 dark:bg-blue-900/60'
+                  : 'bg-gray-200 dark:bg-gray-700';
+              const connectorColor = status === 'complete'
+                ? 'bg-blue-600'
+                : status === 'current'
+                  ? 'bg-blue-200 dark:bg-blue-900/60'
+                  : 'bg-gray-200 dark:bg-gray-700';
+
+              return (
+                <div key={step.key} className="flex items-center flex-1 min-w-[80px]">
+                  <div className="flex flex-col items-center w-full">
+                    <div className="flex items-center justify-center w-full">
+                      <div className={`w-4 h-4 rounded-full transition-colors duration-200 ${dotColor}`} aria-hidden />
+                    </div>
+                    <span className="mt-2 text-xs font-medium text-gray-700 dark:text-gray-200 text-center">{step.label}</span>
+                  </div>
+                  {!isLast && <div className={`h-0.5 flex-1 mx-2 ${connectorColor}`} />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
@@ -89,14 +264,41 @@ const TicketDetails = () => {
             <p className="font-medium dark:text-white">{currentTicket.created_by}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Assigned To</p>
-            <p className="font-medium dark:text-white">{currentTicket.assigned_to || 'Unassigned'}</p>
+            <Select
+              label="Assigned To"
+              name="assigned_to"
+              value={assignedTo}
+              options={userOptions}
+              onChange={handleAssignmentChange}
+              disabled={ticketLoading || usersLoading}
+            />
+          </div>
+          <div>
+            <Select
+              label="Priority"
+              name="priority"
+              value={priority}
+              options={priorityOptions}
+              onChange={handlePriorityChange}
+              disabled={ticketLoading}
+              showUnassigned={false}
+            />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">State</p>
+            <p className="font-medium dark:text-white">{formatState(currentTicket.state)}</p>
           </div>
         </div>
 
         <div className="mb-6">
-          <p className="text-sm text-gray-500 mb-2 dark:text-gray-400">Description</p>
-          <p className="text-gray-700 dark:text-gray-300">{currentTicket.description}</p>
+          <Textarea
+            label="Description"
+            name="description"
+            value={description}
+            onChange={handleDescriptionChange}
+            disabled={ticketLoading}
+            rows={4}
+          />
         </div>
 
         <div className="mb-6">
@@ -116,7 +318,7 @@ const TicketDetails = () => {
               <div key={comment.id} className="bg-gray-50 p-4 rounded dark:bg-gray-700">
                 <div className="flex justify-between mb-2">
                   <p className="font-medium dark:text-white">{comment.created_by}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{comment.created_at}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{new Date(comment.created_at).toLocaleString()}</p>
                 </div>
                 <p className="dark:text-gray-300">{comment.description}</p>
               </div>
@@ -124,18 +326,24 @@ const TicketDetails = () => {
           </div>
 
           <div className="mt-4">
-            <Input
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="comment-input">
+                Add a comment
+              </label>
+              <Button label="Post" onClick={handleAddComment} />
+            </div>
+            <input
+              id="comment-input"
               type="text"
-              label="Add a comment"
               name="comment"
               value={newComment}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewComment(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNewComment(e.target.value)}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
             />
-            <div className="mt-2 flex justify-start">
-              <Button label="Add Comment" onClick={handleAddComment} />
-            </div>
           </div>
         </div>
+
       </div>
     </div>
   );

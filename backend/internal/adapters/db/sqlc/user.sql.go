@@ -63,6 +63,46 @@ func (q *Queries) DeleteUser(ctx context.Context, username string) error {
 	return err
 }
 
+const getAllUsers = `-- name: GetAllUsers :many
+SELECT username, first_name, last_name, email FROM users
+ORDER BY username
+`
+
+type GetAllUsersRow struct {
+	Username  string `json:"username"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+}
+
+func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAllUsersRow{}
+	for rows.Next() {
+		var i GetAllUsersRow
+		if err := rows.Scan(
+			&i.Username,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT username, hashed_password, first_name, last_name, email, role, updated_at, created_at FROM users
 WHERE username = $1 LIMIT 1

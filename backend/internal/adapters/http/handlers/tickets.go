@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
@@ -141,19 +140,13 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 		changed = true
 	}
 	if payload.Priority != nil {
-		priority, err := parseTicketPriority(*payload.Priority)
-		if err != nil {
-			util.ErrorResponse(w, http.StatusBadRequest, err)
-			return
-		}
-		ticket.Priority = priority
+		ticket.Priority = domain.GetTicketPriority(*payload.Priority)
 		changed = true
 	}
 	if payload.AssignedTo != nil {
 		ticket.AssignedTo = *payload.AssignedTo
 		changed = true
 	}
-	ticket.UpdatedAt = time.Now()
 
 	if !changed {
 		util.ErrorResponse(w, http.StatusBadRequest, errors.New("no fields provided to update"))
@@ -183,20 +176,5 @@ func parseTicketState(state string) (domain.TicketState, error) {
 		return domain.TicketStateCancelled, nil
 	default:
 		return 0, fmt.Errorf("invalid ticket state: %s", state)
-	}
-}
-
-func parseTicketPriority(priority string) (domain.TicketPriority, error) {
-	switch strings.ToLower(priority) {
-	case "low":
-		return domain.TicketPriorityLow, nil
-	case "medium":
-		return domain.TicketPriorityMedium, nil
-	case "high":
-		return domain.TicketPriorityHigh, nil
-	case "critical":
-		return domain.TicketPriorityCritical, nil
-	default:
-		return 0, fmt.Errorf("invalid ticket priority: %s", priority)
 	}
 }

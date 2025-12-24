@@ -28,11 +28,14 @@ const Navbar = () => {
             <Link to="/create" className="text-white hover:text-indigo-300 transition-colors">Create Ticket</Link>
           </li>
           <li>
-            <Link to="/tickets" className="text-white hover:text-indigo-300 transition-colors">Manage Tickets</Link>
+            <Link to="/tickets" className="text-white hover:text-indigo-300 transition-colors">My Tickets</Link>
           </li>
           <li>
-            <Link to="/about" className="text-white hover:text-indigo-300 transition-colors">About</Link>
+            <Link to="/assignments" className="text-white hover:text-indigo-300 transition-colors">My Assignments</Link>
           </li>
+          {/* <li>
+            <Link to="/about" className="text-white hover:text-indigo-300 transition-colors">About</Link>
+          </li> */}
           <li>
             <button
               onClick={toggleDarkMode}

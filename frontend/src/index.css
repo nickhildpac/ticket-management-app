@@ -10,3 +10,20 @@
     @apply bg-gray-900 text-white;
   }
 }
+
+@layer components {
+  .animate-toast-in {
+    animation: toast-in 220ms cubic-bezier(.22,.9,.32,1) forwards;
+  }
+  @keyframes toast-in {
+    from {
+      transform: translateY(-8px) translateX(8px) scale(.985);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) translateX(0) scale(1);
+      opacity: 1;
+    }
+  }
+  .scale-98 { transform: scale(0.98); }
+}

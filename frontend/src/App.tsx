@@ -6,6 +6,7 @@ import TicketDetails from "./pages/TicketDetails";
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
 import TicketList from "./pages/TicketList";
+import MyAssignments from "./pages/MyAssignments";
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
 import { useEffect } from "react";
@@ -30,6 +31,7 @@ function App() {
         <Route path="/login" element={isAuthenticated ? <HomePage /> : <LoginPage />}></Route>
         <Route path="/signup" element={isAuthenticated ? <HomePage /> : <SignupPage />}></Route>
         <Route path="/tickets" element={isAuthenticated ? <TicketList /> : <LoginPage />}></Route>
+        <Route path="/assignments" element={isAuthenticated ? <MyAssignments /> : <LoginPage />}></Route>
         <Route path="/ticket/:id" element={isAuthenticated ? <TicketDetails /> : <LoginPage />}></Route>
       </Routes>
     </>

@@ -36,3 +36,21 @@ func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) (*dom
 	}
 	return mapUser(created), nil
 }
+
+func (r *UserRepository) GetAllUsers(ctx context.Context) ([]domain.User, error) {
+	users, err := r.store.GetAllUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]domain.User, len(users))
+	for i, user := range users {
+		result[i] = domain.User{
+			Username:  user.Username,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Email:     user.Email,
+		}
+	}
+	return result, nil
+}

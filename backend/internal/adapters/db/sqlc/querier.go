@@ -16,6 +16,7 @@ type Querier interface {
 	DeleteComment(ctx context.Context, id int64) error
 	DeleteTicket(ctx context.Context, id int64) error
 	DeleteUser(ctx context.Context, username string) error
+	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
 	GetComment(ctx context.Context, id int64) (Comment, error)
 	GetTicket(ctx context.Context, id int64) (Ticket, error)
 	GetTicketsByAssignee(ctx context.Context, assignedTo sql.NullString) ([]Ticket, error)
