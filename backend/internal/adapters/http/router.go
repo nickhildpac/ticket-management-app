@@ -9,6 +9,7 @@ import (
 	"github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
 	middlewares "github.com/nickhildpac/ticket-management-app/internal/adapters/http/middleware"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
@@ -18,6 +19,18 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
 	r.Use(middlewares.EnableCORS)
+
+	// Health check endpoint
+	r.Get("/health", h.HealthCheck)
+
+	// Prometheus metrics endpoint
+	r.Handle("/metrics", promhttp.Handler())
+
+	// Health check endpoint
+	r.Get("/health", h.HealthCheck)
+
+	// Prometheus metrics endpoint
+	r.Handle("/metrics", promhttp.Handler())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public endpoints

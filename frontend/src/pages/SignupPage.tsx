@@ -3,6 +3,7 @@ import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 import { Toast } from "../components/Toast";
 import { Link, useNavigate } from "react-router";
+import { API_BASE_URL } from "../config/api";
 
 export default function SignupPage() {
   const [username, setUsername] = useState("");
@@ -21,7 +22,7 @@ export default function SignupPage() {
         "Content-Type": "application/json"
       },
     }
-    fetch(`${import.meta.env.VITE_SERVER_URL}/refresh`, {
+    fetch(`${API_BASE_URL}/refresh`, {
       ...requestOptions,
       credentials: 'include' as RequestCredentials
     })
@@ -44,7 +45,7 @@ export default function SignupPage() {
       email: email,
       password: password,
     };
-    fetch(`${import.meta.env.VITE_SERVER_URL}/user`, {
+    fetch(`${API_BASE_URL}/user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

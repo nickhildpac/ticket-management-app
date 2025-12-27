@@ -135,7 +135,8 @@ class ApiClient {
 }
 
 // Create a singleton instance
-const apiClient = new ApiClient(import.meta.env.VITE_SERVER_URL + '/v1');
+// Use relative path to leverage nginx proxy in Docker
+const apiClient = new ApiClient('/api' + '/v1');
 
 export { apiClient, ApiError };
 export type { ApiResponse };
