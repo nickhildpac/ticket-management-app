@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import { API_BASE_URL } from '../../config/api';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -20,7 +21,7 @@ export const logoutAsync = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/logout`, {
+      const response = await fetch(`${API_BASE_URL}/logout`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -40,7 +41,7 @@ export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/refresh`, {
+      const response = await fetch(`${API_BASE_URL}/refresh`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

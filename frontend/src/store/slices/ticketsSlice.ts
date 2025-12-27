@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { API_BASE_URL } from '../../config/api';
 
 interface UserInfo {
   id: string;
@@ -43,7 +44,7 @@ export const fetchTickets = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/all`, {
+      const response = await fetch(`${API_BASE_URL}/ticket/all`, {
         method: 'GET',
         headers: {
           'Authorization': state.auth.token,
@@ -68,7 +69,7 @@ export const fetchAssignedTickets = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/assigned`, {
+      const response = await fetch(`${API_BASE_URL}/ticket/assigned`, {
         method: 'GET',
         headers: {
           'Authorization': state.auth.token,
@@ -93,7 +94,7 @@ export const fetchTicketById = createAsyncThunk(
   async (id: string, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/ticket/${id}`, {
         method: 'GET',
         headers: {
           'Authorization': state.auth.token,
@@ -118,7 +119,7 @@ export const createTicket = createAsyncThunk(
   async (ticket: { title: string; description: string }, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket`, {
+      const response = await fetch(`${API_BASE_URL}/ticket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -172,7 +173,7 @@ export const updateTicketAssignment = createAsyncThunk(
   async ({ id, assignedTo }: { id: string; assignedTo: string[] }, { rejectWithValue, getState }) => {
     try {
       const authState = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/ticket/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -205,7 +206,7 @@ export const updateTicket = createAsyncThunk(
   }, { rejectWithValue, getState }) => {
     try {
       const authState = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/ticket/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

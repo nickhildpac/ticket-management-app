@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { API_BASE_URL } from '../../config/api';
 
 interface UserInfo {
   id: string;
@@ -34,7 +35,7 @@ export const fetchCommentsByTicketId = createAsyncThunk(
   async (ticketId: string, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${ticketId}/comments`, {
+      const response = await fetch(`${API_BASE_URL}/ticket/${ticketId}/comments`, {
         method: 'GET',
         headers: {
           'Authorization': state.auth.token,
@@ -59,7 +60,7 @@ export const createComment = createAsyncThunk(
   async (comment: { ticket_id: string; description: string }, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/comment`, {
+      const response = await fetch(`${API_BASE_URL}/comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 import { useAppDispatch } from "../hooks/redux";
 import { login } from "../store/slices/authSlice";
+import { API_BASE_URL } from "../config/api";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -18,7 +19,7 @@ const LoginPage = () => {
         "Content-Type": "application/json"
       },
     }
-    fetch(`${import.meta.env.VITE_SERVER_URL}/refresh`, {
+    fetch(`${API_BASE_URL}/refresh`, {
       ...requestOptions,
       credentials: 'include' as RequestCredentials
     })
@@ -38,7 +39,7 @@ const LoginPage = () => {
       password
     }
     if (email && password) {
-      fetch(`${import.meta.env.VITE_SERVER_URL}/login`, {
+      fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

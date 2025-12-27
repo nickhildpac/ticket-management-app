@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test files
+*_test.go
+testdata/
+
+# Local development
+.env
+.envrc
+.local/
+tmp/
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+ticket-app
+main
+
+# Database
+*.db
+*.sqlite
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Tools
+Makefile
