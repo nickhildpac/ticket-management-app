@@ -1,5 +1,5 @@
 CREATE TABLE "users" (
-  "username" varchar PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "hashed_password" varchar NOT NULL,
   "first_name" varchar NOT NULL,
   "last_name" varchar NOT NULL,
@@ -11,8 +11,8 @@ CREATE TABLE "users" (
 
 CREATE TABLE "tickets" (
   "id" bigserial PRIMARY KEY,
-  "created_by" varchar NOT NULL,
-  "assigned_to" varchar,
+  "created_by" UUID NOT NULL,
+  "assigned_to" UUID,
   "title" varchar NOT NULL,
   "description" varchar NOT NULL,
   "state" INT NOT NULL DEFAULT 1,
@@ -24,16 +24,16 @@ CREATE TABLE "tickets" (
 CREATE TABLE "comments" (
   "id" bigserial PRIMARY KEY,
   "ticket_id" bigint NOT NULL,
-  "created_by" varchar NOT NULL,
+  "created_by" UUID NOT NULL,
   "description" varchar NOT NULL,
   "created_at" timestamptz NOT NULL DEFAULT (now()),
   "updated_at" timestamptz
 );
 
-ALTER TABLE "tickets" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("username") ON DELETE SET NULL;
+ALTER TABLE "tickets" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("id") ON DELETE SET NULL;
 
-ALTER TABLE "tickets" ADD FOREIGN KEY ("assigned_to") REFERENCES "users" ("username") ON DELETE SET NULL;
+ALTER TABLE "tickets" ADD FOREIGN KEY ("assigned_to") REFERENCES "users" ("id") ON DELETE SET NULL;
 
 ALTER TABLE "comments" ADD FOREIGN KEY ("ticket_id") REFERENCES "tickets" ("id") ON DELETE CASCADE;
 
-ALTER TABLE "comments" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("username") ON DELETE SET NULL;
+ALTER TABLE "comments" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("id") ON DELETE SET NULL;

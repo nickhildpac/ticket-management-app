@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/google/uuid"
 	sqlc "github.com/nickhildpac/ticket-management-app/internal/adapters/db/sqlc"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 )
@@ -24,9 +25,13 @@ func (r *TicketRepository) ListAll(ctx context.Context, limit, offset int32) ([]
 	return mapTickets(rows), nil
 }
 
-func (r *TicketRepository) ListByCreator(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error) {
+func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+	user, err := r.store.GetUser(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := r.store.ListTickets(ctx, sqlc.ListTicketsParams{
-		CreatedBy: username,
+		CreatedBy: user.ID,
 		Limit:     limit,
 		Offset:    offset,
 	})
@@ -36,9 +41,13 @@ func (r *TicketRepository) ListByCreator(ctx context.Context, username string, l
 	return mapTickets(rows), nil
 }
 
-func (r *TicketRepository) ListByAssignee(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error) {
+func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+	user, err := r.store.GetUser(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := r.store.ListTicketsAssigned(ctx, sqlc.ListTicketsAssignedParams{
-		AssignedTo: sql.NullString{String: username, Valid: true},
+		AssignedTo: uuid.NullUUID{UUID: user.ID, Valid: true},
 		Limit:      limit,
 		Offset:     offset,
 	})
@@ -75,9 +84,9 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 		Description: ticket.Description,
 		State:       int32(ticket.State),
 		Priority:    int32(ticket.Priority),
-		AssignedTo: sql.NullString{
-			String: ticket.AssignedTo,
-			Valid:  ticket.AssignedTo != "",
+		AssignedTo: uuid.NullUUID{
+			UUID:  ticket.AssignedTo,
+			Valid: ticket.AssignedTo != uuid.UUID{},
 		},
 		UpdatedAt: sql.NullTime{
 			Time:  ticket.UpdatedAt,

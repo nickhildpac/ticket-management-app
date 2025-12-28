@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
@@ -20,11 +21,11 @@ type TicketPayload struct {
 }
 
 type UpdateTicketPayload struct {
-	Title       *string `json:"title"`
-	Description *string `json:"description"`
-	State       *string `json:"state"`
-	Priority    *string `json:"priority"`
-	AssignedTo  *string `json:"assigned_to"`
+	Title       *string    `json:"title"`
+	Description *string    `json:"description"`
+	State       *string    `json:"state"`
+	Priority    *string    `json:"priority"`
+	AssignedTo  *uuid.UUID `json:"assigned_to"`
 }
 
 func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
@@ -37,8 +38,13 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value(configs.UsernameKey).(string)
-	tickets, err := h.ticketService.ListByCreator(r.Context(), username, 20, 0)
+	userIDStr := r.Context().Value(configs.UserIDKey).(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+	tickets, err := h.ticketService.ListByCreator(r.Context(), userID, 20, 0)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -47,8 +53,13 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value(configs.UsernameKey).(string)
-	tickets, err := h.ticketService.ListByAssignee(r.Context(), username, 20, 0)
+	userIDStr := r.Context().Value(configs.UserIDKey).(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+	tickets, err := h.ticketService.ListByAssignee(r.Context(), userID, 20, 0)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -83,8 +94,19 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	var payload TicketPayload
-	username := r.Context().Value(configs.UsernameKey).(string)
+	userIDStr := r.Context().Value(configs.UserIDKey).(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := h.userService.GetUserByID(r.Context(), userID)
+	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
@@ -92,7 +114,7 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	ticket, err := h.ticketService.CreateTicket(r.Context(), domain.Ticket{
 		Title:       payload.Title,
 		Description: payload.Description,
-		CreatedBy:   username,
+		CreatedBy:   user.ID,
 	})
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)

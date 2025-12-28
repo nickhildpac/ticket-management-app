@@ -3,16 +3,17 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
 )
 
 type UserPayload struct {
-	Username  string `json:"username"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
@@ -40,14 +41,19 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userService.GetUser(r.Context(), claims.Subject)
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusUnauthorized, err)
+		return
+	}
+	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	u := util.JWTUser{
-		Username:  user.Username,
+		ID:        user.ID,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Email:     user.Email,
@@ -76,7 +82,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var requestPayload struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&requestPayload); err != nil {
@@ -84,7 +90,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userService.GetUser(r.Context(), requestPayload.Username)
+	user, err := h.userService.GetUser(r.Context(), requestPayload.Email)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -95,7 +101,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := util.JWTUser{
-		Username:  user.Username,
+		ID:        user.ID,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Email:     user.Email,
@@ -141,13 +147,13 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := h.userService.CreateUser(r.Context(), domain.User{
-		Username:       payload.Username,
 		FirstName:      payload.FirstName,
 		LastName:       payload.LastName,
 		Email:          payload.Email,
 		HashedPassword: hashedPassword,
 	})
 	if err != nil {
+		log.Println("Error creating user:", err)
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}

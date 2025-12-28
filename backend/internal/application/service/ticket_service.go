@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/internal/ports"
 )
@@ -20,12 +21,12 @@ func (s *TicketService) ListAll(ctx context.Context, limit, offset int32) ([]dom
 	return s.repo.ListAll(ctx, limit, offset)
 }
 
-func (s *TicketService) ListByCreator(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error) {
-	return s.repo.ListByCreator(ctx, username, limit, offset)
+func (s *TicketService) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+	return s.repo.ListByCreator(ctx, id, limit, offset)
 }
 
-func (s *TicketService) ListByAssignee(ctx context.Context, username string, limit, offset int32) ([]domain.Ticket, error) {
-	return s.repo.ListByAssignee(ctx, username, limit, offset)
+func (s *TicketService) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+	return s.repo.ListByAssignee(ctx, id, limit, offset)
 }
 
 func (s *TicketService) GetTicket(ctx context.Context, id int64) (*domain.Ticket, error) {

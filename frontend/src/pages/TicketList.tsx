@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { fetchTickets } from '../store/slices/ticketsSlice';
+import { fetchUsers } from '../store/slices/usersSlice';
 
 const PRIORITY_LABELS: Record<string | number, string> = {
   1: 'Critical',
@@ -36,16 +37,30 @@ const normalizeKey = (value?: number | string) => {
 const formatPriority = (priority?: number | string) => PRIORITY_LABELS[normalizeKey(priority)] ?? 'Unknown';
 const formatState = (state?: number | string) => STATE_LABELS[normalizeKey(state)] ?? 'Unknown';
 
+const isValidUUID = (id: string | null): boolean => {
+  if (!id) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+};
+
+const getUserEmail = (userId: string | null, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
+  if (!userId || !isValidUUID(userId)) return 'Unassigned';
+  const user = users.find(u => u.id === userId);
+  return user ? user.email : userId;
+};
+
 const TicketList = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { tickets, loading, error } = useAppSelector((state) => state.tickets);
+  const { users } = useAppSelector((state) => state.users);
   const handleRowClick = (ticketId: number) => {
     navigate(`/ticket/${ticketId}`);
   };
 
   useEffect(() => {
     dispatch(fetchTickets());
+    dispatch(fetchUsers());
   }, [dispatch]);
 
   if (loading) {
@@ -101,7 +116,7 @@ const TicketList = () => {
                   <div className="text-sm text-gray-500 truncate max-w-xs dark:text-gray-400">{ticket.description}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">{ticket.assigned_to || 'Unassigned'}</div>
+                  <div className="text-sm text-gray-900 dark:text-white">{getUserEmail(ticket.assigned_to, users)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900 dark:text-white">{formatPriority(ticket.priority)}</div>
@@ -110,7 +125,7 @@ const TicketList = () => {
                   <div className="text-sm text-gray-900 dark:text-white">{formatState(ticket.state)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">{ticket.created_by}</div>
+                  <div className="text-sm text-gray-900 dark:text-white">{getUserEmail(ticket.created_by, users)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900 dark:text-white">{new Date(ticket.created_at).toLocaleString()}</div>

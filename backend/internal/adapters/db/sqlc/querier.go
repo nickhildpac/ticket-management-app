@@ -6,7 +6,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
@@ -15,13 +16,13 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteComment(ctx context.Context, id int64) error
 	DeleteTicket(ctx context.Context, id int64) error
-	DeleteUser(ctx context.Context, username string) error
+	DeleteUser(ctx context.Context, id uuid.UUID) error
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
 	GetComment(ctx context.Context, id int64) (Comment, error)
 	GetTicket(ctx context.Context, id int64) (Ticket, error)
-	GetTicketsByAssignee(ctx context.Context, assignedTo sql.NullString) ([]Ticket, error)
-	GetTicketsByCreator(ctx context.Context, createdBy string) ([]Ticket, error)
-	GetUser(ctx context.Context, username string) (User, error)
+	GetTicketsByAssignee(ctx context.Context, assignedTo uuid.NullUUID) ([]Ticket, error)
+	GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) ([]Ticket, error)
+	GetUser(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	ListAllTickets(ctx context.Context, arg ListAllTicketsParams) ([]Ticket, error)
 	ListComment(ctx context.Context, arg ListCommentParams) ([]Comment, error)

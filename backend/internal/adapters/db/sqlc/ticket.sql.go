@@ -8,6 +8,8 @@ package db
 import (
 	"context"
 	"database/sql"
+
+	"github.com/google/uuid"
 )
 
 const createTicket = `-- name: CreateTicket :one
@@ -15,9 +17,9 @@ INSERT INTO tickets (title, description, created_by ) VALUES ($1, $2, $3) RETURN
 `
 
 type CreateTicketParams struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	CreatedBy   string `json:"created_by"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	CreatedBy   uuid.UUID `json:"created_by"`
 }
 
 func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error) {
@@ -73,7 +75,7 @@ WHERE assigned_to = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetTicketsByAssignee(ctx context.Context, assignedTo sql.NullString) ([]Ticket, error) {
+func (q *Queries) GetTicketsByAssignee(ctx context.Context, assignedTo uuid.NullUUID) ([]Ticket, error) {
 	rows, err := q.db.QueryContext(ctx, getTicketsByAssignee, assignedTo)
 	if err != nil {
 		return nil, err
@@ -112,7 +114,7 @@ WHERE created_by = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy string) ([]Ticket, error) {
+func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) ([]Ticket, error) {
 	rows, err := q.db.QueryContext(ctx, getTicketsByCreator, createdBy)
 	if err != nil {
 		return nil, err
@@ -192,9 +194,9 @@ SELECT id, created_by, assigned_to, title, description, state, priority, created
 `
 
 type ListTicketsParams struct {
-	CreatedBy string `json:"created_by"`
-	Limit     int32  `json:"limit"`
-	Offset    int32  `json:"offset"`
+	CreatedBy uuid.UUID `json:"created_by"`
+	Limit     int32     `json:"limit"`
+	Offset    int32     `json:"offset"`
 }
 
 func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Ticket, error) {
@@ -235,9 +237,9 @@ SELECT id, created_by, assigned_to, title, description, state, priority, created
 `
 
 type ListTicketsAssignedParams struct {
-	AssignedTo sql.NullString `json:"assigned_to"`
-	Limit      int32          `json:"limit"`
-	Offset     int32          `json:"offset"`
+	AssignedTo uuid.NullUUID `json:"assigned_to"`
+	Limit      int32         `json:"limit"`
+	Offset     int32         `json:"offset"`
 }
 
 func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssignedParams) ([]Ticket, error) {
@@ -287,13 +289,13 @@ RETURNING id, created_by, assigned_to, title, description, state, priority, crea
 `
 
 type UpdateTicketParams struct {
-	ID          int64          `json:"id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	State       int32          `json:"state"`
-	Priority    int32          `json:"priority"`
-	AssignedTo  sql.NullString `json:"assigned_to"`
-	UpdatedAt   sql.NullTime   `json:"updated_at"`
+	ID          int64         `json:"id"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	State       int32         `json:"state"`
+	Priority    int32         `json:"priority"`
+	AssignedTo  uuid.NullUUID `json:"assigned_to"`
+	UpdatedAt   sql.NullTime  `json:"updated_at"`
 }
 
 func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error) {

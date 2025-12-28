@@ -6,7 +6,7 @@ import { useAppDispatch } from "../hooks/redux";
 import { login } from "../store/slices/authSlice";
 
 const LoginPage = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -31,13 +31,13 @@ const LoginPage = () => {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log(username)
+    console.log(email)
     console.log(password)
     const reqBody = {
-      username,
+      email,
       password
     }
-    if (username && password) {
+    if (email && password) {
       fetch(`${import.meta.env.VITE_SERVER_URL}/login`, {
         method: "POST",
         headers: {
@@ -63,11 +63,11 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm space-y-4">
             <Input
-              type={"text"}
-              name={"username"}
-              label={"Username"}
-              value={username}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+              type={"email"}
+              name={"email"}
+              label={"Email"}
+              value={email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             />
             <Input
               type={"password"}

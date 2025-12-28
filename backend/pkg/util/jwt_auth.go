@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 )
 
@@ -22,11 +23,11 @@ type RefreshClaims struct {
 }
 
 type JWTUser struct {
-	Username  string `json:"username"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	Role      string `json:"role"`
+	ID        uuid.UUID `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
 }
 type TokenPairs struct {
 	Token        string `json:"access_token"`
@@ -37,7 +38,7 @@ func GenerateTokenPair(conf *configs.Config, user *JWTUser) (TokenPairs, error) 
 	// create a token
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   user.Username,
+			Subject:   user.ID.String(),
 			Issuer:    conf.JWTIssuer,
 			Audience:  jwt.ClaimStrings{conf.JWTAudience},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(conf.TokenExpiry)),
@@ -56,7 +57,7 @@ func GenerateTokenPair(conf *configs.Config, user *JWTUser) (TokenPairs, error) 
 	// create refresh token and set claims
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &RefreshClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   user.Username,
+			Subject:   user.ID.String(),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(conf.RefreshExpiry)),
 		},
 	})

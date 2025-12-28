@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const createComment = `-- name: CreateComment :one
@@ -14,9 +16,9 @@ INSERT INTO comments (description, ticket_id, created_by ) VALUES ($1, $2, $3) R
 `
 
 type CreateCommentParams struct {
-	Description string `json:"description"`
-	TicketID    int64  `json:"ticket_id"`
-	CreatedBy   string `json:"created_by"`
+	Description string    `json:"description"`
+	TicketID    int64     `json:"ticket_id"`
+	CreatedBy   uuid.UUID `json:"created_by"`
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error) {

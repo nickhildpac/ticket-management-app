@@ -3,6 +3,8 @@ package domain
 import (
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type TicketState int
@@ -74,8 +76,8 @@ func (p TicketPriority) String() string {
 
 type Ticket struct {
 	ID          int64          `json:"id" db:"id"`
-	CreatedBy   string         `json:"created_by" db:"created_by"`
-	AssignedTo  string         `json:"assigned_to" db:"assigned_to"`
+	CreatedBy   uuid.UUID      `json:"created_by" db:"created_by"`
+	AssignedTo  uuid.UUID      `json:"assigned_to" db:"assigned_to"`
 	Title       string         `json:"title" db:"title"`
 	Description string         `json:"description" db:"description"`
 	State       TicketState    `json:"state" db:"state"`

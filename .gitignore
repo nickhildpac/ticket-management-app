@@ -5,3 +5,4 @@ WARP.md
 gha-creds-*.json
 .vscode/
 AGENTS.md
+.env

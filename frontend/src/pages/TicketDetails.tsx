@@ -28,6 +28,17 @@ type StepStatus = 'complete' | 'current' | 'upcoming';
 
 const formatState = (state?: number | string) => STATE_LABELS[normalizeKey(state)] ?? 'Unknown';
 
+const isValidUUID = (id: string | null): boolean => {
+  if (!id) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+};
+
+const getUserEmail = (userId: string | null, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
+  if (!userId || !isValidUUID(userId)) return 'Unassigned';
+  const user = users.find(u => u.id === userId);
+  return user ? user.email : userId;
+};
 
 const TicketDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -174,8 +185,8 @@ const TicketDetails = () => {
   const isResolvable = activeKey !== 'resolved' && activeKey !== 'closed' && activeKey !== 'cancelled';
 
   const userOptions = users.map(user => ({
-    value: user.username,
-    label: `${user.first_name} ${user.last_name} (${user.username})`
+    value: user.id,
+    label: `${user.first_name} ${user.last_name} (${user.email})`
   }));
 
   const priorityOptions = [
@@ -261,7 +272,7 @@ const TicketDetails = () => {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Created By</p>
-            <p className="font-medium dark:text-white">{currentTicket.created_by}</p>
+            <p className="font-medium dark:text-white">{getUserEmail(currentTicket.created_by, users)}</p>
           </div>
           <div>
             <Select
@@ -272,6 +283,11 @@ const TicketDetails = () => {
               onChange={handleAssignmentChange}
               disabled={ticketLoading || usersLoading}
             />
+            {currentTicket.assigned_to && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Current: {getUserEmail(currentTicket.assigned_to, users)}
+              </p>
+            )}
           </div>
           <div>
             <Select
@@ -317,7 +333,7 @@ const TicketDetails = () => {
             {comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 p-4 rounded dark:bg-gray-700">
                 <div className="flex justify-between mb-2">
-                  <p className="font-medium dark:text-white">{comment.created_by}</p>
+                  <p className="font-medium dark:text-white">{getUserEmail(comment.created_by, users)}</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{new Date(comment.created_at).toLocaleString()}</p>
                 </div>
                 <p className="dark:text-gray-300">{comment.description}</p>

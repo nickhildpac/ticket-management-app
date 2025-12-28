@@ -30,7 +30,7 @@ func AuthRequired(conf *configs.Config) func(http.Handler) http.Handler {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			ctx := context.WithValue(r.Context(), configs.UsernameKey, claims.Subject)
+			ctx := context.WithValue(r.Context(), configs.UserIDKey, claims.Subject)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -48,7 +48,7 @@ func AdminRequired(conf *configs.Config) func(http.Handler) http.Handler {
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}
-			ctx := context.WithValue(r.Context(), configs.UsernameKey, claims.Subject)
+			ctx := context.WithValue(r.Context(), configs.UserIDKey, claims.Subject)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

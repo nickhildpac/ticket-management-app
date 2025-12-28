@@ -10,7 +10,7 @@ import (
 
 type userContextKey string
 
-const UsernameKey userContextKey = "username"
+const UserIDKey userContextKey = "user_id"
 
 type Config struct {
 	ADDR          int

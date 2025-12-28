@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
@@ -49,8 +50,15 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	var payload CommentPayload
-	username := r.Context().Value(configs.UsernameKey).(string)
+	userIDStr := r.Context().Value(configs.UserIDKey).(string)
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+	userID, err := uuid.Parse(userIDStr)
+
+	user, err := h.userService.GetUserByID(r.Context(), userID)
+	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
@@ -58,7 +66,7 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	comment, err := h.commentService.CreateComment(r.Context(), domain.Comment{
 		TicketID:    payload.TicketID,
 		Description: payload.Description,
-		CreatedBy:   username,
+		CreatedBy:   user.ID,
 	})
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)

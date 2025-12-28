@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/google/uuid"
 	sqlc "github.com/nickhildpac/ticket-management-app/internal/adapters/db/sqlc"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 )
 
 func mapUser(u sqlc.User) *domain.User {
 	return &domain.User{
-		Username:       u.Username,
+		ID:             u.ID,
 		HashedPassword: u.HashedPassword,
 		FirstName:      u.FirstName,
 		LastName:       u.LastName,
@@ -25,7 +26,7 @@ func mapTicket(t sqlc.Ticket) *domain.Ticket {
 	return &domain.Ticket{
 		ID:          t.ID,
 		CreatedBy:   t.CreatedBy,
-		AssignedTo:  t.AssignedTo.String,
+		AssignedTo:  nullableUUID(t.AssignedTo),
 		Title:       t.Title,
 		Description: t.Description,
 		State:       domain.TicketState(t.State),
@@ -67,4 +68,11 @@ func nullableTime(t sql.NullTime) time.Time {
 		return t.Time
 	}
 	return time.Time{}
+}
+
+func nullableUUID(u uuid.NullUUID) uuid.UUID {
+	if u.Valid {
+		return u.UUID
+	}
+	return uuid.UUID{}
 }

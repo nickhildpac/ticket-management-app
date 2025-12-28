@@ -1,11 +1,15 @@
 package handlers
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type TicketResponse struct {
 	TicketID    int64     `json:"id"`
-	CreatedBy   string    `json:"created_by"`
-	AssignedTo  string    `json:"assigned_to"`
+	CreatedBy   uuid.UUID `json:"created_by"`
+	AssignedTo  uuid.UUID `json:"assigned_to"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	State       string    `json:"state"`

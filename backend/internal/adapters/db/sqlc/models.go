@@ -7,31 +7,33 @@ package db
 import (
 	"database/sql"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Comment struct {
 	ID          int64        `json:"id"`
 	TicketID    int64        `json:"ticket_id"`
-	CreatedBy   string       `json:"created_by"`
+	CreatedBy   uuid.UUID    `json:"created_by"`
 	Description string       `json:"description"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   sql.NullTime `json:"updated_at"`
 }
 
 type Ticket struct {
-	ID          int64          `json:"id"`
-	CreatedBy   string         `json:"created_by"`
-	AssignedTo  sql.NullString `json:"assigned_to"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	State       int32          `json:"state"`
-	Priority    int32          `json:"priority"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   sql.NullTime   `json:"updated_at"`
+	ID          int64         `json:"id"`
+	CreatedBy   uuid.UUID     `json:"created_by"`
+	AssignedTo  uuid.NullUUID `json:"assigned_to"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	State       int32         `json:"state"`
+	Priority    int32         `json:"priority"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   sql.NullTime  `json:"updated_at"`
 }
 
 type User struct {
-	Username       string         `json:"username"`
+	ID             uuid.UUID      `json:"id"`
 	HashedPassword string         `json:"hashed_password"`
 	FirstName      string         `json:"first_name"`
 	LastName       string         `json:"last_name"`
