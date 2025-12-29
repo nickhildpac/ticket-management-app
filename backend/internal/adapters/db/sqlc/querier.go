@@ -14,12 +14,12 @@ type Querier interface {
 	CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error)
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	DeleteComment(ctx context.Context, id int64) error
-	DeleteTicket(ctx context.Context, id int64) error
+	DeleteComment(ctx context.Context, id uuid.NullUUID) error
+	DeleteTicket(ctx context.Context, id uuid.NullUUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
-	GetComment(ctx context.Context, id int64) (Comment, error)
-	GetTicket(ctx context.Context, id int64) (Ticket, error)
+	GetComment(ctx context.Context, id uuid.NullUUID) (Comment, error)
+	GetTicket(ctx context.Context, id uuid.NullUUID) (Ticket, error)
 	GetTicketsByAssignee(ctx context.Context, assignedTo uuid.NullUUID) ([]Ticket, error)
 	GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) ([]Ticket, error)
 	GetUser(ctx context.Context, id uuid.UUID) (User, error)

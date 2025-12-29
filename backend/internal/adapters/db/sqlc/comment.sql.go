@@ -12,25 +12,25 @@ import (
 )
 
 const createComment = `-- name: CreateComment :one
-INSERT INTO comments (description, ticket_id, created_by ) VALUES ($1, $2, $3) RETURNING id, ticket_id, created_by, description, created_at, updated_at
+INSERT INTO comments (description, ticket_id, created_by ) VALUES ($1, $2, $3) RETURNING created_by, description, created_at, updated_at, id, ticket_id
 `
 
 type CreateCommentParams struct {
-	Description string    `json:"description"`
-	TicketID    int64     `json:"ticket_id"`
-	CreatedBy   uuid.UUID `json:"created_by"`
+	Description string        `json:"description"`
+	TicketID    uuid.NullUUID `json:"ticket_id"`
+	CreatedBy   uuid.UUID     `json:"created_by"`
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error) {
 	row := q.db.QueryRowContext(ctx, createComment, arg.Description, arg.TicketID, arg.CreatedBy)
 	var i Comment
 	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
 		&i.CreatedBy,
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ID,
+		&i.TicketID,
 	)
 	return i, err
 }
@@ -39,37 +39,37 @@ const deleteComment = `-- name: DeleteComment :exec
 DELETE FROM comments WHERE id = $1
 `
 
-func (q *Queries) DeleteComment(ctx context.Context, id int64) error {
+func (q *Queries) DeleteComment(ctx context.Context, id uuid.NullUUID) error {
 	_, err := q.db.ExecContext(ctx, deleteComment, id)
 	return err
 }
 
 const getComment = `-- name: GetComment :one
-SELECT id, ticket_id, created_by, description, created_at, updated_at FROM comments WHERE id = $1 LIMIT 1
+SELECT created_by, description, created_at, updated_at, id, ticket_id FROM comments WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetComment(ctx context.Context, id int64) (Comment, error) {
+func (q *Queries) GetComment(ctx context.Context, id uuid.NullUUID) (Comment, error) {
 	row := q.db.QueryRowContext(ctx, getComment, id)
 	var i Comment
 	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
 		&i.CreatedBy,
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ID,
+		&i.TicketID,
 	)
 	return i, err
 }
 
 const listComment = `-- name: ListComment :many
-SELECT id, ticket_id, created_by, description, created_at, updated_at FROM comments WHERE ticket_id=$1 ORDER BY id LIMIT $2 OFFSET $3
+SELECT created_by, description, created_at, updated_at, id, ticket_id FROM comments WHERE ticket_id=$1 ORDER BY created_at LIMIT $2 OFFSET $3
 `
 
 type ListCommentParams struct {
-	TicketID int64 `json:"ticket_id"`
-	Limit    int32 `json:"limit"`
-	Offset   int32 `json:"offset"`
+	TicketID uuid.NullUUID `json:"ticket_id"`
+	Limit    int32         `json:"limit"`
+	Offset   int32         `json:"offset"`
 }
 
 func (q *Queries) ListComment(ctx context.Context, arg ListCommentParams) ([]Comment, error) {
@@ -82,12 +82,12 @@ func (q *Queries) ListComment(ctx context.Context, arg ListCommentParams) ([]Com
 	for rows.Next() {
 		var i Comment
 		if err := rows.Scan(
-			&i.ID,
-			&i.TicketID,
 			&i.CreatedBy,
 			&i.Description,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ID,
+			&i.TicketID,
 		); err != nil {
 			return nil, err
 		}

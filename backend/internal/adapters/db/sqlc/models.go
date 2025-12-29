@@ -12,16 +12,15 @@ import (
 )
 
 type Comment struct {
-	ID          int64        `json:"id"`
-	TicketID    int64        `json:"ticket_id"`
-	CreatedBy   uuid.UUID    `json:"created_by"`
-	Description string       `json:"description"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   sql.NullTime `json:"updated_at"`
+	CreatedBy   uuid.UUID     `json:"created_by"`
+	Description string        `json:"description"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   sql.NullTime  `json:"updated_at"`
+	ID          uuid.NullUUID `json:"id"`
+	TicketID    uuid.NullUUID `json:"ticket_id"`
 }
 
 type Ticket struct {
-	ID          int64         `json:"id"`
 	CreatedBy   uuid.UUID     `json:"created_by"`
 	AssignedTo  uuid.NullUUID `json:"assigned_to"`
 	Title       string        `json:"title"`
@@ -30,6 +29,7 @@ type Ticket struct {
 	Priority    int32         `json:"priority"`
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   sql.NullTime  `json:"updated_at"`
+	ID          uuid.NullUUID `json:"id"`
 }
 
 type User struct {

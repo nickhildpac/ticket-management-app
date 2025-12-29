@@ -41,7 +41,7 @@ const MyAssignments = () => {
   const dispatch = useAppDispatch();
   const { assignedTickets, assignedLoading, error } = useAppSelector((state) => state.tickets);
 
-  const handleRowClick = (ticketId: number) => {
+  const handleRowClick = (ticketId: string) => {
     navigate(`/ticket/${ticketId}`);
   };
 

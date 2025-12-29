@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 interface Ticket {
-  id: number;
+  id: string;
   created_by: string;
   assigned_to: string | null;
   title: string;
@@ -82,7 +82,7 @@ export const fetchAssignedTickets = createAsyncThunk(
 
 export const fetchTicketById = createAsyncThunk(
   'tickets/fetchTicketById',
-  async (id: number, { rejectWithValue, getState }) => {
+  async (id: string, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, {
@@ -134,7 +134,7 @@ export const createTicket = createAsyncThunk(
 
 export const updateTicketState = createAsyncThunk(
   'tickets/updateTicketState',
-  async ({ id, state: newState }: { id: number; state: string }, { rejectWithValue, getState }) => {
+  async ({ id, state: newState }: { id: string; state: string }, { rejectWithValue, getState }) => {
     try {
       const authState = getState() as { auth: { token: string } };
       const response = await fetch(`http://localhost:8080/api/v1/ticket/${id}`, {
@@ -161,7 +161,7 @@ export const updateTicketState = createAsyncThunk(
 
 export const updateTicketAssignment = createAsyncThunk(
   'tickets/updateTicketAssignment',
-  async ({ id, assignedTo }: { id: number; assignedTo: string | null }, { rejectWithValue, getState }) => {
+  async ({ id, assignedTo }: { id: string; assignedTo: string | null }, { rejectWithValue, getState }) => {
     try {
       const authState = getState() as { auth: { token: string } };
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, {
@@ -189,7 +189,7 @@ export const updateTicketAssignment = createAsyncThunk(
 export const updateTicket = createAsyncThunk(
   'tickets/updateTicket',
   async ({ id, assignedTo, priority, state, description }: { 
-    id: number; 
+    id: string; 
     assignedTo: string | null; 
     priority: string; 
     state: string;

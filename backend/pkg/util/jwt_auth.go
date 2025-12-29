@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 )
 
@@ -23,11 +24,11 @@ type RefreshClaims struct {
 }
 
 type JWTUser struct {
-	ID        uuid.UUID `json:"id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	Role      string    `json:"role"`
+	ID        uuid.UUID       `json:"id"`
+	FirstName string          `json:"first_name"`
+	LastName  string          `json:"last_name"`
+	Email     string          `json:"email"`
+	Role      domain.UserRole `json:"role"`
 }
 type TokenPairs struct {
 	Token        string `json:"access_token"`
@@ -45,7 +46,7 @@ func GenerateTokenPair(conf *configs.Config, user *JWTUser) (TokenPairs, error) 
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
-		Role: user.Role,
+		Role: string(user.Role),
 	})
 
 	// create a signed token
@@ -121,7 +122,7 @@ func GetTokenFromHeaderAndVerify(conf *configs.Config, w http.ResponseWriter, r 
 	token := headerParts[1]
 	// declare empty claims
 	claims := &Claims{}
-	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method %v", token.Header["alg"])
 		}

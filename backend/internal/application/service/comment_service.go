@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/internal/ports"
 )
@@ -15,11 +16,11 @@ func NewCommentService(r ports.CommentRepository) *CommentService {
 	return &CommentService{repo: r}
 }
 
-func (s *CommentService) ListByTicket(ctx context.Context, ticketID int64, limit, offset int32) ([]domain.Comment, error) {
+func (s *CommentService) ListByTicket(ctx context.Context, ticketID uuid.UUID, limit, offset int32) ([]domain.Comment, error) {
 	return s.repo.ListByTicket(ctx, ticketID, limit, offset)
 }
 
-func (s *CommentService) GetComment(ctx context.Context, id int64) (*domain.Comment, error) {
+func (s *CommentService) GetComment(ctx context.Context, id uuid.UUID) (*domain.Comment, error) {
 	return s.repo.Get(ctx, id)
 }
 

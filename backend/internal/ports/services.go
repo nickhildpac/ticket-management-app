@@ -18,13 +18,13 @@ type TicketService interface {
 	ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error)
 	ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
-	GetTicket(ctx context.Context, id int64) (*domain.Ticket, error)
+	GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
 	CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	UpdateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 }
 
 type CommentService interface {
-	ListByTicket(ctx context.Context, ticketID int64, limit, offset int32) ([]domain.Comment, error)
-	GetComment(ctx context.Context, id int64) (*domain.Comment, error)
+	ListByTicket(ctx context.Context, ticketID uuid.UUID, limit, offset int32) ([]domain.Comment, error)
+	GetComment(ctx context.Context, id uuid.UUID) (*domain.Comment, error)
 	CreateComment(ctx context.Context, comment domain.Comment) (*domain.Comment, error)
 }

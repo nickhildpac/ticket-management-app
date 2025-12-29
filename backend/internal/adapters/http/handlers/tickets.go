@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -39,12 +38,12 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
-	userID, err := uuid.Parse(userIDStr)
+	user, err := h.userService.GetUser(r.Context(), userIDStr)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
-	tickets, err := h.ticketService.ListByCreator(r.Context(), userID, 20, 0)
+	tickets, err := h.ticketService.ListByCreator(r.Context(), user.ID, 20, 0)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -54,12 +53,12 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
-	userID, err := uuid.Parse(userIDStr)
+	user, err := h.userService.GetUser(r.Context(), userIDStr)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
-	tickets, err := h.ticketService.ListByAssignee(r.Context(), userID, 20, 0)
+	tickets, err := h.ticketService.ListByAssignee(r.Context(), user.ID, 20, 0)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -69,7 +68,7 @@ func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	tid, err := strconv.ParseInt(idParam, 10, 64)
+	tid, err := uuid.Parse(idParam)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
@@ -95,17 +94,12 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	var payload TicketPayload
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		util.ErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	user, err := h.userService.GetUserByID(r.Context(), userID)
+	user, err := h.userService.GetUser(r.Context(), userIDStr)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
@@ -125,7 +119,7 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	tid, err := strconv.ParseInt(idParam, 10, 64)
+	tid, err := uuid.Parse(idParam)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return

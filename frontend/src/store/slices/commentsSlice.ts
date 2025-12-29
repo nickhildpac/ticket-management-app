@@ -1,8 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 interface Comment {
-  id: number;
-  ticket_id: number;
+  id: string;
+  ticket_id: string;
   created_by: string;
   description: string;
   created_at: string;
@@ -23,7 +23,7 @@ const initialState: CommentsState = {
 
 export const fetchCommentsByTicketId = createAsyncThunk(
   'comments/fetchCommentsByTicketId',
-  async (ticketId: number, { rejectWithValue, getState }) => {
+  async (ticketId: string, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${ticketId}/comments`, {
@@ -48,7 +48,7 @@ export const fetchCommentsByTicketId = createAsyncThunk(
 
 export const createComment = createAsyncThunk(
   'comments/createComment',
-  async (comment: { ticket_id: number; description: string }, { rejectWithValue, getState }) => {
+  async (comment: { ticket_id: string; description: string }, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: { token: string } };
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/comment`, {

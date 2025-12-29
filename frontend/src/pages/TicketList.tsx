@@ -54,7 +54,7 @@ const TicketList = () => {
   const dispatch = useAppDispatch();
   const { tickets, loading, error } = useAppSelector((state) => state.tickets);
   const { users } = useAppSelector((state) => state.users);
-  const handleRowClick = (ticketId: number) => {
+  const handleRowClick = (ticketId: string) => {
     navigate(`/ticket/${ticketId}`);
   };
 

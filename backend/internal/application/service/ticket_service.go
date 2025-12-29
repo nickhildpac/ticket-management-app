@@ -30,7 +30,7 @@ func (s *TicketService) ListByAssignee(ctx context.Context, id uuid.UUID, limit,
 	return s.repo.ListByAssignee(ctx, id, limit, offset)
 }
 
-func (s *TicketService) GetTicket(ctx context.Context, id int64) (*domain.Ticket, error) {
+func (s *TicketService) GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
 	return s.repo.Get(ctx, id)
 }
 

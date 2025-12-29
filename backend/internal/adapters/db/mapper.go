@@ -10,13 +10,20 @@ import (
 )
 
 func mapUser(u sqlc.User) *domain.User {
+	var role domain.UserRole
+	if u.Role.Valid {
+		role = domain.UserRole(u.Role.String)
+	} else {
+		role = domain.RoleUser // default role
+	}
+
 	return &domain.User{
 		ID:             u.ID,
 		HashedPassword: u.HashedPassword,
 		FirstName:      u.FirstName,
 		LastName:       u.LastName,
 		Email:          u.Email,
-		Role:           u.Role.String,
+		Role:           role,
 		UpdatedAt:      u.UpdatedAt,
 		CreatedAt:      u.CreatedAt,
 	}
@@ -24,7 +31,7 @@ func mapUser(u sqlc.User) *domain.User {
 
 func mapTicket(t sqlc.Ticket) *domain.Ticket {
 	return &domain.Ticket{
-		ID:          t.ID,
+		ID:          nullableUUID(t.ID),
 		CreatedBy:   t.CreatedBy,
 		AssignedTo:  nullableUUID(t.AssignedTo),
 		Title:       t.Title,
@@ -46,8 +53,8 @@ func mapTickets(rows []sqlc.Ticket) []domain.Ticket {
 
 func mapComment(c sqlc.Comment) *domain.Comment {
 	return &domain.Comment{
-		ID:          c.ID,
-		TicketID:    c.TicketID,
+		ID:          nullableUUID(c.ID),
+		TicketID:    nullableUUID(c.TicketID),
 		CreatedBy:   c.CreatedBy,
 		Description: c.Description,
 		CreatedAt:   c.CreatedAt,

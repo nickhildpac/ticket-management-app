@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -13,13 +12,13 @@ import (
 )
 
 type CommentPayload struct {
-	TicketID    int64  `json:"ticket_id"`
+	TicketID    string `json:"ticket_id"`
 	Description string `json:"description"`
 }
 
 func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	tid, err := strconv.ParseInt(idParam, 10, 64)
+	tid, err := uuid.Parse(idParam)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
@@ -35,7 +34,7 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	tid, err := strconv.ParseInt(idParam, 10, 64)
+	tid, err := uuid.Parse(idParam)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
@@ -55,16 +54,21 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
-	userID, err := uuid.Parse(userIDStr)
 
-	user, err := h.userService.GetUserByID(r.Context(), userID)
+	user, err := h.userService.GetUser(r.Context(), userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	ticketID, err := uuid.Parse(payload.TicketID)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
 	comment, err := h.commentService.CreateComment(r.Context(), domain.Comment{
-		TicketID:    payload.TicketID,
+		TicketID:    ticketID,
 		Description: payload.Description,
 		CreatedBy:   user.ID,
 	})

@@ -7,7 +7,7 @@ import (
 )
 
 type TicketResponse struct {
-	TicketID    int64     `json:"id"`
+	TicketID    uuid.UUID `json:"id"`
 	CreatedBy   uuid.UUID `json:"created_by"`
 	AssignedTo  uuid.UUID `json:"assigned_to"`
 	Title       string    `json:"title"`

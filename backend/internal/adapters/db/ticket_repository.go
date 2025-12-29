@@ -57,8 +57,8 @@ func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, lim
 	return mapTickets(rows), nil
 }
 
-func (r *TicketRepository) Get(ctx context.Context, id int64) (*domain.Ticket, error) {
-	ticket, err := r.store.GetTicket(ctx, id)
+func (r *TicketRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
+	ticket, err := r.store.GetTicket(ctx, uuid.NullUUID{UUID: id, Valid: true})
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (r *TicketRepository) Create(ctx context.Context, ticket domain.Ticket) (*d
 
 func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	updated, err := r.store.UpdateTicket(ctx, sqlc.UpdateTicketParams{
-		ID:          ticket.ID,
+		ID:          uuid.NullUUID{UUID: ticket.ID, Valid: true},
 		Title:       ticket.Title,
 		Description: ticket.Description,
 		State:       int32(ticket.State),

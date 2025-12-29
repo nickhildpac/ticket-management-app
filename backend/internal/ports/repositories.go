@@ -18,13 +18,13 @@ type TicketRepository interface {
 	ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error)
 	ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
-	Get(ctx context.Context, id int64) (*domain.Ticket, error)
+	Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
 	Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 }
 
 type CommentRepository interface {
-	ListByTicket(ctx context.Context, ticketID int64, limit, offset int32) ([]domain.Comment, error)
-	Get(ctx context.Context, id int64) (*domain.Comment, error)
+	ListByTicket(ctx context.Context, ticketID uuid.UUID, limit, offset int32) ([]domain.Comment, error)
+	Get(ctx context.Context, id uuid.UUID) (*domain.Comment, error)
 	Create(ctx context.Context, comment domain.Comment) (*domain.Comment, error)
 }

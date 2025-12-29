@@ -49,8 +49,8 @@ const TicketDetails = () => {
   // Fetch ticket data based on ID
   useEffect(() => {
     if (id) {
-      dispatch(fetchTicketById(Number(id)));
-      dispatch(fetchCommentsByTicketId(Number(id)));
+      dispatch(fetchTicketById(id));
+      dispatch(fetchCommentsByTicketId(id));
       dispatch(fetchUsers());
     }
   }, [id, dispatch]);
@@ -91,7 +91,7 @@ const TicketDetails = () => {
     if (newComment.trim() === '' || !id) return;
 
     dispatch(createComment({
-      ticket_id: Number(id),
+      ticket_id: id,
       description: newComment
     })).then(() => {
       setNewComment("");
@@ -100,13 +100,13 @@ const TicketDetails = () => {
 
   const handleCancelTicket = async () => {
     if (!id || ticketLoading) return;
-    await dispatch(updateTicketState({ id: Number(id), state: 'cancelled' }));
-    dispatch(fetchTicketById(Number(id)));
+    await dispatch(updateTicketState({ id, state: 'cancelled' }));
+    dispatch(fetchTicketById(id));
   };
   const handleResolveTicket = async () => {
     if (!id || ticketLoading) return;
-    await dispatch(updateTicketState({ id: Number(id), state: 'resolved' }));
-    dispatch(fetchTicketById(Number(id)));
+    await dispatch(updateTicketState({ id, state: 'resolved' }));
+    dispatch(fetchTicketById(id));
   };
   const handleCancelClick = () => {
     void handleCancelTicket();
@@ -136,14 +136,14 @@ const TicketDetails = () => {
     if (!id || !hasChanges || ticketLoading) return;
 
     await dispatch(updateTicket({ 
-      id: Number(id), 
+      id, 
       assignedTo: assignedTo || null,
       priority: priority,
       state: state,
       description: description
     }));
     
-    dispatch(fetchTicketById(Number(id)));
+    dispatch(fetchTicketById(id));
   };
 
   if (ticketLoading || commentsLoading) {

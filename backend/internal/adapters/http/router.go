@@ -24,7 +24,6 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 		r.Post("/login", h.Login)
 		r.Get("/logout", h.Logout)
 		r.Post("/user", h.CreateUser)
-		r.Get("/user/{username}", h.GetUser)
 		r.Get("/users", h.GetAllUsers)
 		r.Get("/refresh", h.RefreshToken)
 
