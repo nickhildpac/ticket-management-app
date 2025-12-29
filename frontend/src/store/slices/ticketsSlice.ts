@@ -188,10 +188,11 @@ export const updateTicketAssignment = createAsyncThunk(
 
 export const updateTicket = createAsyncThunk(
   'tickets/updateTicket',
-  async ({ id, assignedTo, priority, description }: { 
+  async ({ id, assignedTo, priority, state, description }: { 
     id: number; 
     assignedTo: string | null; 
     priority: string; 
+    state: string;
     description: string 
   }, { rejectWithValue, getState }) => {
     try {
@@ -206,6 +207,7 @@ export const updateTicket = createAsyncThunk(
         body: JSON.stringify({ 
           assigned_to: assignedTo,
           priority: priority,
+          state: state,
           description: description
         }),
       });

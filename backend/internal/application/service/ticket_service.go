@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,6 +41,21 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 }
 
 func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
+	prev, err := s.repo.Get(ctx, ticket.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Only validate state transition if state is being changed
+	if ticket.State != prev.State {
+		log.Printf("Attempting state transition from %s to %s", prev.State, ticket.State)
+		if ok := domain.CanTransition(prev.State, ticket.State); !ok {
+			return nil, domain.ErrInvalidStatusTransition
+		}
+	}
+
+	// Update the ticket
+	ticket.CreatedAt = prev.CreatedAt // Preserve original creation time
 	ticket.UpdatedAt = time.Now()
 	return s.repo.Update(ctx, ticket)
 }

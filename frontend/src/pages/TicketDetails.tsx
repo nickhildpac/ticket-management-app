@@ -10,14 +10,7 @@ import { fetchUsers } from '../store/slices/usersSlice';
 
 
 
-const STATE_LABELS: Record<string , string> = {
-  open: 'Open',
-  pending: 'Pending',
-  resolved: 'Resolved',
-  closed: 'Closed',
-  cancel: 'Cancelled',
-  cancelled: 'Cancelled',
-};
+
 
 const normalizeKey = (value?: number | string): string => {
   if (value === undefined || value === null) return '';
@@ -25,8 +18,6 @@ const normalizeKey = (value?: number | string): string => {
 };
 
 type StepStatus = 'complete' | 'current' | 'upcoming';
-
-const formatState = (state?: number | string) => STATE_LABELS[normalizeKey(state)] ?? 'Unknown';
 
 const isValidUUID = (id: string | null): boolean => {
   if (!id) return false;
@@ -51,6 +42,7 @@ const TicketDetails = () => {
   const [newComment, setNewComment] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [priority, setPriority] = useState('low');
+  const [state, setState] = useState('open');
   const [description, setDescription] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -70,6 +62,14 @@ const TicketDetails = () => {
       const priorityValue = normalizeKey(currentTicket.priority);
       const validPriority = ['low', 'medium', 'high', 'critical'].includes(priorityValue) ? priorityValue : 'low';
       setPriority(validPriority);
+      const stateValue = normalizeKey(currentTicket.state);
+      let validState = 'open';
+      if (['open', 'pending', 'resolved', 'closed', 'cancelled'].includes(stateValue)) {
+        validState = stateValue;
+      } else if (stateValue === 'cancel') {
+        validState = 'cancelled';
+      }
+      setState(validState);
       setDescription(currentTicket.description || '');
       setHasChanges(false);
     }
@@ -81,10 +81,11 @@ const TicketDetails = () => {
       const changed =
         assignedTo !== (currentTicket.assigned_to || '') ||
         priority !== normalizeKey(currentTicket.priority) ||
+        state !== normalizeKey(currentTicket.state) ||
         description !== (currentTicket.description || '');
       setHasChanges(changed);
     }
-  }, [assignedTo, priority, description, currentTicket]);
+  }, [assignedTo, priority, state, description, currentTicket]);
 
   const handleAddComment = () => {
     if (newComment.trim() === '' || !id) return;
@@ -123,6 +124,10 @@ const TicketDetails = () => {
     setPriority(e.target.value);
   };
 
+  const handleStateChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setState(e.target.value);
+  };
+
   const handleDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setDescription(e.target.value);
   };
@@ -134,6 +139,7 @@ const TicketDetails = () => {
       id: Number(id), 
       assignedTo: assignedTo || null,
       priority: priority,
+      state: state,
       description: description
     }));
     
@@ -173,16 +179,16 @@ const TicketDetails = () => {
   }
 
   const lifecycleSteps = [
-    { key: 'open', label: 'Open', aliases: ['open'] },
-    { key: 'pending', label: 'Pending', aliases: ['pending'] },
-    { key: 'resolved', label: 'Resolved', aliases: ['resolved'] },
-    { key: 'closed', label: 'Closed', aliases: ['closed'] },
-    { key: 'cancelled', label: 'Cancelled', aliases: ['cancelled', 'cancel'] },
+    { key: 1, label: 'Open', aliases: [1, 'open'] },
+    { key: 2, label: 'Pending', aliases: [2, 'pending'] },
+    { key: 3, label: 'Resolved', aliases: [3, 'resolved'] },
+    { key: 4, label: 'Closed', aliases: [4, 'closed'] },
+    { key: 5, label: 'Cancelled', aliases: [5, 'cancelled', 'cancel'] },
   ];
-  const activeKey = normalizeKey(currentTicket.state);
+  const activeKey = currentTicket.state;
   const activeIndex = lifecycleSteps.findIndex((item) => item.aliases.includes(activeKey));
-  const isCancelable = activeKey !== 'cancelled' && activeKey !== 'closed';
-  const isResolvable = activeKey !== 'resolved' && activeKey !== 'closed' && activeKey !== 'cancelled';
+  const isCancelable = activeKey !== 5 && activeKey !== 4;
+  const isResolvable = activeKey !== 3 && activeKey !== 4 && activeKey !== 5;
 
   const userOptions = users.map(user => ({
     value: user.id,
@@ -194,6 +200,14 @@ const TicketDetails = () => {
     { value: 'high', label: 'High' },
     { value: 'medium', label: 'Medium' },
     { value: 'low', label: 'Low' }
+  ];
+
+  const stateOptions = [
+    { value: 'open', label: 'Open' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'resolved', label: 'Resolved' },
+    { value: 'closed', label: 'Closed' },
+    { value: 'cancelled', label: 'Cancelled' }
   ];
 
   return (
@@ -301,8 +315,15 @@ const TicketDetails = () => {
             />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">State</p>
-            <p className="font-medium dark:text-white">{formatState(currentTicket.state)}</p>
+            <Select
+              label="State"
+              name="state"
+              value={state}
+              options={stateOptions}
+              onChange={handleStateChange}
+              disabled={true}
+              showUnassigned={false}
+            />
           </div>
         </div>
 

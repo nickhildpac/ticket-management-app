@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -38,7 +40,7 @@ func (s TicketState) String() string {
 	case TicketStateClosed:
 		return "closed"
 	case TicketStateCancelled:
-		return "cancel"
+		return "cancelled"
 	default:
 		return "unknown"
 	}
@@ -84,4 +86,67 @@ type Ticket struct {
 	Priority    TicketPriority `json:"priority" db:"priority"`
 	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at" db:"updated_at"`
+}
+
+var allowedTransitions = map[TicketState]map[TicketState]struct{}{
+	// Open tickets can move to Pending, be Cancelled, or stay Open
+	TicketStateOpen: {
+		TicketStatePending:   {},
+		TicketStateCancelled: {},
+	},
+	// Pending tickets can move back to Open, be Resolved, or be Cancelled
+	TicketStatePending: {
+		TicketStateOpen:      {},
+		TicketStateResolved:  {},
+		TicketStateCancelled: {},
+	},
+	// Resolved tickets can move back to Open/Pending (reopened), be Closed, or be Cancelled
+	TicketStateResolved: {
+		TicketStateOpen:      {},
+		TicketStatePending:   {},
+		TicketStateClosed:    {},
+		TicketStateCancelled: {},
+	},
+	// Closed tickets are final - no transitions allowed
+	TicketStateClosed: {},
+	// Cancelled tickets are final - no transitions allowed
+	TicketStateCancelled: {},
+}
+
+func CanTransition(from TicketState, to TicketState) bool {
+	if from == to {
+		return true
+	}
+	next, ok := allowedTransitions[from]
+	if !ok {
+		return false
+	}
+	_, ok = next[to]
+	return ok
+}
+
+// GetValidTransitions returns all valid states that can be transitioned to from the given state
+func GetValidTransitions(from TicketState) []TicketState {
+	var validStates []TicketState
+
+	// Always include current state (no change)
+	validStates = append(validStates, from)
+
+	// Add allowed transition states
+	if transitions, ok := allowedTransitions[from]; ok {
+		for state := range transitions {
+			validStates = append(validStates, state)
+		}
+	}
+
+	return validStates
+}
+
+var (
+	ErrInvalidStatusTransition = errors.New("invalid status transition")
+)
+
+// GetTransitionError returns a more descriptive error for invalid transitions
+func GetTransitionError(from TicketState, to TicketState) error {
+	return fmt.Errorf("cannot transition ticket from %s to %s: %w", from.String(), to.String(), ErrInvalidStatusTransition)
 }
