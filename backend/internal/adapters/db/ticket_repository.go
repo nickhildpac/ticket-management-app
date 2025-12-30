@@ -95,3 +95,7 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 	}
 	return mapTicket(updated), nil
 }
+
+func (r *TicketRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	return r.store.DeleteTicket(ctx, uuid.NullUUID{UUID: id, Valid: true})
+}

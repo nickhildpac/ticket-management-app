@@ -11,6 +11,7 @@ import (
 type userContextKey string
 
 const UserIDKey userContextKey = "user_id"
+const UserRoleKey userContextKey = "user_role"
 
 type Config struct {
 	ADDR          int

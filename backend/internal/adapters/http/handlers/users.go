@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
 )
@@ -104,6 +105,21 @@ func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.GetAllUsers(r.Context())
 	if err != nil {
+		if err == authorization.ErrAccessDenied {
+			util.ErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	util.WriteResponse(w, http.StatusOK, users)
+}
+
+// GetBasicUsers returns a list of users with basic info (id, name, email) for ticket assignment
+// This endpoint is accessible to all authenticated users, not just admins
+func (h *Handler) GetBasicUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.userService.GetAllUsersForAssignment(r.Context())
+	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -137,6 +153,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Println("Error creating user:", err)
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusCreated, user)
@@ -198,4 +215,60 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			Role:      user.Role,
 		},
 	})
+}
+
+func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var payload struct {
+		Role string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	role, err := domain.GetRole(payload.Role)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := h.userService.UpdateUserRole(r.Context(), userID, role)
+	if err != nil {
+		if err == authorization.ErrAccessDenied {
+			util.ErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	util.WriteResponse(w, http.StatusOK, user)
+}
+
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	err = h.userService.DeleteUser(r.Context(), userID)
+	if err != nil {
+		if err == authorization.ErrAccessDenied {
+			util.ErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	util.WriteResponse(w, http.StatusNoContent, nil)
 }

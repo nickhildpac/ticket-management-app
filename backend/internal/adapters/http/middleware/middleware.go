@@ -31,6 +31,7 @@ func AuthRequired(conf *configs.Config) func(http.Handler) http.Handler {
 				return
 			}
 			ctx := context.WithValue(r.Context(), configs.UserIDKey, claims.Subject)
+			ctx = context.WithValue(ctx, configs.UserRoleKey, claims.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -49,6 +50,7 @@ func AdminRequired(conf *configs.Config) func(http.Handler) http.Handler {
 				return
 			}
 			ctx := context.WithValue(r.Context(), configs.UserIDKey, claims.Subject)
+			ctx = context.WithValue(ctx, configs.UserRoleKey, claims.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

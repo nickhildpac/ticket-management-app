@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"log"
 
 	"github.com/google/uuid"
@@ -63,4 +64,23 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]domain.User, error)
 		}
 	}
 	return result, nil
+}
+
+func (r *UserRepository) UpdateUser(ctx context.Context, user *domain.User) (*domain.User, error) {
+	updated, err := r.store.UpdateUser(ctx, sqlc.UpdateUserParams{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      sql.NullString{String: string(user.Role), Valid: user.Role != ""},
+		UpdatedAt: user.UpdatedAt,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mapUser(updated), nil
+}
+
+func (r *UserRepository) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	return r.store.DeleteUser(ctx, id)
 }

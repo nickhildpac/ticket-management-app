@@ -12,6 +12,9 @@ type UserService interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	CreateUser(ctx context.Context, user domain.User) (*domain.User, error)
 	GetAllUsers(ctx context.Context) ([]domain.User, error)
+	GetAllUsersForAssignment(ctx context.Context) ([]domain.User, error)
+	UpdateUserRole(ctx context.Context, id uuid.UUID, role domain.UserRole) (*domain.User, error)
+	DeleteUser(ctx context.Context, id uuid.UUID) error
 }
 
 type TicketService interface {
@@ -20,7 +23,8 @@ type TicketService interface {
 	ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
 	CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
-	UpdateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	UpdateTicket(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error)
+	DeleteTicket(ctx context.Context, id uuid.UUID) error
 }
 
 type CommentService interface {

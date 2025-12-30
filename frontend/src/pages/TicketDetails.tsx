@@ -25,10 +25,15 @@ const isValidUUID = (id: string | null): boolean => {
   return uuidRegex.test(id);
 };
 
-const getUserEmail = (userId: string | null, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
-  if (!userId || !isValidUUID(userId)) return 'Unassigned';
+const normalizeAssignedList = (userIds: string[] | null | undefined) => {
+  if (!userIds) return [];
+  return [...userIds].filter((userId) => isValidUUID(userId)).sort();
+};
+
+const getUserLabelFromList = (userId: string, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
   const user = users.find(u => u.id === userId);
-  return user ? user.email : userId;
+  if (!user) return userId;
+  return `${user.first_name} ${user.last_name} (${user.email})`;
 };
 
 const getUserLabel = (userId: string, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
@@ -315,7 +320,9 @@ const TicketDetails = () => {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Created By</p>
-            <p className="font-medium dark:text-white">{getUserEmail(currentTicket.created_by, users)}</p>
+            <p className="font-medium dark:text-white">
+              {currentTicket.creator ? `${currentTicket.creator.first_name} ${currentTicket.creator.last_name} (${currentTicket.creator.email})` : 'Unknown'}
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Assigned To</label>
@@ -336,7 +343,7 @@ const TicketDetails = () => {
                       key={userId}
                       className="inline-flex items-center gap-1 rounded-full bg-slate-200 text-slate-800 text-xs px-3 py-1 dark:bg-slate-600 dark:text-white"
                     >
-                      {getUserLabel(userId, users)}
+                      {getUserLabelFromList(userId, users)}
                       <button
                         type="button"
                         onClick={(event) => {
@@ -344,7 +351,7 @@ const TicketDetails = () => {
                           handleRemoveAssignee(userId);
                         }}
                         className="ml-1 rounded-full px-1 text-slate-600 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
-                        aria-label={`Remove ${getUserLabel(userId, users)}`}
+                        aria-label={`Remove ${getUserLabelFromList(userId, users)}`}
                       >
                         x
                       </button>
@@ -428,7 +435,9 @@ const TicketDetails = () => {
             {comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 p-4 rounded dark:bg-gray-700">
                 <div className="flex justify-between mb-2">
-                  <p className="font-medium dark:text-white">{getUserEmail(comment.created_by, users)}</p>
+                  <p className="font-medium dark:text-white">
+                    {comment.creator ? `${comment.creator.first_name} ${comment.creator.last_name} (${comment.creator.email})` : 'Unknown'}
+                  </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{new Date(comment.created_at).toLocaleString()}</p>
                 </div>
                 <p className="dark:text-gray-300">{comment.description}</p>

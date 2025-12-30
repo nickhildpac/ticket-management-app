@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,4 +25,17 @@ type User struct {
 	Role           UserRole  `json:"role"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	CreatedAt      time.Time `json:"created_at"`
+}
+
+func GetRole(s string) (UserRole, error) {
+	switch strings.ToLower(s) {
+	case "user":
+		return RoleUser, nil
+	case "agent":
+		return RoleAgent, nil
+	case "admin":
+		return RoleAdmin, nil
+	default:
+		return "", fmt.Errorf("invalid role: %s", s)
+	}
 }

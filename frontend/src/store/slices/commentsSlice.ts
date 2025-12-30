@@ -1,9 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
+interface UserInfo {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
 interface Comment {
   id: string;
   ticket_id: string;
   created_by: string;
+  creator: UserInfo;
   description: string;
   created_at: string;
   updated_at: string | null;

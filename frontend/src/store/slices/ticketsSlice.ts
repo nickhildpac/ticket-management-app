@@ -1,8 +1,19 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
+interface UserInfo {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
 interface Ticket {
   id: string;
   created_by: string;
+<<<<<<< HEAD
+=======
+  creator: UserInfo;
+>>>>>>> ff41784 (feat: rbac added in backend)
   assigned_to: string[] | null;
   title: string;
   description: string;

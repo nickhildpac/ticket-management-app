@@ -20,13 +20,14 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 	r.Use(middlewares.EnableCORS)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Public endpoints
 		r.Get("/health", h.HealthCheck)
 		r.Post("/login", h.Login)
 		r.Get("/logout", h.Logout)
 		r.Post("/user", h.CreateUser)
-		r.Get("/users", h.GetAllUsers)
 		r.Get("/refresh", h.RefreshToken)
 
+		// Ticket routes (authenticated)
 		r.Route("/ticket", func(mux chi.Router) {
 			mux.Use(middlewares.AuthRequired(conf))
 			mux.Get("/all", h.GetTickets)
@@ -34,12 +35,26 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 			mux.Post("/", h.CreateTicket)
 			mux.Get("/{id}", h.GetTicket)
 			mux.Patch("/{id}", h.UpdateTicket)
+			mux.Delete("/{id}", h.DeleteTicket)
 			mux.Get("/{id}/comments", h.GetComments)
 		})
 
-		r.With(middlewares.AdminRequired(conf)).Get("/admin/tickets", h.GetAllTickets)
+		// Comment routes (authenticated)
 		r.With(middlewares.AuthRequired(conf)).Post("/comment", h.CreateComment)
 		r.Get("/comment/{id}", h.GetComment)
+
+		// User routes (authenticated) - for getting user list for assignments
+		r.With(middlewares.AuthRequired(conf)).Get("/users", h.GetBasicUsers)
+
+		// Admin-only user management routes
+		r.Route("/admin/users", func(mux chi.Router) {
+			mux.Use(middlewares.AdminRequired(conf))
+			mux.Put("/{id}/role", h.UpdateUserRole)
+			mux.Delete("/{id}", h.DeleteUser)
+		})
+
+		// Legacy admin endpoint (can be deprecated)
+		r.With(middlewares.AdminRequired(conf)).Get("/admin/tickets", h.GetAllTickets)
 	})
 	return r
 }

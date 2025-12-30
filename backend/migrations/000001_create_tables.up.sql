@@ -5,34 +5,32 @@ CREATE TABLE "users" (
   "last_name" varchar NOT NULL,
   "email" varchar UNIQUE NOT NULL,
   "role" varchar DEFAULT 'user',
-  "updated_at" timestamptz NOT NULL DEFAULT '0001-01-01 00:00:00Z',
+  "updated_at" timestamptz NOT NULL,
   "created_at" timestamptz NOT NULL DEFAULT (now())
 );
 
 CREATE TABLE "tickets" (
-  "id" bigserial PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "created_by" UUID NOT NULL,
-  "assigned_to" UUID,
+  "assigned_to" UUID[],
   "title" varchar NOT NULL,
   "description" varchar NOT NULL,
   "state" INT NOT NULL DEFAULT 1,
   "priority" INT NOT NULL DEFAULT 4,
   "created_at" timestamptz NOT NULL DEFAULT (now()),
-  "updated_at" timestamptz
+  "updated_at" timestamptz NOT NULL
 );
 
 CREATE TABLE "comments" (
-  "id" bigserial PRIMARY KEY,
-  "ticket_id" bigint NOT NULL,
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "ticket_id" UUID NOT NULL,
   "created_by" UUID NOT NULL,
   "description" varchar NOT NULL,
   "created_at" timestamptz NOT NULL DEFAULT (now()),
-  "updated_at" timestamptz
+  "updated_at" timestamptz NOT NULL
 );
 
 ALTER TABLE "tickets" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("id") ON DELETE SET NULL;
-
-ALTER TABLE "tickets" ADD FOREIGN KEY ("assigned_to") REFERENCES "users" ("id") ON DELETE SET NULL;
 
 ALTER TABLE "comments" ADD FOREIGN KEY ("ticket_id") REFERENCES "tickets" ("id") ON DELETE CASCADE;
 

@@ -33,7 +33,7 @@ func main() {
 
 	userSvc := service.NewUserService(userRepo)
 	ticketSvc := service.NewTicketService(ticketRepo)
-	commentSvc := service.NewCommentService(commentRepo)
+	commentSvc := service.NewCommentService(commentRepo, ticketRepo)
 
 	handler := httphandlers.NewHandler(conf, userSvc, ticketSvc, commentSvc)
 

@@ -12,6 +12,8 @@ type UserRepository interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	CreateUser(ctx context.Context, user domain.User) (*domain.User, error)
 	GetAllUsers(ctx context.Context) ([]domain.User, error)
+	UpdateUser(ctx context.Context, user *domain.User) (*domain.User, error)
+	DeleteUser(ctx context.Context, id uuid.UUID) error
 }
 
 type TicketRepository interface {
@@ -21,6 +23,7 @@ type TicketRepository interface {
 	Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
 	Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type CommentRepository interface {
