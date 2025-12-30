@@ -3,9 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -20,11 +18,11 @@ type TicketPayload struct {
 }
 
 type UpdateTicketPayload struct {
-	Title       *string    `json:"title"`
-	Description *string    `json:"description"`
-	State       *string    `json:"state"`
-	Priority    *string    `json:"priority"`
-	AssignedTo  *uuid.UUID `json:"assigned_to"`
+	Title       *string      `json:"title"`
+	Description *string      `json:"description"`
+	State       *string      `json:"state"`
+	Priority    *string      `json:"priority"`
+	AssignedTo  *[]uuid.UUID `json:"assigned_to"`
 }
 
 func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +36,11 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
-	user, err := h.userService.GetUser(r.Context(), userIDStr)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+	}
+	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
@@ -53,7 +55,11 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
-	user, err := h.userService.GetUser(r.Context(), userIDStr)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+	}
+	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
@@ -98,8 +104,12 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+	}
 
-	user, err := h.userService.GetUser(r.Context(), userIDStr)
+	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
@@ -147,7 +157,7 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 		changed = true
 	}
 	if payload.State != nil {
-		state, err := parseTicketState(*payload.State)
+		state, err := domain.GetTicketState(*payload.State)
 		if err != nil {
 			util.ErrorResponse(w, http.StatusBadRequest, err)
 			return
@@ -176,21 +186,4 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.WriteResponse(w, http.StatusOK, updated)
-}
-
-func parseTicketState(state string) (domain.TicketState, error) {
-	switch strings.ToLower(state) {
-	case "open":
-		return domain.TicketStateOpen, nil
-	case "pending":
-		return domain.TicketStatePending, nil
-	case "resolved":
-		return domain.TicketStateResolved, nil
-	case "closed":
-		return domain.TicketStateClosed, nil
-	case "cancel", "cancelled", "canceled":
-		return domain.TicketStateCancelled, nil
-	default:
-		return 0, fmt.Errorf("invalid ticket state: %s", state)
-	}
 }

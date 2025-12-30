@@ -49,6 +49,11 @@ const getUserEmail = (userId: string | null, users: Array<{id: string; username:
   return user ? user.email : userId;
 };
 
+const getUserEmails = (userIds: string[] | null | undefined, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
+  if (!userIds || userIds.length === 0) return 'Unassigned';
+  return userIds.map((userId) => getUserEmail(userId, users)).join(', ');
+};
+
 const TicketList = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -116,7 +121,7 @@ const TicketList = () => {
                   <div className="text-sm text-gray-500 truncate max-w-xs dark:text-gray-400">{ticket.description}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">{getUserEmail(ticket.assigned_to, users)}</div>
+                  <div className="text-sm text-gray-900 dark:text-white">{getUserEmails(ticket.assigned_to, users)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900 dark:text-white">{formatPriority(ticket.priority)}</div>

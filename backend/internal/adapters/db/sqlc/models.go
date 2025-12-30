@@ -22,7 +22,7 @@ type Comment struct {
 
 type Ticket struct {
 	CreatedBy   uuid.UUID     `json:"created_by"`
-	AssignedTo  uuid.NullUUID `json:"assigned_to"`
+	AssignedTo  []uuid.UUID   `json:"assigned_to"`
 	Title       string        `json:"title"`
 	Description string        `json:"description"`
 	State       int32         `json:"state"`

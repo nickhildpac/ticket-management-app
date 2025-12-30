@@ -11,7 +11,7 @@ SELECT * FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3;
 SELECT * FROM tickets ORDER BY id LIMIT $1 OFFSET $2;
 
 -- name: ListTicketsAssigned :many
-SELECT * FROM tickets WHERE assigned_to=$1 ORDER BY id LIMIT $2 OFFSET $3;
+SELECT * FROM tickets WHERE assigned_to @> ARRAY[$1]::uuid[] ORDER BY id LIMIT $2 OFFSET $3;
 
 -- name: DeleteTicket :exec
 DELETE FROM tickets WHERE id = $1;
@@ -23,7 +23,7 @@ ORDER BY created_at DESC;
 
 -- name: GetTicketsByAssignee :many
 SELECT * FROM tickets
-WHERE assigned_to = $1
+WHERE assigned_to @> ARRAY[$1]::uuid[]
 ORDER BY created_at DESC;
 
 -- name: UpdateTicket :one

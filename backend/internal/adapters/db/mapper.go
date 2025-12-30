@@ -33,7 +33,7 @@ func mapTicket(t sqlc.Ticket) *domain.Ticket {
 	return &domain.Ticket{
 		ID:          nullableUUID(t.ID),
 		CreatedBy:   t.CreatedBy,
-		AssignedTo:  nullableUUID(t.AssignedTo),
+		AssignedTo:  t.AssignedTo,
 		Title:       t.Title,
 		Description: t.Description,
 		State:       domain.TicketState(t.State),

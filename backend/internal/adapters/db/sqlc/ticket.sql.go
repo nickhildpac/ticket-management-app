@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createTicket = `-- name: CreateTicket :one
@@ -27,7 +28,7 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 	var i Ticket
 	err := row.Scan(
 		&i.CreatedBy,
-		&i.AssignedTo,
+		pq.Array(&i.AssignedTo),
 		&i.Title,
 		&i.Description,
 		&i.State,
@@ -57,7 +58,7 @@ func (q *Queries) GetTicket(ctx context.Context, id uuid.NullUUID) (Ticket, erro
 	var i Ticket
 	err := row.Scan(
 		&i.CreatedBy,
-		&i.AssignedTo,
+		pq.Array(&i.AssignedTo),
 		&i.Title,
 		&i.Description,
 		&i.State,
@@ -71,12 +72,12 @@ func (q *Queries) GetTicket(ctx context.Context, id uuid.NullUUID) (Ticket, erro
 
 const getTicketsByAssignee = `-- name: GetTicketsByAssignee :many
 SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets
-WHERE assigned_to = $1
+WHERE assigned_to @> ARRAY[$1]::uuid[]
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetTicketsByAssignee(ctx context.Context, assignedTo uuid.NullUUID) ([]Ticket, error) {
-	rows, err := q.db.QueryContext(ctx, getTicketsByAssignee, assignedTo)
+func (q *Queries) GetTicketsByAssignee(ctx context.Context, dollar_1 []uuid.UUID) ([]Ticket, error) {
+	rows, err := q.db.QueryContext(ctx, getTicketsByAssignee, pq.Array(dollar_1))
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +87,7 @@ func (q *Queries) GetTicketsByAssignee(ctx context.Context, assignedTo uuid.Null
 		var i Ticket
 		if err := rows.Scan(
 			&i.CreatedBy,
-			&i.AssignedTo,
+			pq.Array(&i.AssignedTo),
 			&i.Title,
 			&i.Description,
 			&i.State,
@@ -125,7 +126,7 @@ func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) 
 		var i Ticket
 		if err := rows.Scan(
 			&i.CreatedBy,
-			&i.AssignedTo,
+			pq.Array(&i.AssignedTo),
 			&i.Title,
 			&i.Description,
 			&i.State,
@@ -167,7 +168,7 @@ func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) 
 		var i Ticket
 		if err := rows.Scan(
 			&i.CreatedBy,
-			&i.AssignedTo,
+			pq.Array(&i.AssignedTo),
 			&i.Title,
 			&i.Description,
 			&i.State,
@@ -210,7 +211,7 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 		var i Ticket
 		if err := rows.Scan(
 			&i.CreatedBy,
-			&i.AssignedTo,
+			pq.Array(&i.AssignedTo),
 			&i.Title,
 			&i.Description,
 			&i.State,
@@ -233,17 +234,17 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 }
 
 const listTicketsAssigned = `-- name: ListTicketsAssigned :many
-SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets WHERE assigned_to=$1 ORDER BY id LIMIT $2 OFFSET $3
+SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets WHERE assigned_to @> ARRAY[$1]::uuid[] ORDER BY id LIMIT $2 OFFSET $3
 `
 
 type ListTicketsAssignedParams struct {
-	AssignedTo uuid.NullUUID `json:"assigned_to"`
-	Limit      int32         `json:"limit"`
-	Offset     int32         `json:"offset"`
+	Column1 []uuid.UUID `json:"column_1"`
+	Limit   int32       `json:"limit"`
+	Offset  int32       `json:"offset"`
 }
 
 func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssignedParams) ([]Ticket, error) {
-	rows, err := q.db.QueryContext(ctx, listTicketsAssigned, arg.AssignedTo, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listTicketsAssigned, pq.Array(arg.Column1), arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +254,7 @@ func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssign
 		var i Ticket
 		if err := rows.Scan(
 			&i.CreatedBy,
-			&i.AssignedTo,
+			pq.Array(&i.AssignedTo),
 			&i.Title,
 			&i.Description,
 			&i.State,
@@ -294,7 +295,7 @@ type UpdateTicketParams struct {
 	Description string        `json:"description"`
 	State       int32         `json:"state"`
 	Priority    int32         `json:"priority"`
-	AssignedTo  uuid.NullUUID `json:"assigned_to"`
+	AssignedTo  []uuid.UUID   `json:"assigned_to"`
 	UpdatedAt   sql.NullTime  `json:"updated_at"`
 }
 
@@ -305,13 +306,13 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		arg.Description,
 		arg.State,
 		arg.Priority,
-		arg.AssignedTo,
+		pq.Array(arg.AssignedTo),
 		arg.UpdatedAt,
 	)
 	var i Ticket
 	err := row.Scan(
 		&i.CreatedBy,
-		&i.AssignedTo,
+		pq.Array(&i.AssignedTo),
 		&i.Title,
 		&i.Description,
 		&i.State,

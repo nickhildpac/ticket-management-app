@@ -79,7 +79,7 @@ func (p TicketPriority) String() string {
 type Ticket struct {
 	ID          uuid.UUID      `json:"id" db:"id"`
 	CreatedBy   uuid.UUID      `json:"created_by" db:"created_by"`
-	AssignedTo  uuid.UUID      `json:"assigned_to" db:"assigned_to"`
+	AssignedTo  []uuid.UUID    `json:"assigned_to" db:"assigned_to"`
 	Title       string         `json:"title" db:"title"`
 	Description string         `json:"description" db:"description"`
 	State       TicketState    `json:"state" db:"state"`
@@ -111,6 +111,23 @@ var allowedTransitions = map[TicketState]map[TicketState]struct{}{
 	TicketStateClosed: {},
 	// Cancelled tickets are final - no transitions allowed
 	TicketStateCancelled: {},
+}
+
+func GetTicketState(s string) (TicketState, error) {
+	switch strings.ToLower(s) {
+	case "open":
+		return TicketStateOpen, nil
+	case "pending":
+		return TicketStatePending, nil
+	case "resolved":
+		return TicketStateResolved, nil
+	case "closed":
+		return TicketStateClosed, nil
+	case "cancel":
+		return TicketStateCancelled, nil
+	default:
+		return 0, fmt.Errorf("invalid ticket state: %s", s)
+	}
 }
 
 func CanTransition(from TicketState, to TicketState) bool {

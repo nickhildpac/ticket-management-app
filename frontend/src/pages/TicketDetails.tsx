@@ -1,4 +1,4 @@
-import { useState, useEffect, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Select } from '../components/Select';
@@ -31,6 +31,17 @@ const getUserEmail = (userId: string | null, users: Array<{id: string; username:
   return user ? user.email : userId;
 };
 
+const getUserLabel = (userId: string, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
+  const user = users.find(u => u.id === userId);
+  if (!user) return userId;
+  return `${user.first_name} ${user.last_name} (${user.email})`;
+};
+
+const normalizeAssignedList = (userIds: string[] | null | undefined) => {
+  if (!userIds) return [];
+  return [...userIds].filter((userId) => isValidUUID(userId)).sort();
+};
+
 const TicketDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -40,11 +51,13 @@ const TicketDetails = () => {
   const { users, loading: usersLoading } = useAppSelector((state) => state.users);
 
   const [newComment, setNewComment] = useState('');
-  const [assignedTo, setAssignedTo] = useState('');
+  const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [priority, setPriority] = useState('low');
   const [state, setState] = useState('open');
   const [description, setDescription] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const assigneeRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch ticket data based on ID
   useEffect(() => {
@@ -55,10 +68,21 @@ const TicketDetails = () => {
     }
   }, [id, dispatch]);
 
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!assigneeRef.current) return;
+      if (event.target instanceof Node && !assigneeRef.current.contains(event.target)) {
+        setAssigneeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   // Update form fields when currentTicket changes
   useEffect(() => {
     if (currentTicket) {
-      setAssignedTo(currentTicket.assigned_to || '');
+      setAssignedTo(normalizeAssignedList(currentTicket.assigned_to));
       const priorityValue = normalizeKey(currentTicket.priority);
       const validPriority = ['low', 'medium', 'high', 'critical'].includes(priorityValue) ? priorityValue : 'low';
       setPriority(validPriority);
@@ -79,7 +103,7 @@ const TicketDetails = () => {
   useEffect(() => {
     if (currentTicket) {
       const changed =
-        assignedTo !== (currentTicket.assigned_to || '') ||
+        normalizeAssignedList(assignedTo).join('|') !== normalizeAssignedList(currentTicket.assigned_to).join('|') ||
         priority !== normalizeKey(currentTicket.priority) ||
         state !== normalizeKey(currentTicket.state) ||
         description !== (currentTicket.description || '');
@@ -115,9 +139,14 @@ const TicketDetails = () => {
     void handleResolveTicket();
   };
 
-  const handleAssignmentChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const newValue = e.target.value;
-    setAssignedTo(newValue);
+  const handleRemoveAssignee = (userId: string) => {
+    setAssignedTo((prev) => prev.filter((id) => id !== userId));
+  };
+
+  const handleToggleAssignee = (userId: string) => {
+    setAssignedTo((prev) => (
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    ));
   };
 
   const handlePriorityChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -137,7 +166,7 @@ const TicketDetails = () => {
 
     await dispatch(updateTicket({ 
       id, 
-      assignedTo: assignedTo || null,
+      assignedTo: assignedTo,
       priority: priority,
       state: state,
       description: description
@@ -289,19 +318,64 @@ const TicketDetails = () => {
             <p className="font-medium dark:text-white">{getUserEmail(currentTicket.created_by, users)}</p>
           </div>
           <div>
-            <Select
-              label="Assigned To"
-              name="assigned_to"
-              value={assignedTo}
-              options={userOptions}
-              onChange={handleAssignmentChange}
-              disabled={ticketLoading || usersLoading}
-            />
-            {currentTicket.assigned_to && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Current: {getUserEmail(currentTicket.assigned_to, users)}
-              </p>
-            )}
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Assigned To</label>
+            <div className="relative mt-1" ref={assigneeRef}>
+              <button
+                type="button"
+                onClick={() => setAssigneeOpen((open) => !open)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700"
+                disabled={ticketLoading || usersLoading}
+                aria-expanded={assigneeOpen}
+              >
+                <div className="flex flex-wrap gap-2 items-center">
+                  {assignedTo.length === 0 && (
+                    <span className="text-sm text-gray-400 dark:text-gray-400">Select users</span>
+                  )}
+                  {assignedTo.map((userId) => (
+                    <span
+                      key={userId}
+                      className="inline-flex items-center gap-1 rounded-full bg-slate-200 text-slate-800 text-xs px-3 py-1 dark:bg-slate-600 dark:text-white"
+                    >
+                      {getUserLabel(userId, users)}
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleRemoveAssignee(userId);
+                        }}
+                        className="ml-1 rounded-full px-1 text-slate-600 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
+                        aria-label={`Remove ${getUserLabel(userId, users)}`}
+                      >
+                        x
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-300">
+                  {assigneeOpen ? '^' : 'v'}
+                </span>
+              </button>
+              {assigneeOpen && (
+                <div className="absolute z-20 mt-2 w-full rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <ul className="max-h-64 overflow-auto py-1">
+                    {userOptions.map((option) => {
+                      const isSelected = assignedTo.includes(option.value);
+                      return (
+                        <li key={option.value}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAssignee(option.value)}
+                            className={`w-full px-4 py-2 text-left text-sm ${isSelected ? 'bg-slate-600 text-white' : 'text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700'}`}
+                          >
+                            {option.label}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
           <div>
             <Select

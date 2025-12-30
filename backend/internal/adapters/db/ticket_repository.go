@@ -47,9 +47,9 @@ func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, lim
 		return nil, err
 	}
 	rows, err := r.store.ListTicketsAssigned(ctx, sqlc.ListTicketsAssignedParams{
-		AssignedTo: uuid.NullUUID{UUID: user.ID, Valid: true},
-		Limit:      limit,
-		Offset:     offset,
+		Column1: []uuid.UUID{user.ID},
+		Limit:   limit,
+		Offset:  offset,
 	})
 	if err != nil {
 		return nil, err
@@ -84,10 +84,7 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 		Description: ticket.Description,
 		State:       int32(ticket.State),
 		Priority:    int32(ticket.Priority),
-		AssignedTo: uuid.NullUUID{
-			UUID:  ticket.AssignedTo,
-			Valid: ticket.AssignedTo != uuid.UUID{},
-		},
+		AssignedTo:  ticket.AssignedTo,
 		UpdatedAt: sql.NullTime{
 			Time:  ticket.UpdatedAt,
 			Valid: !ticket.UpdatedAt.IsZero(),

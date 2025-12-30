@@ -46,6 +46,9 @@ func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket) 
 		return nil, err
 	}
 
+	if len(ticket.AssignedTo) > 0 && len(prev.AssignedTo) == 0 {
+		ticket.State = domain.TicketStatePending
+	}
 	// Only validate state transition if state is being changed
 	if ticket.State != prev.State {
 		log.Printf("Attempting state transition from %s to %s", prev.State, ticket.State)

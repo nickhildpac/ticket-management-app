@@ -50,12 +50,16 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	var payload CommentPayload
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	user, err := h.userService.GetUser(r.Context(), userIDStr)
+	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return

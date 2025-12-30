@@ -3,7 +3,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 interface Ticket {
   id: string;
   created_by: string;
-  assigned_to: string | null;
+  assigned_to: string[] | null;
   title: string;
   description: string;
   state: number;
@@ -161,7 +161,7 @@ export const updateTicketState = createAsyncThunk(
 
 export const updateTicketAssignment = createAsyncThunk(
   'tickets/updateTicketAssignment',
-  async ({ id, assignedTo }: { id: string; assignedTo: string | null }, { rejectWithValue, getState }) => {
+  async ({ id, assignedTo }: { id: string; assignedTo: string[] }, { rejectWithValue, getState }) => {
     try {
       const authState = getState() as { auth: { token: string } };
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/ticket/${id}`, {
@@ -190,7 +190,7 @@ export const updateTicket = createAsyncThunk(
   'tickets/updateTicket',
   async ({ id, assignedTo, priority, state, description }: { 
     id: string; 
-    assignedTo: string | null; 
+    assignedTo: string[]; 
     priority: string; 
     state: string;
     description: string 
