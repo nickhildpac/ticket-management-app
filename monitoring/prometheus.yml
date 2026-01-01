@@ -16,14 +16,3 @@ scrape_configs:
       - targets: ['backend:8080']
     metrics_path: '/metrics'
     scrape_interval: 15s
-
-  - job_name: 'nginx'
-    static_configs:
-      - targets: ['frontend:80']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
-
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
-    scrape_interval: 30s

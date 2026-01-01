@@ -1,20 +1,22 @@
 # Multi-stage build for React frontend
-FROM node:18-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 
 # Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Copy package.json and lock file
+COPY package.json bun.lock* ./
 
 # Install dependencies
-RUN npm ci
+RUN bun install --frozen-lockfile
 
 # Copy the source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application (VITE_API_URL can be passed as build arg)
+ARG VITE_API_URL=http://localhost:8080
+ENV VITE_API_URL=${VITE_API_URL}
+RUN bun run build
 
 # Production stage
 FROM nginx:alpine
@@ -25,7 +27,7 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy our custom nginx.conf
+# Copy our custom nginx.conf as main config
 COPY nginx.conf /etc/nginx/nginx.conf
 
 
