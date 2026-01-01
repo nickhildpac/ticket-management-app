@@ -1,5 +1,5 @@
 # Multi-stage build for Go backend
-FROM golang:1.24.5-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install necessary packages
 RUN apk add --no-cache git ca-certificates
@@ -10,34 +10,34 @@ WORKDIR /app
 # Copy go mod and sum files
 COPY go.mod go.sum ./
 
-# Download dependencies
+# Download dependencies (cached if go.mod/go.sum unchanged)
 RUN go mod download
 
 # Copy the source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/api/main.go
+# Build the application with optimized flags
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
 
 # Final stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates
+# Install ca-certificates and wget for health check
+RUN apk --no-cache add ca-certificates wget
 
 # Create non-root user
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
 # Set the working directory
-WORKDIR /root/
+WORKDIR /app/
 
 # Copy the binary from builder stage
 COPY --from=builder /app/main .
 COPY --from=builder /app/migrations ./migrations
 
 # Change ownership to non-root user
-RUN chown -R appuser:appgroup /root/
+RUN chown -R appuser:appgroup /app/
 
 # Switch to non-root user
 USER appuser
