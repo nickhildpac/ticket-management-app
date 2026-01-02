@@ -54,7 +54,8 @@ export const refreshToken = createAsyncThunk(
       }
 
       const data = await response.json();
-      return { token: data.access_token, user: data.user.username };
+      const userLabel = data?.user?.email ?? data?.user?.username ?? '';
+      return { token: data.access_token, user: userLabel };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Token refresh failed');
     }
@@ -86,6 +87,9 @@ const authSlice = createSlice({
       .addCase(logoutAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.token = '';
+        state.user = null;
+        state.isAuthenticated = false;
       })
       .addCase(logoutAsync.fulfilled, (state) => {
         state.loading = false;
@@ -96,6 +100,9 @@ const authSlice = createSlice({
       })
       .addCase(logoutAsync.rejected, (state, action) => {
         state.loading = false;
+        state.token = '';
+        state.user = null;
+        state.isAuthenticated = false;
         state.error = action.payload as string;
       })
       .addCase(refreshToken.pending, (state) => {

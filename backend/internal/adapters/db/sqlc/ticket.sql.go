@@ -7,26 +7,33 @@ package db
 
 import (
 	"context"
-	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
 const createTicket = `-- name: CreateTicket :one
-INSERT INTO tickets (title, description, created_by ) VALUES ($1, $2, $3) RETURNING created_by, assigned_to, title, description, state, priority, created_at, updated_at, id
+INSERT INTO tickets (title, description, created_by, updated_at ) VALUES ($1, $2, $3, $4) RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at
 `
 
 type CreateTicketParams struct {
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	CreatedBy   uuid.UUID `json:"created_by"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error) {
-	row := q.db.QueryRowContext(ctx, createTicket, arg.Title, arg.Description, arg.CreatedBy)
+	row := q.db.QueryRowContext(ctx, createTicket,
+		arg.Title,
+		arg.Description,
+		arg.CreatedBy,
+		arg.UpdatedAt,
+	)
 	var i Ticket
 	err := row.Scan(
+		&i.ID,
 		&i.CreatedBy,
 		pq.Array(&i.AssignedTo),
 		&i.Title,
@@ -35,7 +42,6 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.Priority,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ID,
 	)
 	return i, err
 }
@@ -44,19 +50,20 @@ const deleteTicket = `-- name: DeleteTicket :exec
 DELETE FROM tickets WHERE id = $1
 `
 
-func (q *Queries) DeleteTicket(ctx context.Context, id uuid.NullUUID) error {
+func (q *Queries) DeleteTicket(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteTicket, id)
 	return err
 }
 
 const getTicket = `-- name: GetTicket :one
-SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets WHERE id = $1 LIMIT 1
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetTicket(ctx context.Context, id uuid.NullUUID) (Ticket, error) {
+func (q *Queries) GetTicket(ctx context.Context, id uuid.UUID) (Ticket, error) {
 	row := q.db.QueryRowContext(ctx, getTicket, id)
 	var i Ticket
 	err := row.Scan(
+		&i.ID,
 		&i.CreatedBy,
 		pq.Array(&i.AssignedTo),
 		&i.Title,
@@ -65,13 +72,12 @@ func (q *Queries) GetTicket(ctx context.Context, id uuid.NullUUID) (Ticket, erro
 		&i.Priority,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ID,
 	)
 	return i, err
 }
 
 const getTicketsByAssignee = `-- name: GetTicketsByAssignee :many
-SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets
 WHERE assigned_to @> ARRAY[$1]::uuid[]
 ORDER BY created_at DESC
 `
@@ -86,6 +92,7 @@ func (q *Queries) GetTicketsByAssignee(ctx context.Context, dollar_1 []uuid.UUID
 	for rows.Next() {
 		var i Ticket
 		if err := rows.Scan(
+			&i.ID,
 			&i.CreatedBy,
 			pq.Array(&i.AssignedTo),
 			&i.Title,
@@ -94,7 +101,6 @@ func (q *Queries) GetTicketsByAssignee(ctx context.Context, dollar_1 []uuid.UUID
 			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ID,
 		); err != nil {
 			return nil, err
 		}
@@ -110,7 +116,7 @@ func (q *Queries) GetTicketsByAssignee(ctx context.Context, dollar_1 []uuid.UUID
 }
 
 const getTicketsByCreator = `-- name: GetTicketsByCreator :many
-SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets
 WHERE created_by = $1
 ORDER BY created_at DESC
 `
@@ -125,6 +131,7 @@ func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) 
 	for rows.Next() {
 		var i Ticket
 		if err := rows.Scan(
+			&i.ID,
 			&i.CreatedBy,
 			pq.Array(&i.AssignedTo),
 			&i.Title,
@@ -133,7 +140,6 @@ func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) 
 			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ID,
 		); err != nil {
 			return nil, err
 		}
@@ -149,7 +155,7 @@ func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) 
 }
 
 const listAllTickets = `-- name: ListAllTickets :many
-SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets ORDER BY id LIMIT $1 OFFSET $2
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets ORDER BY id LIMIT $1 OFFSET $2
 `
 
 type ListAllTicketsParams struct {
@@ -167,6 +173,7 @@ func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) 
 	for rows.Next() {
 		var i Ticket
 		if err := rows.Scan(
+			&i.ID,
 			&i.CreatedBy,
 			pq.Array(&i.AssignedTo),
 			&i.Title,
@@ -175,7 +182,6 @@ func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) 
 			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ID,
 		); err != nil {
 			return nil, err
 		}
@@ -191,7 +197,7 @@ func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) 
 }
 
 const listTickets = `-- name: ListTickets :many
-SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3
 `
 
 type ListTicketsParams struct {
@@ -210,6 +216,7 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 	for rows.Next() {
 		var i Ticket
 		if err := rows.Scan(
+			&i.ID,
 			&i.CreatedBy,
 			pq.Array(&i.AssignedTo),
 			&i.Title,
@@ -218,7 +225,6 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ID,
 		); err != nil {
 			return nil, err
 		}
@@ -234,7 +240,7 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 }
 
 const listTicketsAssigned = `-- name: ListTicketsAssigned :many
-SELECT created_by, assigned_to, title, description, state, priority, created_at, updated_at, id FROM tickets WHERE assigned_to @> ARRAY[$1]::uuid[] ORDER BY id LIMIT $2 OFFSET $3
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets WHERE assigned_to @> ARRAY[$1]::uuid[] ORDER BY id LIMIT $2 OFFSET $3
 `
 
 type ListTicketsAssignedParams struct {
@@ -253,6 +259,7 @@ func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssign
 	for rows.Next() {
 		var i Ticket
 		if err := rows.Scan(
+			&i.ID,
 			&i.CreatedBy,
 			pq.Array(&i.AssignedTo),
 			&i.Title,
@@ -261,7 +268,6 @@ func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssign
 			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ID,
 		); err != nil {
 			return nil, err
 		}
@@ -286,17 +292,17 @@ SET
     assigned_to = $6,
     updated_at = $7
 WHERE id = $1
-RETURNING created_by, assigned_to, title, description, state, priority, created_at, updated_at, id
+RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at
 `
 
 type UpdateTicketParams struct {
-	ID          uuid.NullUUID `json:"id"`
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	State       int32         `json:"state"`
-	Priority    int32         `json:"priority"`
-	AssignedTo  []uuid.UUID   `json:"assigned_to"`
-	UpdatedAt   sql.NullTime  `json:"updated_at"`
+	ID          uuid.UUID   `json:"id"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	State       int32       `json:"state"`
+	Priority    int32       `json:"priority"`
+	AssignedTo  []uuid.UUID `json:"assigned_to"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error) {
@@ -311,6 +317,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 	)
 	var i Ticket
 	err := row.Scan(
+		&i.ID,
 		&i.CreatedBy,
 		pq.Array(&i.AssignedTo),
 		&i.Title,
@@ -319,7 +326,6 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		&i.Priority,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ID,
 	)
 	return i, err
 }

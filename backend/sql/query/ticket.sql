@@ -1,5 +1,5 @@
 -- name: CreateTicket :one
-INSERT INTO tickets (title, description, created_by ) VALUES ($1, $2, $3) RETURNING *;
+INSERT INTO tickets (title, description, created_by, updated_at ) VALUES ($1, $2, $3, $4) RETURNING *;
 
 -- name: GetTicket :one
 SELECT * FROM tickets WHERE id = $1 LIMIT 1;
