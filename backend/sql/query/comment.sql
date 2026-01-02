@@ -1,5 +1,5 @@
 -- name: CreateComment :one
-INSERT INTO comments (description, ticket_id, created_by ) VALUES ($1, $2, $3) RETURNING *;
+INSERT INTO comments (description, ticket_id, created_by, updated_at ) VALUES ($1, $2, $3, $4) RETURNING *;
 
 -- name: GetComment :one
 SELECT * FROM comments WHERE id = $1 LIMIT 1;

@@ -92,6 +92,7 @@ func (s *TicketService) GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ti
 func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	ticket.State = domain.TicketStateOpen
 	ticket.Priority = domain.TicketPriorityLow
+	ticket.UpdatedAt = time.Now()
 	return s.repo.Create(ctx, ticket)
 }
 

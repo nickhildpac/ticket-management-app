@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
@@ -56,6 +57,6 @@ func (s *CommentService) CreateComment(ctx context.Context, comment domain.Comme
 	if !authorization.CanCommentOnTicket(auth, ticket) {
 		return nil, authorization.ErrAccessDenied
 	}
-
+	comment.UpdatedAt = time.Now()
 	return s.repo.Create(ctx, comment)
 }

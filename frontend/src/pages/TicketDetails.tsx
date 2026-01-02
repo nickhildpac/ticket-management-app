@@ -25,10 +25,6 @@ const isValidUUID = (id: string | null): boolean => {
   return uuidRegex.test(id);
 };
 
-const normalizeAssignedList = (userIds: string[] | null | undefined) => {
-  if (!userIds) return [];
-  return [...userIds].filter((userId) => isValidUUID(userId)).sort();
-};
 
 const getUserLabelFromList = (userId: string, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
   const user = users.find(u => u.id === userId);
@@ -36,11 +32,6 @@ const getUserLabelFromList = (userId: string, users: Array<{id: string; username
   return `${user.first_name} ${user.last_name} (${user.email})`;
 };
 
-const getUserLabel = (userId: string, users: Array<{id: string; username: string; first_name: string; last_name: string; email: string}>) => {
-  const user = users.find(u => u.id === userId);
-  if (!user) return userId;
-  return `${user.first_name} ${user.last_name} (${user.email})`;
-};
 
 const normalizeAssignedList = (userIds: string[] | null | undefined) => {
   if (!userIds) return [];

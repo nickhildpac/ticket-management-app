@@ -12,24 +12,24 @@ import (
 )
 
 type Comment struct {
-	CreatedBy   uuid.UUID     `json:"created_by"`
-	Description string        `json:"description"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   sql.NullTime  `json:"updated_at"`
-	ID          uuid.NullUUID `json:"id"`
-	TicketID    uuid.NullUUID `json:"ticket_id"`
+	ID          uuid.UUID `json:"id"`
+	TicketID    uuid.UUID `json:"ticket_id"`
+	CreatedBy   uuid.UUID `json:"created_by"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type Ticket struct {
-	CreatedBy   uuid.UUID     `json:"created_by"`
-	AssignedTo  []uuid.UUID   `json:"assigned_to"`
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	State       int32         `json:"state"`
-	Priority    int32         `json:"priority"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   sql.NullTime  `json:"updated_at"`
-	ID          uuid.NullUUID `json:"id"`
+	ID          uuid.UUID   `json:"id"`
+	CreatedBy   uuid.UUID   `json:"created_by"`
+	AssignedTo  []uuid.UUID `json:"assigned_to"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	State       int32       `json:"state"`
+	Priority    int32       `json:"priority"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 type User struct {

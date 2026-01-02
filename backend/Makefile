@@ -3,7 +3,7 @@ postgres:
 createdb:
 	docker exec ticketmgmt createdb --username=postgres --owner=postgres ticket_management
 dropdb:
-	docker exec ticketmgmt dropdb ticket_management
+	docker exec ticketmgmt dropdb --username=postgres ticket_management
 migrateup:
 	migrate -path migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose up
 migratedown:

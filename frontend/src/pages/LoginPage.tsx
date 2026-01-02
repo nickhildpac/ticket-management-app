@@ -22,10 +22,19 @@ const LoginPage = () => {
       ...requestOptions,
       credentials: 'include' as RequestCredentials
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
+        if (!data?.access_token) {
+          return;
+        }
         console.log(data)
-        dispatch(login({ token: data.access_token, user: data.user.username }))
+        const userLabel = data?.user?.email ?? data?.user?.username ?? "";
+        dispatch(login({ token: data.access_token, user: userLabel }))
       })
   }, [dispatch])
 
@@ -46,11 +55,17 @@ const LoginPage = () => {
         credentials: "include",
         body: JSON.stringify(reqBody)
       })
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            return null;
+          }
+          return res.json();
+        })
         .then(data => {
           console.log(data)
           if (data && data.access_token) {
-            dispatch(login({ token: data.access_token, user: data.user.username }))
+            const userLabel = data?.user?.email ?? data?.user?.username ?? "";
+            dispatch(login({ token: data.access_token, user: userLabel }))
             navigate('/');
           }
         })

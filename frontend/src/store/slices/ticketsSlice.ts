@@ -10,10 +10,7 @@ interface UserInfo {
 interface Ticket {
   id: string;
   created_by: string;
-<<<<<<< HEAD
-=======
   creator: UserInfo;
->>>>>>> ff41784 (feat: rbac added in backend)
   assigned_to: string[] | null;
   title: string;
   description: string;

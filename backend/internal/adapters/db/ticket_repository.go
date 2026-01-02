@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
 	sqlc "github.com/nickhildpac/ticket-management-app/internal/adapters/db/sqlc"
@@ -58,7 +57,7 @@ func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, lim
 }
 
 func (r *TicketRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
-	ticket, err := r.store.GetTicket(ctx, uuid.NullUUID{UUID: id, Valid: true})
+	ticket, err := r.store.GetTicket(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +69,7 @@ func (r *TicketRepository) Create(ctx context.Context, ticket domain.Ticket) (*d
 		Title:       ticket.Title,
 		Description: ticket.Description,
 		CreatedBy:   ticket.CreatedBy,
+		UpdatedAt:   ticket.UpdatedAt,
 	})
 	if err != nil {
 		return nil, err
@@ -79,16 +79,13 @@ func (r *TicketRepository) Create(ctx context.Context, ticket domain.Ticket) (*d
 
 func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	updated, err := r.store.UpdateTicket(ctx, sqlc.UpdateTicketParams{
-		ID:          uuid.NullUUID{UUID: ticket.ID, Valid: true},
+		ID:          ticket.ID,
 		Title:       ticket.Title,
 		Description: ticket.Description,
 		State:       int32(ticket.State),
 		Priority:    int32(ticket.Priority),
 		AssignedTo:  ticket.AssignedTo,
-		UpdatedAt: sql.NullTime{
-			Time:  ticket.UpdatedAt,
-			Valid: !ticket.UpdatedAt.IsZero(),
-		},
+		UpdatedAt:   ticket.UpdatedAt,
 	})
 	if err != nil {
 		return nil, err
@@ -97,5 +94,5 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 }
 
 func (r *TicketRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.store.DeleteTicket(ctx, uuid.NullUUID{UUID: id, Valid: true})
+	return r.store.DeleteTicket(ctx, id)
 }

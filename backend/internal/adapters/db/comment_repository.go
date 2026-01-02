@@ -18,7 +18,7 @@ func NewCommentRepository(store sqlc.Store) *CommentRepository {
 
 func (r *CommentRepository) ListByTicket(ctx context.Context, ticketID uuid.UUID, limit, offset int32) ([]domain.Comment, error) {
 	rows, err := r.store.ListComment(ctx, sqlc.ListCommentParams{
-		TicketID: uuid.NullUUID{UUID: ticketID, Valid: true},
+		TicketID: ticketID,
 		Offset:   offset,
 		Limit:    limit,
 	})
@@ -29,7 +29,7 @@ func (r *CommentRepository) ListByTicket(ctx context.Context, ticketID uuid.UUID
 }
 
 func (r *CommentRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Comment, error) {
-	comment, err := r.store.GetComment(ctx, uuid.NullUUID{UUID: id, Valid: true})
+	comment, err := r.store.GetComment(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -38,9 +38,10 @@ func (r *CommentRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Comm
 
 func (r *CommentRepository) Create(ctx context.Context, comment domain.Comment) (*domain.Comment, error) {
 	created, err := r.store.CreateComment(ctx, sqlc.CreateCommentParams{
-		TicketID:    uuid.NullUUID{UUID: comment.TicketID, Valid: true},
+		TicketID:    comment.TicketID,
 		Description: comment.Description,
 		CreatedBy:   comment.CreatedBy,
+		UpdatedAt:   comment.UpdatedAt,
 	})
 	if err != nil {
 		return nil, err
