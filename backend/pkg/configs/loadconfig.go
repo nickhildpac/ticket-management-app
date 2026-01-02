@@ -31,7 +31,8 @@ func LoadConfig() (*Config, error) {
 	var config Config
 	config.ADDR = GetInt("PORT", 8081)
 	config.DSN = GetString("DB_ADDR", "postgres://postgres:postgres@localhost/ticket_management?sslmode=disable")
-	flag.StringVar(&config.JWTSecret, "jwt-secret", GetString("JWTSecret", "secret"), "signing secret")
+	jwtSecret := GetString("JWT_SECRET", GetString("JWTSecret", "secret"))
+	flag.StringVar(&config.JWTSecret, "jwt-secret", jwtSecret, "signing secret")
 	flag.StringVar(&config.JWTIssuer, "jwt-issuer", GetString("JWTIssuer", "example.com"), "signing issuer")
 	flag.StringVar(&config.JWTAudience, "jwt-audience", GetString("JWTAudience", "example.com"), "signing audience")
 	flag.StringVar(&config.CookieDomain, "cookie-domain", GetString("CookieDomain", "localhost"), "cookie domain")
