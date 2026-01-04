@@ -1,142 +1,46 @@
-interface ApiResponse<T = unknown> {
-  data: T;
-  status: number;
-}
+import { getAccessToken, tryRefresh } from "@/app/auth";
 
-class ApiError extends Error {
-  status: number;
-  
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-  }
-}
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const token = getAccessToken();
 
-class ApiClient {
-  private baseURL: string;
-  private refreshTokenFn?: () => Promise<boolean>;
-  private getTokenFn?: () => string;
-
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
-  }
-
-  // Set the refresh token function from AuthContext
-  setRefreshTokenFn(refreshTokenFn: () => Promise<boolean>) {
-    this.refreshTokenFn = refreshTokenFn;
-  }
-
-  // Set the get token function from AuthContext
-  setGetTokenFn(getTokenFn: () => string) {
-    this.getTokenFn = getTokenFn;
-  }
-
-  private async makeRequest<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    retry = true
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    // Add authorization header if token is available
-    const token = this.getTokenFn?.();
+    const headers = new Headers(init.headers);
     if (token) {
-      options.headers = {
-        ...options.headers,
-        'Authorization': token,
-      };
+        headers.set("Authorization", `Bearer ${token}`);
+    }
+    if (!headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
     }
 
-    // Ensure credentials are included for refresh token cookies
-    options.credentials = options.credentials || 'include';
+    const config = {
+        ...init,
+        headers,
+        credentials: "include" as RequestCredentials, // For httpOnly cookies
+    };
 
-    try {
-      const response = await fetch(url, options);
+    let res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, config);
 
-      // If unauthorized and we haven't retried yet, try to refresh token
-      if (response.status === 401 && retry && this.refreshTokenFn) {
-        console.log('Access token expired, attempting refresh...');
-        const refreshSuccess = await this.refreshTokenFn();
-        
-        if (refreshSuccess) {
-          console.log('Token refresh successful, retrying request...');
-          // Retry the request with the new token (retry = false to prevent infinite loop)
-          return this.makeRequest<T>(endpoint, options, false);
-        } else {
-          throw new ApiError('Authentication failed', 401);
+    if (res.status === 401) {
+        const refreshed = await tryRefresh();
+        if (refreshed) {
+            // Retry with new token
+            const newToken = getAccessToken();
+            headers.set("Authorization", `Bearer ${newToken}`);
+            res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
+                ...config,
+                headers,
+            });
         }
-      }
-
-      if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch {
-          // If parsing error response fails, use default message
-        }
-        throw new ApiError(errorMessage, response.status);
-      }
-
-      const data = await response.json();
-      return { data, status: response.status };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError(error instanceof Error ? error.message : 'Network error', 0);
     }
-  }
 
-  // GET request
-  async get<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    return this.makeRequest<T>(endpoint, { ...options, method: 'GET' });
-  }
+    if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `API Error ${res.status}`);
+    }
 
-  // POST request
-  async post<T>(
-    endpoint: string, 
-    data?: unknown, 
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    return this.makeRequest<T>(endpoint, {
-      ...options,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
+    // Handle 204 No Content
+    if (res.status === 204) {
+        return {} as T;
+    }
 
-  // PUT request
-  async put<T>(
-    endpoint: string, 
-    data?: unknown, 
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    return this.makeRequest<T>(endpoint, {
-      ...options,
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  // DELETE request
-  async delete<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    return this.makeRequest<T>(endpoint, { ...options, method: 'DELETE' });
-  }
+    return res.json() as Promise<T>;
 }
-
-// Create a singleton instance
-// Use relative path to leverage nginx proxy in Docker
-const apiClient = new ApiClient('/api' + '/v1');
-
-export { apiClient, ApiError };
-export type { ApiResponse };
