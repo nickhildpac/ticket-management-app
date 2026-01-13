@@ -2,7 +2,10 @@ import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect
 import { QueryClient } from '@tanstack/react-query';
 import { Dashboard } from "@/features/dashboard";
 import { Login } from "@/features/auth/login";
+import { Signup } from "@/features/auth/signup";
 import { TicketList } from "@/features/tickets/list";
+import { AllTicketsList } from "@/features/tickets/all-tickets";
+import { AssignedTicketsList } from "@/features/tickets/assigned-tickets";
 import { TicketDetails } from "@/features/tickets/details";
 import { TicketForm } from "@/features/tickets/form";
 import { AdminPanel } from "@/features/admin";
@@ -21,6 +24,34 @@ const requireAuth = () => {
     }
 };
 
+const requireAdmin = () => {
+    if (!isAuthenticated()) {
+        throw redirect({ to: '/login' });
+    }
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+        throw redirect({ to: '/login' });
+    }
+    const user = JSON.parse(userStr);
+    if (user.role !== 'admin') {
+        throw redirect({ to: '/' });
+    }
+};
+
+const requireAgent = () => {
+    if (!isAuthenticated()) {
+        throw redirect({ to: '/login' });
+    }
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+        throw redirect({ to: '/login' });
+    }
+    const user = JSON.parse(userStr);
+    if (user.role !== 'agent' && user.role !== 'admin') {
+        throw redirect({ to: '/' });
+    }
+};
+
 const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
@@ -34,11 +65,31 @@ const loginRoute = createRoute({
     component: Login,
 });
 
+const signupRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/signup',
+    component: Signup,
+});
+
 const ticketsListRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/tickets',
     component: TicketList,
     beforeLoad: requireAuth
+});
+
+const ticketsAllRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/tickets/all',
+    component: AllTicketsList,
+    beforeLoad: requireAdmin
+});
+
+const ticketsAssignedRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/tickets/assigned',
+    component: AssignedTicketsList,
+    beforeLoad: requireAgent
 });
 
 const ticketCreateRoute = createRoute({
@@ -59,13 +110,16 @@ const adminRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin',
     component: AdminPanel,
-    beforeLoad: requireAuth // Should check admin role
+    beforeLoad: requireAdmin
 });
 
 const routeTree = rootRoute.addChildren([
     indexRoute,
     loginRoute,
+    signupRoute,
     ticketsListRoute,
+    ticketsAllRoute,
+    ticketsAssignedRoute,
     ticketCreateRoute,
     ticketDetailsRoute,
     adminRoute,

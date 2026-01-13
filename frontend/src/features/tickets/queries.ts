@@ -11,15 +11,20 @@ export const useTicketStats = () =>
 export const useTickets = (params: { q?: string; state?: string; page?: number }) =>
     useQuery({
         queryKey: ['tickets', params],
-        queryFn: () => {
+        queryFn: async () => {
             // Filter out undefined params
             const queryParams = new URLSearchParams();
             Object.entries(params).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== '') {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
                     queryParams.append(key, String(value));
                 }
             });
-            return api<PaginatedResult<Ticket>>(`/api/v1/ticket/all?${queryParams.toString()}`);
+            const response = await api<Ticket[] | PaginatedResult<Ticket>>(`/api/v1/ticket/all?${queryParams.toString()}`);
+            // Handle both array response (current backend) and paginated result (expected)
+            if (Array.isArray(response)) {
+                return { items: response, total: response.length, page: 1, pageSize: 20 };
+            }
+            return response;
         }
     });
 

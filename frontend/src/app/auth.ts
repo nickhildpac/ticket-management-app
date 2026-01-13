@@ -1,5 +1,3 @@
-
-
 let accessToken: string | null = null;
 
 export const getAccessToken = () => accessToken;
@@ -19,16 +17,46 @@ export async function tryRefresh(): Promise<boolean> {
 
         if (!res.ok) throw new Error("Refresh failed");
 
-        const data = await res.json() as { access_token: string };
+        const data = await res.json() as { access_token: string; user: { id: string; first_name: string; last_name: string; email: string; role: string } };
+
         setAccessToken(data.access_token);
+
+        // Store user data in localStorage for the UserContext
+        localStorage.setItem("user", JSON.stringify(data.user));
+
         return true;
     } catch {
         setAccessToken(null);
+        localStorage.removeItem("user");
         // Ideally we should redirect to login here or let the caller handle it
         if (window.location.pathname !== "/login") {
             window.location.href = "/login";
         }
         return false;
+    }
+}
+
+export async function login(email: string, password: string): Promise<{ success: boolean; user?: { id: string; first_name: string; last_name: string; email: string; role: string } }> {
+    try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, password }),
+        });
+
+        if (!res.ok) {
+            return { success: false };
+        }
+
+        const data = await res.json() as { access_token: string; user: { id: string; first_name: string; last_name: string; email: string; role: string } };
+
+        setAccessToken(data.access_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        return { success: true, user: data.user };
+    } catch {
+        return { success: false };
     }
 }
 
@@ -42,6 +70,7 @@ export async function logout() {
         // Ignore error
     }
     setAccessToken(null);
+    localStorage.removeItem("user");
     if (window.location.pathname !== "/login") {
         window.location.href = "/login";
     }

@@ -4,10 +4,12 @@ import { Card, CardHeader, CardContent, CardTitle, CardFooter } from "@/componen
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { setAccessToken } from "@/app/auth";
+import { login } from "@/app/auth";
+import { useUser } from "@/app/user-context";
 
 export function Login() {
     const navigate = useNavigate();
+    const { setUser } = useUser();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -17,29 +19,14 @@ export function Login() {
         e.preventDefault();
         setLoading(true);
         setError("");
-        try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ email, password }),
-            });
-
-            if (!res.ok) throw new Error("Invalid credentials");
-
-            const data = await res.json();
-            setAccessToken(data.access_token);
-
+        const result = await login(email, password);
+        if (result.success && result.user) {
+            setUser(result.user);
             navigate({ to: '/' });
-        } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError("Login failed");
-            }
-        } finally {
-            setLoading(false);
+        } else {
+            setError("Invalid credentials");
         }
+        setLoading(false);
     };
 
     return (
@@ -77,8 +64,9 @@ export function Login() {
                         </Button>
                     </form>
                 </CardContent>
-                <CardFooter className="flex justify-center text-sm text-muted-foreground">
-                    <span>Demo: user@example.com / password</span>
+                <CardFooter className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                    <span>Demo: alice@admin.com / password123</span>
+                    <span>Don't have an account? <a href="/signup" className="text-primary hover:underline">Sign up</a></span>
                 </CardFooter>
             </Card>
         </div>

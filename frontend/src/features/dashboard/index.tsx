@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { getTicketStateString, getTicketPriorityString } from "@/lib/types";
 
 export function Dashboard() {
     const { data: stats, isLoading: statsLoading } = useTicketStats();
@@ -104,32 +105,39 @@ export function Dashboard() {
                                                 <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">No recent tickets</TableCell>
                                             </TableRow>
                                         ) : (
-                                            recent.map((ticket) => (
-                                                <TableRow key={ticket.id} className="hover:bg-muted/30 transition-colors">
-                                                    <TableCell className="py-4">
-                                                        <Link to="/tickets/$id" params={{ id: ticket.id }} className="block">
-                                                            <div className="font-semibold text-sm">{ticket.title}</div>
-                                                            <div className="text-xs text-muted-foreground mt-1">#{ticket.id.slice(0, 8)}</div>
-                                                        </Link>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={ticket.state === 'open' ? 'default' : 'secondary'} className="capitalize">
-                                                            {ticket.state}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <span className={`text-xs font-medium px-2 py-1 rounded-full border ${ticket.priority === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
-                                                                ticket.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                                                    'bg-slate-50 text-slate-700 border-slate-200'
+                                            recent.map((ticket) => {
+                                                const stateStr = typeof ticket.state === 'number' ? getTicketStateString(ticket.state) : ticket.state;
+                                                const priorityStr = typeof ticket.priority === 'number' ? getTicketPriorityString(ticket.priority) : ticket.priority;
+
+                                                return (
+                                                    <TableRow key={ticket.id} className="hover:bg-muted/30 transition-colors">
+                                                        <TableCell className="py-4">
+                                                            <Link to="/tickets/$id" params={{ id: ticket.id }} className="block">
+                                                                <div className="font-semibold text-sm">{ticket.title}</div>
+                                                                <div className="text-xs text-muted-foreground mt-1">#{ticket.id.slice(0, 8)}</div>
+                                                            </Link>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant={stateStr === 'open' ? 'default' : 'secondary'} className="capitalize">
+                                                                {stateStr}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span className={`text-xs font-medium px-2 py-1 rounded-full border ${
+                                                                priorityStr === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                                priorityStr === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                                                priorityStr === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                                'bg-slate-50 text-slate-700 border-slate-200'
                                                             }`}>
-                                                            {ticket.priority}
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-xs text-muted-foreground">
-                                                        {new Date(ticket.created_at).toLocaleDateString()}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
+                                                                {priorityStr}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell className="text-right text-xs text-muted-foreground">
+                                                            {new Date(ticket.created_at).toLocaleDateString()}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })
                                         )}
                                     </TableBody>
                                 </Table>

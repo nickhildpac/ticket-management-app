@@ -2,6 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { User } from '@/lib/types';
 
+// Get basic user list for assignment (available to all authenticated users)
+export const useUsersForAssignment = () =>
+    useQuery({
+        queryKey: ['users'],
+        queryFn: () => api<User[]>('/api/v1/users'),
+    });
+
 export const useUsers = () =>
     useQuery({
         queryKey: ['admin', 'users'],

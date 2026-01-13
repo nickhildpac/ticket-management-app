@@ -20,8 +20,8 @@ export interface Ticket {
     id: string;
     title: string;
     description: string;
-    state: 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled';
-    priority: 'low' | 'medium' | 'high' | 'critical';
+    state: TicketStateValue | 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled';
+    priority: TicketPriorityValue | 'low' | 'medium' | 'high' | 'critical';
     assigned_to: string[];
     created_by: string;
     creator?: UserInfo;
@@ -52,4 +52,31 @@ export interface PaginatedResult<T> {
     total: number;
     page: number;
     pageSize: number;
+}
+
+// Backend returns state as integer: 1=open, 2=pending, 3=resolved, 4=closed, 5=cancelled
+export type TicketStateValue = 1 | 2 | 3 | 4 | 5;
+export type TicketPriorityValue = 1 | 2 | 3 | 4; // 1=critical, 2=high, 3=medium, 4=low
+
+export const ticketStateMap: Record<TicketStateValue, 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled'> = {
+    1: 'open',
+    2: 'pending',
+    3: 'resolved',
+    4: 'closed',
+    5: 'cancelled',
+};
+
+export const ticketPriorityMap: Record<TicketPriorityValue, 'critical' | 'high' | 'medium' | 'low'> = {
+    1: 'critical',
+    2: 'high',
+    3: 'medium',
+    4: 'low',
+};
+
+export function getTicketStateString(state: number): 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled' {
+    return ticketStateMap[state as TicketStateValue] || 'open';
+}
+
+export function getTicketPriorityString(priority: number): 'critical' | 'high' | 'medium' | 'low' {
+    return ticketPriorityMap[priority as TicketPriorityValue] || 'medium';
 }
