@@ -43,6 +43,7 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 		// Ticket routes (authenticated)
 		r.Route("/ticket", func(mux chi.Router) {
 			mux.Use(middlewares.AuthRequired(conf))
+			mux.Get("/stats", h.GetTicketStats)
 			mux.Get("/all", h.GetTickets)
 			mux.Get("/assigned", h.GetAssignedTickets)
 			mux.Post("/", h.CreateTicket)

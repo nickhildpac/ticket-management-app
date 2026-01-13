@@ -1,5 +1,5 @@
 postgres:
-	docker run --name ticketmgmt -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -d postgres
+	docker run --name ticketmgmt -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -d postgres:17
 createdb:
 	docker exec ticketmgmt createdb --username=postgres --owner=postgres ticket_management
 dropdb:

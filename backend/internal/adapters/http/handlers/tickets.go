@@ -13,9 +13,74 @@ import (
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
 )
 
+type TicketStats struct {
+	Total    int32 `json:"total"`
+	Open     int32 `json:"open"`
+	Pending  int32 `json:"pending"`
+	Resolved int32 `json:"resolved"`
+	Mine     int32 `json:"mine"`
+}
+
 type TicketPayload struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
+}
+
+func (h *Handler) GetTicketStats(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.Context().Value(configs.UserIDKey).(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Get tickets based on user role
+	var tickets []domain.Ticket
+	auth, err := authorization.GetAuthContext(r.Context())
+	if err != nil {
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if auth.Role == domain.RoleAdmin {
+		tickets, err = h.ticketService.ListAll(r.Context(), 1000, 0)
+	} else if auth.Role == domain.RoleAgent {
+		tickets, err = h.ticketService.ListByAssignee(r.Context(), userID, 1000, 0)
+	} else {
+		tickets, err = h.ticketService.ListByCreator(r.Context(), userID, 1000, 0)
+	}
+
+	if err != nil {
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Calculate stats
+	stats := TicketStats{}
+	stats.Total = int32(len(tickets))
+
+	for _, ticket := range tickets {
+		switch ticket.State {
+		case domain.TicketStateOpen:
+			stats.Open++
+		case domain.TicketStatePending:
+			stats.Pending++
+		case domain.TicketStateResolved:
+			stats.Resolved++
+		}
+	}
+
+	// Count tickets assigned to current user
+	for _, ticket := range tickets {
+		for _, assignee := range ticket.AssignedTo {
+			if assignee == userID {
+				stats.Mine++
+				break
+			}
+		}
+	}
+
+	util.WriteResponse(w, http.StatusOK, stats)
 }
 
 type UpdateTicketPayload struct {
