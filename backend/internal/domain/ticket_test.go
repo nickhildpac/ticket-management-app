@@ -127,3 +127,39 @@ func TestTicketStateString(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTicketState(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    TicketState
+		expectError bool
+	}{
+		{"Open", "open", TicketStateOpen, false},
+		{"Pending", "pending", TicketStatePending, false},
+		{"Resolved", "resolved", TicketStateResolved, false},
+		{"Closed", "closed", TicketStateClosed, false},
+		{"Cancelled", "cancelled", TicketStateCancelled, false},
+		{"CancelAlias", "cancel", TicketStateCancelled, false},
+		{"Invalid", "not-a-state", 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state, err := GetTicketState(tt.input)
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected error for input %q", tt.input)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error for input %q: %v", tt.input, err)
+			}
+			if state != tt.expected {
+				t.Fatalf("GetTicketState(%q) = %v; want %v", tt.input, state, tt.expected)
+			}
+		})
+	}
+}

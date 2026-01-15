@@ -1,3 +1,4 @@
+// Package domain defines core entities and business rules for tickets.
 package domain
 
 import (
@@ -9,8 +10,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type TicketState int
-type TicketPriority int
+type (
+	TicketState    int
+	TicketPriority int
+)
 
 const (
 	// States
@@ -123,7 +126,7 @@ func GetTicketState(s string) (TicketState, error) {
 		return TicketStateResolved, nil
 	case "closed":
 		return TicketStateClosed, nil
-	case "cancel":
+	case "cancel", "cancelled":
 		return TicketStateCancelled, nil
 	default:
 		return 0, fmt.Errorf("invalid ticket state: %s", s)
@@ -159,9 +162,7 @@ func GetValidTransitions(from TicketState) []TicketState {
 	return validStates
 }
 
-var (
-	ErrInvalidStatusTransition = errors.New("invalid status transition")
-)
+var ErrInvalidStatusTransition = errors.New("invalid status transition")
 
 // GetTransitionError returns a more descriptive error for invalid transitions
 func GetTransitionError(from TicketState, to TicketState) error {

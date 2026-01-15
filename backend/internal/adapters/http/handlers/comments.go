@@ -74,6 +74,15 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+	_, err = h.ticketService.GetTicket(r.Context(), comment.TicketID)
+	if err != nil {
+		if err == authorization.ErrAccessDenied {
+			util.ErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
 	util.WriteResponse(w, http.StatusOK, comment)
 }
 

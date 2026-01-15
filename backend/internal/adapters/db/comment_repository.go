@@ -1,3 +1,4 @@
+// Package db provides database repositories backed by SQLC-generated queries.
 package db
 
 import (

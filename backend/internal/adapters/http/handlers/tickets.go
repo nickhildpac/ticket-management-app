@@ -168,10 +168,10 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 			LastName:  creator.LastName,
 			Email:     creator.Email,
 		},
-		CreatedAt:   ticket.CreatedAt,
-		State:       ticket.State.String(),
-		Priority:    ticket.Priority.String(),
-		AssignedTo:  ticket.AssignedTo,
+		CreatedAt:  ticket.CreatedAt,
+		State:      ticket.State.String(),
+		Priority:   ticket.Priority.String(),
+		AssignedTo: ticket.AssignedTo,
 	}
 	util.WriteResponse(w, http.StatusOK, resp)
 }
@@ -248,7 +248,12 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 		updatedFields = append(updatedFields, "state")
 	}
 	if payload.Priority != nil {
-		ticket.Priority = domain.GetTicketPriority(*payload.Priority)
+		priority := domain.GetTicketPriority(*payload.Priority)
+		if priority == -1 {
+			util.ErrorResponse(w, http.StatusBadRequest, errors.New("invalid priority"))
+			return
+		}
+		ticket.Priority = priority
 		changed = true
 		updatedFields = append(updatedFields, "priority")
 	}

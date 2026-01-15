@@ -1,3 +1,4 @@
+// Package util provides shared helper utilities for HTTP handlers and auth.
 package util
 
 import (

@@ -1,3 +1,4 @@
+// Package service implements application-layer business logic for tickets, users, and comments.
 package service
 
 import (

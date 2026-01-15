@@ -1,3 +1,4 @@
+// Package ports defines interfaces for services and repositories used across the application.
 package ports
 
 import (

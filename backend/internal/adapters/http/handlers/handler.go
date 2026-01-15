@@ -1,4 +1,4 @@
-// Package handlers
+// Package handlers defines HTTP handlers for the ticket management API.
 package handlers
 
 import (

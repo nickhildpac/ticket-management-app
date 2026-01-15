@@ -130,17 +130,17 @@ func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket, 
 		}
 	}
 
+	// Auto-transition to pending when assigned
+	if len(ticket.AssignedTo) > 0 && len(prev.AssignedTo) == 0 {
+		ticket.State = domain.TicketStatePending
+	}
+
 	// State transition validation
 	if ticket.State != prev.State {
 		log.Printf("Attempting state transition from %s to %s", prev.State, ticket.State)
 		if ok := domain.CanTransition(prev.State, ticket.State); !ok {
 			return nil, domain.ErrInvalidStatusTransition
 		}
-	}
-
-	// Auto-transition to pending when assigned
-	if len(ticket.AssignedTo) > 0 && len(prev.AssignedTo) == 0 {
-		ticket.State = domain.TicketStatePending
 	}
 
 	ticket.CreatedAt = prev.CreatedAt

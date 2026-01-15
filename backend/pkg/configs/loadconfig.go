@@ -1,4 +1,4 @@
-// Package config loads env variables
+// Package configs loads environment variables and application configuration values.
 package configs
 
 import (

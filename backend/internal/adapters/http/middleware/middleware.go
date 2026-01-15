@@ -1,3 +1,4 @@
+// Package middlewares contains shared HTTP middleware for the API server.
 package middlewares
 
 import (

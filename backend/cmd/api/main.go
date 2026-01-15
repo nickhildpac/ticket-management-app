@@ -1,3 +1,4 @@
+// Package main boots the ticket management API server.
 package main
 
 import (

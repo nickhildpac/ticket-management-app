@@ -1,4 +1,4 @@
-// Package http
+// Package http sets up the HTTP router and middleware wiring.
 package http
 
 import (
@@ -19,12 +19,6 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
 	r.Use(middlewares.EnableCORS)
-
-	// Health check endpoint
-	r.Get("/health", h.HealthCheck)
-
-	// Prometheus metrics endpoint
-	r.Handle("/metrics", promhttp.Handler())
 
 	// Health check endpoint
 	r.Get("/health", h.HealthCheck)
@@ -55,7 +49,7 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 
 		// Comment routes (authenticated)
 		r.With(middlewares.AuthRequired(conf)).Post("/comment", h.CreateComment)
-		r.Get("/comment/{id}", h.GetComment)
+		r.With(middlewares.AuthRequired(conf)).Get("/comment/{id}", h.GetComment)
 
 		// User routes (authenticated) - for getting user list for assignments
 		r.With(middlewares.AuthRequired(conf)).Get("/users", h.GetBasicUsers)

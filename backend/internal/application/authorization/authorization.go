@@ -1,3 +1,4 @@
+// Package authorization provides role- and ownership-based access control helpers.
 package authorization
 
 import (
