@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
 import { login } from "@/app/auth";
 import { useUser } from "@/app/user-context";
 
@@ -66,7 +66,7 @@ export function Login() {
                 </CardContent>
                 <CardFooter className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
                     <span>Demo: alice@admin.com / password123</span>
-                    <span>Don't have an account? <a href="/signup" className="text-primary hover:underline">Sign up</a></span>
+                    <span>Don't have an account? <Link to="/signup" className="text-primary hover:underline">Sign up</Link></span>
                 </CardFooter>
             </Card>
         </div>

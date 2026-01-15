@@ -10,6 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { CommentsSection } from "./components/comments";
 import { useState, useEffect } from "react";
 import { Loader2, X } from "lucide-react";
@@ -23,6 +32,8 @@ export function TicketDetails() {
     const updateTicket = useUpdateTicket();
 
     const isAdmin = user?.role === "admin";
+    const isCreator = user?.id === ticket?.created_by;
+    const canCancel = isCreator && ticket?.state !== 'cancelled' && ticket?.state !== 'closed';
 
     // Local state for editable fields
     const [description, setDescription] = useState("");
@@ -30,14 +41,15 @@ export function TicketDetails() {
     const [state, setState] = useState("");
     const [priority, setPriority] = useState("");
     const [hasChanges, setHasChanges] = useState(false);
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
     // Initialize local state when ticket data loads
     useEffect(() => {
         if (ticket) {
             setDescription(ticket.description);
             setAssignedTo(ticket.assigned_to || []);
-            setState(ticket.state);
-            setPriority(ticket.priority);
+            setState(String(ticket.state));
+            setPriority(String(ticket.priority));
         }
     }, [ticket]);
 
@@ -79,6 +91,19 @@ export function TicketDetails() {
 
     const handleRemoveAssignee = (userId: string) => {
         setAssignedTo(assignedTo.filter(id => id !== userId));
+    };
+
+    const handleCancelTicket = () => {
+        if (!ticket) return;
+        updateTicket.mutate(
+            { id: ticket.id, patch: { state: 'cancelled' } },
+            {
+                onSuccess: () => {
+                    setCancelDialogOpen(false);
+                    setHasChanges(false);
+                }
+            }
+        );
     };
 
     if (isLoading) return <AppShell><div className="space-y-4"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-[200px] w-full" /></div></AppShell>;
@@ -266,16 +291,12 @@ export function TicketDetails() {
                                         <span className="font-medium text-right capitalize">{ticket.state}</span>
                                     )}
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <span className="text-muted-foreground">Category</span>
-                                    <span className="font-medium text-right">{ticket.category || 'None'}</span>
-                                </div>
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader><CardTitle className="text-base">Actions</CardTitle></CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-3">
                                 <Button
                                     onClick={handleUpdate}
                                     disabled={!hasChanges || updateTicket.isPending}
@@ -290,6 +311,46 @@ export function TicketDetails() {
                                         "Update Ticket"
                                     )}
                                 </Button>
+
+                                {canCancel && (
+                                    <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="destructive" className="w-full">
+                                                Cancel Ticket
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Cancel Ticket</DialogTitle>
+                                                <DialogDescription>
+                                                    Are you sure you want to cancel this ticket? This action cannot be undone.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <DialogFooter>
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => setCancelDialogOpen(false)}
+                                                >
+                                                    No, go back
+                                                </Button>
+                                                <Button
+                                                    variant="destructive"
+                                                    onClick={handleCancelTicket}
+                                                    disabled={updateTicket.isPending}
+                                                >
+                                                    {updateTicket.isPending ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Cancelling...
+                                                        </>
+                                                    ) : (
+                                                        "Yes, cancel ticket"
+                                                    )}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
