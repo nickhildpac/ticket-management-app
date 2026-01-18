@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -22,8 +23,9 @@ type TicketStats struct {
 }
 
 type TicketPayload struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Skills      []string `json:"skills"`
 }
 
 func (h *Handler) GetTicketStats(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +91,7 @@ type UpdateTicketPayload struct {
 	State       *string      `json:"state"`
 	Priority    *string      `json:"priority"`
 	AssignedTo  *[]uuid.UUID `json:"assigned_to"`
+	Skills      *[]string    `json:"skills"`
 }
 
 func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +100,22 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	util.WriteResponse(w, http.StatusOK, tickets)
+
+	// Convert to summary responses
+	summaries := make([]TicketSummaryResponse, 0, len(tickets))
+	for _, t := range tickets {
+		summaries = append(summaries, TicketSummaryResponse{
+			ID:           t.ID,
+			TicketNumber: t.TicketNumber,
+			Title:        t.Title,
+			Description:  t.Description,
+			State:        t.State.String(),
+			Priority:     t.Priority.String(),
+			CreatedAt:    t.CreatedAt,
+			UpdatedAt:    t.UpdatedAt,
+		})
+	}
+	util.WriteResponse(w, http.StatusOK, summaries)
 }
 
 func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +128,22 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	util.WriteResponse(w, http.StatusOK, tickets)
+
+	// Convert to summary responses
+	summaries := make([]TicketSummaryResponse, 0, len(tickets))
+	for _, t := range tickets {
+		summaries = append(summaries, TicketSummaryResponse{
+			ID:           t.ID,
+			TicketNumber: t.TicketNumber,
+			Title:        t.Title,
+			Description:  t.Description,
+			State:        t.State.String(),
+			Priority:     t.Priority.String(),
+			CreatedAt:    t.CreatedAt,
+			UpdatedAt:    t.UpdatedAt,
+		})
+	}
+	util.WriteResponse(w, http.StatusOK, summaries)
 }
 
 func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +163,22 @@ func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	util.WriteResponse(w, http.StatusOK, tickets)
+
+	// Convert to summary responses
+	summaries := make([]TicketSummaryResponse, 0, len(tickets))
+	for _, t := range tickets {
+		summaries = append(summaries, TicketSummaryResponse{
+			ID:           t.ID,
+			TicketNumber: t.TicketNumber,
+			Title:        t.Title,
+			Description:  t.Description,
+			State:        t.State.String(),
+			Priority:     t.Priority.String(),
+			CreatedAt:    t.CreatedAt,
+			UpdatedAt:    t.UpdatedAt,
+		})
+	}
+	util.WriteResponse(w, http.StatusOK, summaries)
 }
 
 func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
@@ -158,10 +206,11 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := TicketResponse{
-		TicketID:    ticket.ID,
-		Title:       ticket.Title,
-		Description: ticket.Description,
-		CreatedBy:   ticket.CreatedBy,
+		TicketID:     ticket.ID,
+		TicketNumber: ticket.TicketNumber,
+		Title:        ticket.Title,
+		Description:  ticket.Description,
+		CreatedBy:    ticket.CreatedBy,
 		Creator: UserInfo{
 			ID:        creator.ID,
 			FirstName: creator.FirstName,
@@ -169,9 +218,59 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 			Email:     creator.Email,
 		},
 		CreatedAt:  ticket.CreatedAt,
+		UpdatedAt:  ticket.UpdatedAt,
 		State:      ticket.State.String(),
 		Priority:   ticket.Priority.String(),
 		AssignedTo: ticket.AssignedTo,
+		Skills:     ticket.Skills.ToSlice(),
+	}
+	util.WriteResponse(w, http.StatusOK, resp)
+}
+
+func (h *Handler) GetTicketByNumber(w http.ResponseWriter, r *http.Request) {
+	numberParam := chi.URLParam(r, "number")
+	var ticketNumber int64
+	_, err := fmt.Sscanf(numberParam, "%d", &ticketNumber)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, errors.New("invalid ticket number"))
+		return
+	}
+
+	ticket, err := h.ticketService.GetTicketByNumber(r.Context(), ticketNumber)
+	if err != nil {
+		if err == authorization.ErrAccessDenied {
+			util.ErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Fetch creator details
+	creator, err := h.userService.GetUserByID(r.Context(), ticket.CreatedBy)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	resp := TicketResponse{
+		TicketID:     ticket.ID,
+		TicketNumber: ticket.TicketNumber,
+		Title:        ticket.Title,
+		Description:  ticket.Description,
+		CreatedBy:    ticket.CreatedBy,
+		Creator: UserInfo{
+			ID:        creator.ID,
+			FirstName: creator.FirstName,
+			LastName:  creator.LastName,
+			Email:     creator.Email,
+		},
+		CreatedAt:  ticket.CreatedAt,
+		UpdatedAt:  ticket.UpdatedAt,
+		State:      ticket.State.String(),
+		Priority:   ticket.Priority.String(),
+		AssignedTo: ticket.AssignedTo,
+		Skills:     ticket.Skills.ToSlice(),
 	}
 	util.WriteResponse(w, http.StatusOK, resp)
 }
@@ -189,16 +288,36 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate skills
+	skills, err := domain.NewSkills(payload.Skills)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
 	ticket, err := h.ticketService.CreateTicket(r.Context(), domain.Ticket{
 		Title:       payload.Title,
 		Description: payload.Description,
 		CreatedBy:   userID,
+		Skills:      *skills,
 	})
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	util.WriteResponse(w, http.StatusAccepted, ticket)
+
+	// Return summary response
+	summary := TicketSummaryResponse{
+		ID:           ticket.ID,
+		TicketNumber: ticket.TicketNumber,
+		Title:        ticket.Title,
+		Description:  ticket.Description,
+		State:        ticket.State.String(),
+		Priority:     ticket.Priority.String(),
+		CreatedAt:    ticket.CreatedAt,
+		UpdatedAt:    ticket.UpdatedAt,
+	}
+	util.WriteResponse(w, http.StatusAccepted, summary)
 }
 
 func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
@@ -262,6 +381,16 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 		changed = true
 		updatedFields = append(updatedFields, "assigned_to")
 	}
+	if payload.Skills != nil {
+		skills, err := domain.NewSkills(*payload.Skills)
+		if err != nil {
+			util.ErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
+		ticket.Skills = *skills
+		changed = true
+		updatedFields = append(updatedFields, "skills")
+	}
 
 	if !changed {
 		util.ErrorResponse(w, http.StatusBadRequest, errors.New("no fields provided to update"))
@@ -278,7 +407,17 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.WriteResponse(w, http.StatusOK, updated)
+	// Return summary response
+	summary := TicketSummaryResponse{
+		ID:           updated.ID,
+		TicketNumber: updated.TicketNumber,
+		Title:        updated.Title,
+		State:        updated.State.String(),
+		Priority:     updated.Priority.String(),
+		CreatedAt:    updated.CreatedAt,
+		UpdatedAt:    updated.UpdatedAt,
+	}
+	util.WriteResponse(w, http.StatusOK, summary)
 }
 
 func (h *Handler) DeleteTicket(w http.ResponseWriter, r *http.Request) {

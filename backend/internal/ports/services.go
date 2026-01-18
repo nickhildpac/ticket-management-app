@@ -22,6 +22,7 @@ type TicketService interface {
 	ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	GetTicketByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error)
 	CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	UpdateTicket(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error)
 	DeleteTicket(ctx context.Context, id uuid.UUID) error

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
+	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
 )
 
@@ -126,12 +127,28 @@ func (h *Handler) GetBasicUsers(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, users)
 }
 
+func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.Context().Value(configs.UserIDKey).(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+	user, err := h.userService.GetUserByID(r.Context(), userID)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	util.WriteResponse(w, http.StatusOK, user)
+}
+
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var requestPayload struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Email     string `json:"email"`
-		Password  string `json:"password"`
+		FirstName string   `json:"first_name"`
+		LastName  string   `json:"last_name"`
+		Email     string   `json:"email"`
+		Password  string   `json:"password"`
+		Skills    []string `json:"skills"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&requestPayload); err != nil {
@@ -145,11 +162,19 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate skills
+	skills, err := domain.NewSkills(requestPayload.Skills)
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
 	user, err := h.userService.CreateUser(r.Context(), domain.User{
 		FirstName:      requestPayload.FirstName,
 		LastName:       requestPayload.LastName,
 		Email:          requestPayload.Email,
 		HashedPassword: hashedPassword,
+		Skills:         *skills,
 	})
 	if err != nil {
 		log.Println("Error creating user:", err)

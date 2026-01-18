@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
+import { useMe } from "@/features/users/queries";
 
 export interface UserInfo {
     id: string;
@@ -7,6 +8,7 @@ export interface UserInfo {
     last_name: string;
     email: string;
     role: string;
+    skills?: string[];
     created_at: string;
     updated_at?: string;
 }
@@ -20,20 +22,14 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<UserInfo | null>(() => {
-        // Load user from localStorage on mount
-        const stored = localStorage.getItem("user");
-        return stored ? JSON.parse(stored) : null;
-    });
+    const [user, setUser] = useState<UserInfo | null>(null);
+    const { data: me } = useMe();
 
     useEffect(() => {
-        // Save user to localStorage whenever it changes
-        if (user) {
-            localStorage.setItem("user", JSON.stringify(user));
-        } else {
-            localStorage.removeItem("user");
+        if (me) {
+            setUser(me);
         }
-    }, [user]);
+    }, [me]);
 
     const clearUser = () => setUser(null);
 

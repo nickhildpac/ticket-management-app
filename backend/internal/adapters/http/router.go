@@ -33,6 +33,7 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 		r.Get("/logout", h.Logout)
 		r.Post("/user", h.CreateUser)
 		r.Get("/refresh", h.RefreshToken)
+		r.With(middlewares.AuthRequired(conf)).Get("/me", h.GetMe)
 
 		// Ticket routes (authenticated)
 		r.Route("/ticket", func(mux chi.Router) {
@@ -41,6 +42,7 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 			mux.Get("/all", h.GetTickets)
 			mux.Get("/assigned", h.GetAssignedTickets)
 			mux.Post("/", h.CreateTicket)
+			mux.Get("/number/{number}", h.GetTicketByNumber)
 			mux.Get("/{id}", h.GetTicket)
 			mux.Patch("/{id}", h.UpdateTicket)
 			mux.Delete("/{id}", h.DeleteTicket)
@@ -53,6 +55,7 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 
 		// User routes (authenticated) - for getting user list for assignments
 		r.With(middlewares.AuthRequired(conf)).Get("/users", h.GetBasicUsers)
+		r.With(middlewares.AuthRequired(conf)).Get("/me", h.GetMe)
 
 		// Admin-only user management routes
 		r.Route("/admin/users", func(mux chi.Router) {

@@ -23,6 +23,7 @@ type User struct {
 	LastName       string    `json:"last_name"`
 	Email          string    `json:"email"`
 	Role           UserRole  `json:"role"`
+	Skills         Skills    `json:"skills"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	CreatedAt      time.Time `json:"created_at"`
 }

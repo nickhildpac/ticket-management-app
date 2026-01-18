@@ -29,6 +29,9 @@ func (m *ticketServiceMock) ListByAssignee(ctx context.Context, id uuid.UUID, li
 func (m *ticketServiceMock) GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
 	return &m.ticket, nil
 }
+func (m *ticketServiceMock) GetTicketByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
+	return &m.ticket, nil
+}
 func (m *ticketServiceMock) CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	return &ticket, nil
 }

@@ -20,6 +20,7 @@ type Querier interface {
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
 	GetComment(ctx context.Context, id uuid.UUID) (Comment, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (Ticket, error)
+	GetTicketByNumber(ctx context.Context, ticketNumber int64) (Ticket, error)
 	GetTicketsByAssignee(ctx context.Context, dollar_1 []uuid.UUID) ([]Ticket, error)
 	GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) ([]Ticket, error)
 	GetUser(ctx context.Context, id uuid.UUID) (User, error)

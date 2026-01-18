@@ -21,7 +21,17 @@ import {
 } from "@/components/ui/dialog";
 import { CommentsSection } from "./components/comments";
 import { useState, useEffect } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Tag } from "lucide-react";
+
+const VALID_SKILLS = [
+    "incident-management",
+    "major-incident",
+    "root-cause-analysis",
+    "log-analysis",
+    "production-support",
+    "sla-management",
+    "post-incident-review",
+];
 
 export function TicketDetails() {
     const params = useParams({ strict: false });
@@ -38,6 +48,7 @@ export function TicketDetails() {
     // Local state for editable fields
     const [description, setDescription] = useState("");
     const [assignedTo, setAssignedTo] = useState<string[]>([]);
+    const [skills, setSkills] = useState<string[]>([]);
     const [state, setState] = useState("");
     const [priority, setPriority] = useState("");
     const [hasChanges, setHasChanges] = useState(false);
@@ -48,6 +59,7 @@ export function TicketDetails() {
         if (ticket) {
             setDescription(ticket.description);
             setAssignedTo(ticket.assigned_to || []);
+            setSkills(ticket.skills || []);
             setState(String(ticket.state));
             setPriority(String(ticket.priority));
         }
@@ -60,9 +72,10 @@ export function TicketDetails() {
             const assigneeChanged = JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || []);
             const stateChanged = state !== ticket.state;
             const priorityChanged = priority !== ticket.priority;
-            setHasChanges(descChanged || assigneeChanged || stateChanged || priorityChanged);
+            const skillsChanged = JSON.stringify(skills) !== JSON.stringify(ticket.skills || []);
+            setHasChanges(descChanged || assigneeChanged || stateChanged || priorityChanged || skillsChanged);
         }
-    }, [description, assignedTo, state, priority, ticket]);
+    }, [description, assignedTo, state, priority, skills, ticket]);
 
     const handleUpdate = () => {
         if (!ticket || !hasChanges) return;
@@ -72,6 +85,7 @@ export function TicketDetails() {
         if (JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || [])) patch.assigned_to = assignedTo;
         if (state !== ticket.state) patch.state = state;
         if (priority !== ticket.priority) patch.priority = priority;
+        if (JSON.stringify(skills) !== JSON.stringify(ticket.skills || [])) patch.skills = skills;
 
         updateTicket.mutate(
             { id: ticket.id, patch },
@@ -91,6 +105,16 @@ export function TicketDetails() {
 
     const handleRemoveAssignee = (userId: string) => {
         setAssignedTo(assignedTo.filter(id => id !== userId));
+    };
+
+    const handleAddSkill = (skill: string) => {
+        if (!skills.includes(skill)) {
+            setSkills([...skills, skill]);
+        }
+    };
+
+    const handleRemoveSkill = (skill: string) => {
+        setSkills(skills.filter(s => s !== skill));
     };
 
     const handleCancelTicket = () => {
@@ -116,6 +140,7 @@ export function TicketDetails() {
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
+                            <span className="text-muted-foreground font-mono">#{ticket.ticket_number}</span>
                             <h1 className="text-2xl font-bold">{ticket.title}</h1>
                             {isAdmin ? (
                                 <Badge variant={state === 'open' ? 'default' : 'secondary'}>{state}</Badge>
@@ -254,6 +279,65 @@ export function TicketDetails() {
                                         </div>
                                     )}
                                 </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-muted-foreground text-xs">Skills Required</label>
+                                    {isAdmin ? (
+                                        <>
+                                            {/* Selected skills chips */}
+                                            {skills.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                    {skills.map((skill) => (
+                                                        <Badge
+                                                            key={skill}
+                                                            variant="outline"
+                                                            className="gap-1 pr-1 bg-primary/5 border-primary/20 text-primary"
+                                                        >
+                                                            <span>{skill.replace(/-/g, ' ')}</span>
+                                                            <button
+                                                                onClick={() => handleRemoveSkill(skill)}
+                                                                className="ml-1 rounded-full hover:bg-primary/20 p-0.5"
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                            </button>
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {/* Dropdown to add skills */}
+                                            <Select onValueChange={handleAddSkill}>
+                                                <SelectTrigger className="h-9">
+                                                    <div className="flex items-center gap-2">
+                                                        <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                                                        <SelectValue placeholder="Add skill..." />
+                                                    </div>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {VALID_SKILLS
+                                                        .filter(s => !skills.includes(s))
+                                                        .map((skill) => (
+                                                            <SelectItem key={skill} value={skill}>
+                                                                {skill.replace(/-/g, ' ')}
+                                                            </SelectItem>
+                                                        ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2">
+                                            {(ticket.skills && ticket.skills.length > 0) ? (
+                                                ticket.skills.map((skill) => (
+                                                    <Badge key={skill} variant="outline" className="bg-primary/5 border-primary/20 text-primary">
+                                                        {skill.replace(/-/g, ' ')}
+                                                    </Badge>
+                                                ))
+                                            ) : (
+                                                <span className="text-muted-foreground italic">None required</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-2">
                                     <span className="text-muted-foreground">Priority</span>
                                     {isAdmin ? (

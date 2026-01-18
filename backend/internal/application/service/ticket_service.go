@@ -89,6 +89,24 @@ func (s *TicketService) GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ti
 	return ticket, nil
 }
 
+func (s *TicketService) GetTicketByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ticket, err := s.repo.GetByNumber(ctx, ticketNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	if !authorization.CanViewTicket(auth, ticket) {
+		return nil, authorization.ErrAccessDenied
+	}
+
+	return ticket, nil
+}
+
 func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	ticket.State = domain.TicketStateOpen
 	ticket.Priority = domain.TicketPriorityLow

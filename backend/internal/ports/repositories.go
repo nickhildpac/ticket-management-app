@@ -22,6 +22,7 @@ type TicketRepository interface {
 	ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	GetByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error)
 	Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	Delete(ctx context.Context, id uuid.UUID) error

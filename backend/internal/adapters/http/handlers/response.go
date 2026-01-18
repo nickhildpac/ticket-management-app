@@ -14,16 +14,30 @@ type UserInfo struct {
 }
 
 type TicketResponse struct {
-	TicketID    uuid.UUID   `json:"id"`
-	CreatedBy   uuid.UUID   `json:"created_by"`
-	Creator     UserInfo    `json:"creator"`
-	AssignedTo  []uuid.UUID `json:"assigned_to"`
-	Title       string      `json:"title"`
-	Description string      `json:"description"`
-	State       string      `json:"state"`
-	Priority    string      `json:"priority"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	TicketID     uuid.UUID   `json:"id"`
+	TicketNumber int64       `json:"ticket_number"`
+	CreatedBy    uuid.UUID   `json:"created_by"`
+	Creator      UserInfo    `json:"creator"`
+	AssignedTo   []uuid.UUID `json:"assigned_to"`
+	Skills       []string    `json:"skills"`
+	Title        string      `json:"title"`
+	Description  string      `json:"description"`
+	State        string      `json:"state"`
+	Priority     string      `json:"priority"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+}
+
+// TicketSummaryResponse is a lightweight response for ticket list endpoints
+type TicketSummaryResponse struct {
+	ID           uuid.UUID      `json:"id"`
+	TicketNumber int64          `json:"ticket_number"`
+	Title        string         `json:"title"`
+	Description  string         `json:"description"`
+	State        string         `json:"state"`
+	Priority     string         `json:"priority"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
 type CommentResponse struct {

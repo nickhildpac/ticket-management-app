@@ -84,7 +84,8 @@ export function Dashboard() {
                                 <Table>
                                     <TableHeader className="bg-muted/50">
                                         <TableRow>
-                                            <TableHead className="py-3">Title</TableHead>
+                                            <TableHead className="py-3 w-[100px]">No.</TableHead>
+                                            <TableHead>Short Description</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead>Priority</TableHead>
                                             <TableHead className="text-right">Date</TableHead>
@@ -94,6 +95,7 @@ export function Dashboard() {
                                         {ticketsLoading ? (
                                             Array.from({ length: 5 }).map((_, i) => (
                                                 <TableRow key={i}>
+                                                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                                                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                                                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
@@ -102,7 +104,7 @@ export function Dashboard() {
                                             ))
                                         ) : recent.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">No recent tickets</TableCell>
+                                                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No recent tickets</TableCell>
                                             </TableRow>
                                         ) : (
                                             recent.map((ticket) => {
@@ -111,10 +113,15 @@ export function Dashboard() {
 
                                                 return (
                                                     <TableRow key={ticket.id} className="hover:bg-muted/30 transition-colors">
+                                                        <TableCell className="font-mono text-xs font-medium">
+                                                            <Link to="/tickets/$id" params={{ id: ticket.id }} className="hover:underline">
+                                                                {ticket.ticket_number}
+                                                            </Link>
+                                                        </TableCell>
                                                         <TableCell className="py-4">
                                                             <Link to="/tickets/$id" params={{ id: ticket.id }} className="block">
                                                                 <div className="font-semibold text-sm">{ticket.title}</div>
-                                                                <div className="text-xs text-muted-foreground mt-1">#{ticket.id.slice(0, 8)}</div>
+                                                                <div className="text-xs text-muted-foreground mt-1 line-clamp-1">{ticket.description}</div>
                                                             </Link>
                                                         </TableCell>
                                                         <TableCell>
@@ -123,12 +130,11 @@ export function Dashboard() {
                                                             </Badge>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <span className={`text-xs font-medium px-2 py-1 rounded-full border ${
-                                                                priorityStr === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                            <span className={`text-xs font-medium px-2 py-1 rounded-full border ${priorityStr === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
                                                                 priorityStr === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                                                priorityStr === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                                                                'bg-slate-50 text-slate-700 border-slate-200'
-                                                            }`}>
+                                                                    priorityStr === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                                        'bg-slate-50 text-slate-700 border-slate-200'
+                                                                }`}>
                                                                 {priorityStr}
                                                             </span>
                                                         </TableCell>

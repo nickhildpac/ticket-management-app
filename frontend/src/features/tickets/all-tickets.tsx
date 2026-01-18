@@ -96,6 +96,7 @@ export function AllTicketsList() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[120px]">Ticket No.</TableHead>
                             <TableHead>Short Description</TableHead>
                             <TableHead>Description</TableHead>
                             <TableHead>Status</TableHead>
@@ -107,6 +108,7 @@ export function AllTicketsList() {
                         {isLoading ? (
                             Array.from({ length: 5 }).map((_, i) => (
                                 <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
@@ -116,11 +118,11 @@ export function AllTicketsList() {
                             ))
                         ) : isError ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center text-red-500 py-4">Failed to load tickets</TableCell>
+                                <TableCell colSpan={6} className="text-center text-red-500 py-4">Failed to load tickets</TableCell>
                             </TableRow>
                         ) : data?.items?.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center py-4">No tickets found</TableCell>
+                                <TableCell colSpan={6} className="text-center py-4">No tickets found</TableCell>
                             </TableRow>
                         ) : (
                             data?.items?.map((ticket) => {
@@ -129,10 +131,13 @@ export function AllTicketsList() {
 
                                 return (
                                     <TableRow key={ticket.id}>
-                                        <TableCell>
-                                            <Link to="/tickets/$id" params={{ id: ticket.id }} className="hover:underline block font-medium">
-                                                {ticket.title}
+                                        <TableCell className="font-mono text-xs">
+                                            <Link to="/tickets/$id" params={{ id: ticket.id }} className="hover:underline font-bold text-primary">
+                                                {ticket.ticket_number}
                                             </Link>
+                                        </TableCell>
+                                        <TableCell>
+                                            {ticket.title}
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {ticket.description?.substring(0, 100)}
@@ -146,12 +151,11 @@ export function AllTicketsList() {
                                         <TableCell>
                                             <Badge
                                                 variant="outline"
-                                                className={`capitalize ${
-                                                    priorityStr === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                className={`capitalize ${priorityStr === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
                                                     priorityStr === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                                    priorityStr === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                                                    'bg-slate-50 text-slate-700 border-slate-200'
-                                                }`}
+                                                        priorityStr === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                            'bg-slate-50 text-slate-700 border-slate-200'
+                                                    }`}
                                             >
                                                 {priorityStr}
                                             </Badge>

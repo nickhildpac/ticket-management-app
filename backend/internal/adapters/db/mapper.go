@@ -20,6 +20,7 @@ func mapUser(u sqlc.User) *domain.User {
 		LastName:       u.LastName,
 		Email:          u.Email,
 		Role:           role,
+		Skills:         domain.NewSkillsFromSlice(u.Skills),
 		UpdatedAt:      u.UpdatedAt,
 		CreatedAt:      u.CreatedAt,
 	}
@@ -27,15 +28,17 @@ func mapUser(u sqlc.User) *domain.User {
 
 func mapTicket(t sqlc.Ticket) *domain.Ticket {
 	return &domain.Ticket{
-		ID:          t.ID,
-		CreatedBy:   t.CreatedBy,
-		AssignedTo:  t.AssignedTo,
-		Title:       t.Title,
-		Description: t.Description,
-		State:       domain.TicketState(t.State),
-		Priority:    domain.TicketPriority(t.Priority),
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+		ID:           t.ID,
+		TicketNumber: t.TicketNumber,
+		CreatedBy:    t.CreatedBy,
+		AssignedTo:   t.AssignedTo,
+		Skills:       domain.NewSkillsFromSlice(t.Skills),
+		Title:        t.Title,
+		Description:  t.Description,
+		State:        domain.TicketState(t.State),
+		Priority:     domain.TicketPriority(t.Priority),
+		CreatedAt:    t.CreatedAt,
+		UpdatedAt:    t.UpdatedAt,
 	}
 }
 

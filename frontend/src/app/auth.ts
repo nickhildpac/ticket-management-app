@@ -23,13 +23,9 @@ export async function tryRefresh(): Promise<boolean> {
 
         setAccessToken(data.access_token);
 
-        // Store user data in localStorage for the UserContext
-        localStorage.setItem("user", JSON.stringify(data.user));
-
         return true;
     } catch {
         setAccessToken(null);
-        localStorage.removeItem("user");
         // Ideally we should redirect to login here or let the caller handle it
         if (window.location.pathname !== "/login") {
             window.location.href = "/login";
@@ -54,7 +50,6 @@ export async function login(email: string, password: string): Promise<{ success:
         const data = await res.json() as { access_token: string; user: UserInfo };
 
         setAccessToken(data.access_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
 
         return { success: true, user: data.user };
     } catch {
@@ -72,7 +67,6 @@ export async function logout() {
         // Ignore error
     }
     setAccessToken(null);
-    localStorage.removeItem("user");
     if (window.location.pathname !== "/login") {
         window.location.href = "/login";
     }

@@ -64,12 +64,21 @@ func (r *TicketRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Ticke
 	return mapTicket(ticket), nil
 }
 
+func (r *TicketRepository) GetByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
+	ticket, err := r.store.GetTicketByNumber(ctx, ticketNumber)
+	if err != nil {
+		return nil, err
+	}
+	return mapTicket(ticket), nil
+}
+
 func (r *TicketRepository) Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	created, err := r.store.CreateTicket(ctx, sqlc.CreateTicketParams{
 		Title:       ticket.Title,
 		Description: ticket.Description,
 		CreatedBy:   ticket.CreatedBy,
 		UpdatedAt:   ticket.UpdatedAt,
+		Skills:      ticket.Skills.ToSlice(),
 	})
 	if err != nil {
 		return nil, err
@@ -86,6 +95,7 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 		Priority:    int32(ticket.Priority),
 		AssignedTo:  ticket.AssignedTo,
 		UpdatedAt:   ticket.UpdatedAt,
+		Skills:      ticket.Skills.ToSlice(),
 	})
 	if err != nil {
 		return nil, err

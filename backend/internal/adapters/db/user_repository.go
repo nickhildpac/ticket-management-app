@@ -40,6 +40,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) (*dom
 		Email:          user.Email,
 		HashedPassword: user.HashedPassword,
 		UpdatedAt:      user.UpdatedAt,
+		Skills:         user.Skills.ToSlice(),
 	})
 	if err != nil {
 		log.Println("Error creating userrepo:", err)
@@ -74,6 +75,7 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *domain.User) (*do
 		LastName:  user.LastName,
 		Role:      sql.NullString{String: string(user.Role), Valid: user.Role != ""},
 		UpdatedAt: user.UpdatedAt,
+		Skills:    user.Skills.ToSlice(),
 	})
 	if err != nil {
 		return nil, err

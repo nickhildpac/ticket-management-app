@@ -1,5 +1,5 @@
 -- name: CreateTicket :one
-INSERT INTO tickets (title, description, created_by, updated_at ) VALUES ($1, $2, $3, $4) RETURNING *;
+INSERT INTO tickets (title, description, created_by, updated_at, skills) VALUES ($1, $2, $3, $4, $5) RETURNING *;
 
 -- name: GetTicket :one
 SELECT * FROM tickets WHERE id = $1 LIMIT 1;
@@ -28,12 +28,16 @@ ORDER BY created_at DESC;
 
 -- name: UpdateTicket :one
 UPDATE tickets
-SET 
+SET
     title = $2,
     description = $3,
     state = $4,
     priority = $5,
     assigned_to = $6,
-    updated_at = $7
+    updated_at = $7,
+    skills = $8
 WHERE id = $1
 RETURNING *;
+
+-- name: GetTicketByNumber :one
+SELECT * FROM tickets WHERE ticket_number = $1 LIMIT 1;

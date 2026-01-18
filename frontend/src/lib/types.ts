@@ -18,6 +18,7 @@ export interface UserInfo {
 
 export interface Ticket {
     id: string;
+    ticket_number: number;
     title: string;
     description: string;
     state: TicketStateValue | 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled';
@@ -26,6 +27,7 @@ export interface Ticket {
     created_by: string;
     creator?: UserInfo;
     category?: string;
+    skills: string[];
     created_at: string;
     updated_at: string;
 }

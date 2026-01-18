@@ -80,15 +80,17 @@ func (p TicketPriority) String() string {
 }
 
 type Ticket struct {
-	ID          uuid.UUID      `json:"id" db:"id"`
-	CreatedBy   uuid.UUID      `json:"created_by" db:"created_by"`
-	AssignedTo  []uuid.UUID    `json:"assigned_to" db:"assigned_to"`
-	Title       string         `json:"title" db:"title"`
-	Description string         `json:"description" db:"description"`
-	State       TicketState    `json:"state" db:"state"`
-	Priority    TicketPriority `json:"priority" db:"priority"`
-	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at" db:"updated_at"`
+	ID           uuid.UUID      `json:"id" db:"id"`
+	TicketNumber int64          `json:"ticket_number" db:"ticket_number"`
+	CreatedBy    uuid.UUID      `json:"created_by" db:"created_by"`
+	AssignedTo   []uuid.UUID    `json:"assigned_to" db:"assigned_to"`
+	Skills       Skills         `json:"skills" db:"skills"`
+	Title        string         `json:"title" db:"title"`
+	Description  string         `json:"description" db:"description"`
+	State        TicketState    `json:"state" db:"state"`
+	Priority     TicketPriority `json:"priority" db:"priority"`
+	CreatedAt    time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
 }
 
 var allowedTransitions = map[TicketState]map[TicketState]struct{}{

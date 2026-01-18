@@ -27,6 +27,9 @@ func (s *ticketRepoStub) ListByAssignee(ctx context.Context, id uuid.UUID, limit
 func (s *ticketRepoStub) Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
 	return s.getFn(ctx, id)
 }
+func (s *ticketRepoStub) GetByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
+	return nil, nil
+}
 func (s *ticketRepoStub) Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	return nil, nil
 }
