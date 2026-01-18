@@ -1,3 +1,5 @@
+import type { UserInfo } from "./user-context";
+
 let accessToken: string | null = null;
 
 export const getAccessToken = () => accessToken;
@@ -17,7 +19,7 @@ export async function tryRefresh(): Promise<boolean> {
 
         if (!res.ok) throw new Error("Refresh failed");
 
-        const data = await res.json() as { access_token: string; user: { id: string; first_name: string; last_name: string; email: string; role: string } };
+        const data = await res.json() as { access_token: string; user: UserInfo };
 
         setAccessToken(data.access_token);
 
@@ -36,7 +38,7 @@ export async function tryRefresh(): Promise<boolean> {
     }
 }
 
-export async function login(email: string, password: string): Promise<{ success: boolean; user?: { id: string; first_name: string; last_name: string; email: string; role: string } }> {
+export async function login(email: string, password: string): Promise<{ success: boolean; user?: UserInfo }> {
     try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/login`, {
             method: "POST",
@@ -49,7 +51,7 @@ export async function login(email: string, password: string): Promise<{ success:
             return { success: false };
         }
 
-        const data = await res.json() as { access_token: string; user: { id: string; first_name: string; last_name: string; email: string; role: string } };
+        const data = await res.json() as { access_token: string; user: UserInfo };
 
         setAccessToken(data.access_token);
         localStorage.setItem("user", JSON.stringify(data.user));

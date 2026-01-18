@@ -19,11 +19,15 @@ import (
 func main() {
 	conf, err := configs.LoadConfig()
 	if err != nil {
-		log.Fatal("failed to load config ", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 	conn, err := sql.Open("postgres", conf.DSN)
 	if err != nil {
-		log.Fatal("failed to connect to db ", err)
+		log.Fatalf("failed to open database connection: %v", err)
+	}
+
+	if err = conn.Ping(); err != nil {
+		log.Fatalf("failed to ping database: %v", err)
 	}
 	log.Println("DB connected successfully")
 
@@ -38,9 +42,10 @@ func main() {
 
 	handler := httphandlers.NewHandler(conf, userSvc, ticketSvc, commentSvc)
 
-	log.Printf("server is listening on port %d ", conf.ADDR)
-	err = http.ListenAndServe(fmt.Sprintf(":%d", conf.ADDR), httpadapter.Router(conf, handler))
-	if err != nil {
-		log.Fatal(err)
+	addr := fmt.Sprintf(":%d", conf.ADDR)
+	log.Printf("starting HTTP server on port %d", conf.ADDR)
+
+	if err := http.ListenAndServe(addr, httpadapter.Router(conf, handler)); err != nil {
+		log.Fatalf("failed to start HTTP server: %v", err)
 	}
 }

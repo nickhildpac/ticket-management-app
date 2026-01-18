@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-ticket_management}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    # NOTE: Port binding to 127.0.0.1:5432 may conflict if you have PostgreSQL
+    # running locally. Change the host port (e.g., "127.0.0.1:5433:5432") if needed.
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -39,6 +41,7 @@ services:
       DB_ADDR: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}?sslmode=disable
       PORT: 8080
       JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: http://localhost:3000
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -68,10 +71,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_SERVER_URL: ${VITE_SERVER_URL:-http://localhost:8080}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     container_name: ticket-frontend
     ports:
-      - "80:8080"
+      - "3000:8080"
     depends_on:
       - backend
     networks:
@@ -111,6 +114,14 @@ services:
     networks:
       - ticket-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   # Grafana
   grafana:
@@ -129,6 +140,14 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
 volumes:
   postgres_data:

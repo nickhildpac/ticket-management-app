@@ -19,7 +19,7 @@ ENV VITE_API_URL=${VITE_API_URL}
 RUN bun run build
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:1.25-alpine
 
 # Install wget for health check
 RUN apk add --no-cache wget
@@ -33,31 +33,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy our custom nginx.conf as main config
 COPY nginx.conf /etc/nginx/nginx.conf
 
-
-
-# Create non-root user
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
-
-# Change ownership of nginx directories
-RUN chown -R appuser:appgroup /usr/share/nginx/html && \
-    chown -R appuser:appgroup /var/cache/nginx && \
-    chown -R appuser:appgroup /var/log/nginx && \
-    chown -R appuser:appgroup /etc/nginx/conf.d
-
-# Create nginx pid file directory with proper permissions
-RUN touch /var/run/nginx.pid && \
-    chown -R appuser:appgroup /var/run/nginx.pid
-
-# Switch to non-root user
-USER appuser
-
 # Expose port
 EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080 || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
