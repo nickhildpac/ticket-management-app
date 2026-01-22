@@ -17,6 +17,18 @@ type CommentPayload struct {
 	Description string `json:"description"`
 }
 
+//	@Summary		Get ticket comments
+//	@Description	Retrieve all comments for a specific ticket
+//	@Tags			Comments
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string				true	"Ticket UUID"	format(uuid)
+//	@Success		200		{array}		CommentResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/ticket/{id}/comments [get]
 func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -62,6 +74,17 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, response)
 }
 
+//	@Summary		Get comment by ID
+//	@Description	Retrieve a specific comment
+//	@Tags			Comments
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string				true	"Comment UUID"	format(uuid)
+//	@Success		200		{object}	CommentResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Router			/comment/{id} [get]
 func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -86,6 +109,19 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, comment)
 }
 
+//	@Summary		Create comment
+//	@Description	Add a new comment to a ticket
+//	@Tags			Comments
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			request	body		object{ticket_id=string,description=string}	true	"Comment details"
+//	@Success		202		{object}	CommentResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/comment [post]
 func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	var payload CommentPayload
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)

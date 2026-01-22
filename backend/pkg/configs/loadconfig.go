@@ -10,8 +10,10 @@ import (
 
 type userContextKey string
 
-const UserIDKey userContextKey = "user_id"
-const UserRoleKey userContextKey = "user_role"
+const (
+	UserIDKey   userContextKey = "user_id"
+	UserRoleKey userContextKey = "user_role"
+)
 
 type Config struct {
 	ADDR          int
@@ -29,7 +31,7 @@ type Config struct {
 
 func LoadConfig() (*Config, error) {
 	var config Config
-	config.ADDR = GetInt("PORT", 8081)
+	config.ADDR = GetInt("PORT", 8080)
 	config.DSN = GetString("DB_ADDR", "postgres://postgres:postgres@localhost/ticket_management?sslmode=disable")
 	jwtSecret := GetString("JWT_SECRET", GetString("JWTSecret", "secret"))
 	flag.StringVar(&config.JWTSecret, "jwt-secret", jwtSecret, "signing secret")

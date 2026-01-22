@@ -23,6 +23,15 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//	@Summary		Login user
+//	@Description	Authenticate user with email and password
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		object{email=string,password=string}	true	"Login credentials"
+//	@Success		200		{object}	object{access_token=string,user=object{id=string,first_name=string,last_name=string,email=string,role=string}}
+//	@Failure		401		{object}	map[string]string
+//	@Router			/login [post]
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var requestPayload struct {
 		Email    string `json:"email"`
@@ -73,6 +82,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//	@Summary		Logout user
+//	@Description	Clear refresh token cookie
+//	@Tags			Authentication
+//	@Produce		json
+//	@Success		202
+//	@Router			/logout [get]
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, util.GetExpiredRefreshCookie(h.config))
 	w.WriteHeader(http.StatusAccepted)
@@ -116,6 +131,14 @@ func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, users)
 }
 
+//	@Summary		Get users for assignment
+//	@Description	Get list of users with basic info for ticket assignment
+//	@Tags			Users
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{array}		UserInfo
+//	@Failure		401	{object}	map[string]string
+//	@Router			/users [get]
 // GetBasicUsers returns a list of users with basic info (id, name, email) for ticket assignment
 // This endpoint is accessible to all authenticated users, not just admins
 func (h *Handler) GetBasicUsers(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +150,14 @@ func (h *Handler) GetBasicUsers(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, users)
 }
 
+//	@Summary		Get current user
+//	@Description	Get profile of authenticated user
+//	@Tags			Users
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	domain.User
+//	@Failure		401	{object}	map[string]string
+//	@Router			/me [get]
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
 	userID, err := uuid.Parse(userIDStr)
@@ -142,6 +173,16 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, user)
 }
 
+//	@Summary		Create new user
+//	@Description	Register a new user account
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		object{first_name=string,last_name=string,email=string,password=string,skills=[]string}	true	"User registration details"
+//	@Success		201		{object}	domain.User
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/user [post]
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var requestPayload struct {
 		FirstName string   `json:"first_name"`
@@ -184,6 +225,14 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusCreated, user)
 }
 
+//	@Summary		Refresh access token
+//	@Description	Get new access token using refresh token from cookie
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	object{access_token=string,user=object{id=string,first_name=string,last_name=string,email=string,role=string}}
+//	@Failure		401	{object}	map[string]string
+//	@Router			/refresh [get]
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	refreshCookie, err := r.Cookie(h.config.CookieName)
 	if err != nil {
@@ -242,6 +291,20 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//	@Summary		Update user role
+//	@Description	Update a user's role (admin only)
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string									true	"User UUID"	format(uuid)
+//	@Param			request	body		object{role=string}						true	"New role (user, agent, admin)"
+//	@Success		200		{object}	domain.User
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/admin/users/{id}/role [put]
 func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	userID, err := uuid.Parse(idParam)
@@ -277,6 +340,18 @@ func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, user)
 }
 
+//	@Summary		Delete user
+//	@Description	Delete a user account (admin only)
+//	@Tags			Admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string				true	"User UUID"	format(uuid)
+//	@Success		204
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/admin/users/{id} [delete]
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	userID, err := uuid.Parse(idParam)

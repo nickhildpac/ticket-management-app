@@ -28,6 +28,14 @@ type TicketPayload struct {
 	Skills      []string `json:"skills"`
 }
 
+//	@Summary		Get ticket statistics
+//	@Description	Get ticket statistics based on user role (admin/agent see all, users see own)
+//	@Tags			Tickets
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	TicketStats
+//	@Failure		401	{object}	map[string]string
+//	@Router			/ticket/stats [get]
 func (h *Handler) GetTicketStats(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
 	userID, err := uuid.Parse(userIDStr)
@@ -118,6 +126,15 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, summaries)
 }
 
+//	@Summary		Get all tickets
+//	@Description	Retrieve a list of all tickets
+//	@Tags			Tickets
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{array}		TicketSummaryResponse
+//	@Failure		401	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Router			/ticket/all [get]
 func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 	tickets, err := h.ticketService.ListAll(r.Context(), 20, 0)
 	if err != nil {
@@ -146,6 +163,15 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, summaries)
 }
 
+//	@Summary		Get assigned tickets
+//	@Description	Retrieve tickets assigned to the current user
+//	@Tags			Tickets
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{array}		TicketSummaryResponse
+//	@Failure		401	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Router			/ticket/assigned [get]
 func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
 	userID, err := uuid.Parse(userIDStr)
@@ -181,6 +207,18 @@ func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, summaries)
 }
 
+//	@Summary		Get ticket by ID
+//	@Description	Retrieve full details of a specific ticket
+//	@Tags			Tickets
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string				true	"Ticket UUID"	format(uuid)
+//	@Success		200		{object}	TicketResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Router			/ticket/{id} [get]
 func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -227,6 +265,18 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, resp)
 }
 
+//	@Summary		Get ticket by number
+//	@Description	Retrieve ticket by its ticket number
+//	@Tags			Tickets
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			number	path		int				true	"Ticket Number"
+//	@Success		200		{object}	TicketResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Router			/ticket/number/{number} [get]
 func (h *Handler) GetTicketByNumber(w http.ResponseWriter, r *http.Request) {
 	numberParam := chi.URLParam(r, "number")
 	var ticketNumber int64
@@ -275,6 +325,18 @@ func (h *Handler) GetTicketByNumber(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, resp)
 }
 
+//	@Summary		Create new ticket
+//	@Description	Create a new ticket (accessible to all authenticated users)
+//	@Tags			Tickets
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			request	body		object{title=string,description=string,skills=[]string}	true	"Ticket creation details"
+//	@Success		202		{object}	TicketSummaryResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/ticket [post]
 func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	var payload TicketPayload
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
@@ -320,6 +382,20 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusAccepted, summary)
 }
 
+//	@Summary		Update ticket
+//	@Description	Partially update ticket fields. Valid state transitions: open→pending/cancelled, pending→open/resolved/cancelled, resolved→open/pending/closed/cancelled
+//	@Tags			Tickets
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string									true	"Ticket UUID"	format(uuid)
+//	@Param			request	body		object{title=string,description=string,state=string,priority=string,assigned_to=[]string,skills=[]string}	false	"Fields to update"
+//	@Success		200		{object}	TicketSummaryResponse
+//	@Failure		400		{object}	map[string]string	"Invalid state transition or invalid priority"
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/ticket/{id} [patch]
 func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -420,6 +496,18 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, summary)
 }
 
+//	@Summary		Delete ticket
+//	@Description	Permanently delete a ticket (admin/agent only for tickets not created by them)
+//	@Tags			Tickets
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string				true	"Ticket UUID"	format(uuid)
+//	@Success		204
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		403		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/ticket/{id} [delete]
 func (h *Handler) DeleteTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)

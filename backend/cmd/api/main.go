@@ -1,4 +1,15 @@
 // Package main boots the ticket management API server.
+//
+//	@title			Ticket Management System API
+//	@version		1.0
+//	@description	Complete API documentation for the ticket management system
+//	@host			localhost:8080
+//	@BasePath		/api/v1
+//
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name							Authorization
+//	@description					Type "Bearer" followed by a space and JWT token.
 package main
 
 import (

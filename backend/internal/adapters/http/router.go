@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
+	_ "github.com/nickhildpac/ticket-management-app/docs" // Import generated docs
 	"github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
 	middlewares "github.com/nickhildpac/ticket-management-app/internal/adapters/http/middleware"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
@@ -25,6 +27,11 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 
 	// Prometheus metrics endpoint
 	r.Handle("/metrics", promhttp.Handler())
+
+	// Swagger documentation endpoint
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public endpoints
