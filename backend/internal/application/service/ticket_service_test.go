@@ -30,6 +30,9 @@ func (s *ticketRepoStub) Get(ctx context.Context, id uuid.UUID) (*domain.Ticket,
 func (s *ticketRepoStub) GetByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
 	return nil, nil
 }
+func (s *ticketRepoStub) GetActiveTickets(ctx context.Context) ([]domain.Ticket, error) {
+	return nil, nil
+}
 func (s *ticketRepoStub) Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	return nil, nil
 }
@@ -59,7 +62,7 @@ func TestUpdateTicket_AutoAssignValidatesTransitions(t *testing.T) {
 		return &ticket, nil
 	}
 
-	svc := NewTicketService(stub)
+	svc := NewTicketService(stub, nil)
 	updated, err := svc.UpdateTicket(adminCtx(), domain.Ticket{
 		ID:          ticketID,
 		State:       domain.TicketStateOpen,
@@ -87,7 +90,7 @@ func TestUpdateTicket_AutoAssignBlocksInvalidTransition(t *testing.T) {
 		return nil, nil
 	}
 
-	svc := NewTicketService(stub)
+	svc := NewTicketService(stub, nil)
 	_, err := svc.UpdateTicket(adminCtx(), domain.Ticket{
 		ID:          ticketID,
 		State:       domain.TicketStateClosed,

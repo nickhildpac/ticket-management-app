@@ -70,6 +70,45 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getAllAgents = `-- name: GetAllAgents :many
+SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills FROM users
+WHERE role = 'agent'
+ORDER BY created_at
+`
+
+func (q *Queries) GetAllAgents(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllAgents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.HashedPassword,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Role,
+			&i.UpdatedAt,
+			&i.CreatedAt,
+			pq.Array(&i.Skills),
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllUsers = `-- name: GetAllUsers :many
 SELECT id, first_name, last_name, email FROM users
 ORDER BY created_at DESC

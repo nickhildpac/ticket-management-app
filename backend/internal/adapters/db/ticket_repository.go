@@ -106,3 +106,11 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 func (r *TicketRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.store.DeleteTicket(ctx, id)
 }
+
+func (r *TicketRepository) GetActiveTickets(ctx context.Context) ([]domain.Ticket, error) {
+	rows, err := r.store.GetActiveTickets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mapTickets(rows), nil
+}

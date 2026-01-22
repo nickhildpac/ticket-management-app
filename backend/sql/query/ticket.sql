@@ -41,3 +41,8 @@ RETURNING *;
 
 -- name: GetTicketByNumber :one
 SELECT * FROM tickets WHERE ticket_number = $1 LIMIT 1;
+
+-- name: GetActiveTickets :many
+SELECT * FROM tickets
+WHERE state IN (1, 2)
+ORDER BY created_at;

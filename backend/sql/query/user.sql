@@ -36,3 +36,8 @@ RETURNING *;
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;
+
+-- name: GetAllAgents :many
+SELECT * FROM users
+WHERE role = 'agent'
+ORDER BY created_at;

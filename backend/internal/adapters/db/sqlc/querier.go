@@ -17,6 +17,8 @@ type Querier interface {
 	DeleteComment(ctx context.Context, id uuid.UUID) error
 	DeleteTicket(ctx context.Context, id uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	GetActiveTickets(ctx context.Context) ([]Ticket, error)
+	GetAllAgents(ctx context.Context) ([]User, error)
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
 	GetComment(ctx context.Context, id uuid.UUID) (Comment, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (Ticket, error)

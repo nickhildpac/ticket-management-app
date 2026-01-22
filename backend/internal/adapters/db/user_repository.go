@@ -86,3 +86,17 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *domain.User) (*do
 func (r *UserRepository) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return r.store.DeleteUser(ctx, id)
 }
+
+func (r *UserRepository) GetAllAgents(ctx context.Context) ([]domain.User, error) {
+	agents, err := r.store.GetAllAgents(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]domain.User, len(agents))
+	for i, agent := range agents {
+		mapped := mapUser(agent)
+		result[i] = *mapped
+	}
+	return result, nil
+}

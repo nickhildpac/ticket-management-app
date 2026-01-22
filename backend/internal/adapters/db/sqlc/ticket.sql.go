@@ -59,6 +59,47 @@ func (q *Queries) DeleteTicket(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getActiveTickets = `-- name: GetActiveTickets :many
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets
+WHERE state IN (1, 2)
+ORDER BY created_at
+`
+
+func (q *Queries) GetActiveTickets(ctx context.Context) ([]Ticket, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveTickets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Ticket{}
+	for rows.Next() {
+		var i Ticket
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedBy,
+			pq.Array(&i.AssignedTo),
+			&i.Title,
+			&i.Description,
+			&i.State,
+			&i.Priority,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TicketNumber,
+			pq.Array(&i.Skills),
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTicket = `-- name: GetTicket :one
 SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets WHERE id = $1 LIMIT 1
 `

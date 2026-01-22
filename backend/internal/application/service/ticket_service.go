@@ -12,11 +12,15 @@ import (
 )
 
 type TicketService struct {
-	repo ports.TicketRepository
+	repo              ports.TicketRepository
+	autoAssignmentSvc *AutoAssignmentService
 }
 
-func NewTicketService(repo ports.TicketRepository) *TicketService {
-	return &TicketService{repo: repo}
+func NewTicketService(repo ports.TicketRepository, autoAssignmentSvc *AutoAssignmentService) *TicketService {
+	return &TicketService{
+		repo:              repo,
+		autoAssignmentSvc: autoAssignmentSvc,
+	}
 }
 
 func (s *TicketService) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
@@ -111,7 +115,34 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 	ticket.State = domain.TicketStateOpen
 	ticket.Priority = domain.TicketPriorityLow
 	ticket.UpdatedAt = time.Now()
-	return s.repo.Create(ctx, ticket)
+
+	// Create ticket first
+	createdTicket, err := s.repo.Create(ctx, ticket)
+	if err != nil {
+		return nil, err
+	}
+
+	// Auto-assign if ticket has skills
+	if len(createdTicket.Skills.ToSlice()) > 0 && s.autoAssignmentSvc != nil {
+		bestAgent, err := s.autoAssignmentSvc.FindBestAgentForTicket(ctx, createdTicket)
+		if err != nil {
+			log.Printf("Auto-assignment failed: %v", err)
+			// Continue with unassigned ticket
+		} else if bestAgent != nil {
+			// Update ticket with assignment
+			createdTicket.AssignedTo = []uuid.UUID{bestAgent.ID}
+			createdTicket.State = domain.TicketStatePending // Auto-transition
+			createdTicket.UpdatedAt = time.Now()
+
+			_, updateErr := s.repo.Update(ctx, *createdTicket)
+			if updateErr != nil {
+				log.Printf("Failed to update ticket with assignment: %v", updateErr)
+				// Return created ticket without assignment
+			}
+		}
+	}
+
+	return createdTicket, nil
 }
 
 func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error) {

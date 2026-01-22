@@ -37,7 +37,8 @@ func main() {
 	commentRepo := adapterdb.NewCommentRepository(store)
 
 	userSvc := service.NewUserService(userRepo)
-	ticketSvc := service.NewTicketService(ticketRepo)
+	autoAssignmentSvc := service.NewAutoAssignmentService(userRepo, ticketRepo)
+	ticketSvc := service.NewTicketService(ticketRepo, autoAssignmentSvc)
 	commentSvc := service.NewCommentService(commentRepo, ticketRepo)
 
 	handler := httphandlers.NewHandler(conf, userSvc, ticketSvc, commentSvc)
