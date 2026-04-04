@@ -6,20 +6,23 @@ export function Sidebar() {
     const { user } = useUser();
     const isAdmin = user?.role === "admin";
     const isAgent = user?.role === "agent";
+    const canSeeDashboard = isAdmin || isAgent;
 
     return (
         <div className="flex h-full flex-col gap-4 py-4">
             <div className="px-4 py-2">
                 <h2 className="text-lg font-semibold tracking-tight">Navigation</h2>
                 <div className="mt-2 space-y-1">
-                    <Link
-                        to="/"
-                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                        activeProps={{ className: "bg-accent text-accent-foreground" }}
-                    >
-                        <LayoutDashboard className="h-4 w-4" />
-                        Dashboard
-                    </Link>
+                    {canSeeDashboard && (
+                        <Link
+                            to="/"
+                            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                            activeProps={{ className: "bg-accent text-accent-foreground" }}
+                        >
+                            <LayoutDashboard className="h-4 w-4" />
+                            Dashboard
+                        </Link>
+                    )}
                     <Link
                         to="/tickets"
                         className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"

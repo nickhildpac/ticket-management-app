@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"math"
 
 	"github.com/google/uuid"
 	sqlc "github.com/nickhildpac/ticket-management-app/internal/adapters/db/sqlc"
@@ -21,14 +22,14 @@ func NewUserRepository(store sqlc.Store) *UserRepository {
 func (r *UserRepository) GetUser(ctx context.Context, email string) (*domain.User, error) {
 	user, err := r.store.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapUser(user), nil
 }
 func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapUser(user), nil
 }
@@ -44,25 +45,23 @@ func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) (*dom
 	})
 	if err != nil {
 		log.Println("Error creating userrepo:", err)
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapUser(created), nil
 }
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]domain.User, error) {
-	users, err := r.store.GetAllUsers(ctx)
+	users, err := r.store.ListUsers(ctx, sqlc.ListUsersParams{
+		Limit:  math.MaxInt32,
+		Offset: 0,
+	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 
 	result := make([]domain.User, len(users))
 	for i, user := range users {
-		result[i] = domain.User{
-			ID:        user.ID,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Email:     user.Email,
-		}
+		result[i] = *mapUser(user)
 	}
 	return result, nil
 }
@@ -78,19 +77,19 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *domain.User) (*do
 		Skills:    user.Skills.ToSlice(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapUser(updated), nil
 }
 
 func (r *UserRepository) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	return r.store.DeleteUser(ctx, id)
+	return normalizeDBError(r.store.DeleteUser(ctx, id))
 }
 
 func (r *UserRepository) GetAllAgents(ctx context.Context) ([]domain.User, error) {
 	agents, err := r.store.GetAllAgents(ctx)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 
 	result := make([]domain.User, len(agents))

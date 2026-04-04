@@ -17,11 +17,12 @@ type (
 
 const (
 	// States
-	TicketStateOpen      TicketState = iota + 1 // 1
-	TicketStatePending                          // 2
-	TicketStateResolved                         // 3
-	TicketStateClosed                           // 4
-	TicketStateCancelled                        // 5
+	TicketStateOpen       TicketState = iota + 1 // 1
+	TicketStatePending                           // 2
+	TicketStateInProgress                        // 3
+	TicketStateResolved                          // 4
+	TicketStateClosed                            // 5
+	TicketStateCancelled                         // 6
 )
 
 const (
@@ -40,6 +41,8 @@ func (s TicketState) String() string {
 		return "pending"
 	case TicketStateResolved:
 		return "resolved"
+	case TicketStateInProgress:
+		return "in progress"
 	case TicketStateClosed:
 		return "closed"
 	case TicketStateCancelled:
@@ -96,14 +99,16 @@ type Ticket struct {
 var allowedTransitions = map[TicketState]map[TicketState]struct{}{
 	// Open tickets can move to Pending, be Cancelled, or stay Open
 	TicketStateOpen: {
-		TicketStatePending:   {},
-		TicketStateCancelled: {},
+		TicketStatePending:    {},
+		TicketStateCancelled:  {},
+		TicketStateInProgress: {},
 	},
 	// Pending tickets can move back to Open, be Resolved, or be Cancelled
 	TicketStatePending: {
-		TicketStateOpen:      {},
-		TicketStateResolved:  {},
-		TicketStateCancelled: {},
+		TicketStateOpen:       {},
+		TicketStateInProgress: {},
+		TicketStateResolved:   {},
+		TicketStateCancelled:  {},
 	},
 	// Resolved tickets can move back to Open/Pending (reopened), be Closed, or be Cancelled
 	TicketStateResolved: {
@@ -124,6 +129,8 @@ func GetTicketState(s string) (TicketState, error) {
 		return TicketStateOpen, nil
 	case "pending":
 		return TicketStatePending, nil
+	case "in progress":
+		return TicketStateInProgress, nil
 	case "resolved":
 		return TicketStateResolved, nil
 	case "closed":

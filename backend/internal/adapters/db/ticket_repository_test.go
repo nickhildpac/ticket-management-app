@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"testing"
 	"time"
 
@@ -26,11 +25,12 @@ func TestTicketRepository_ListAll(t *testing.T) {
 	ticketID := uuid.New()
 	creatorID := uuid.New()
 	assigned := uuid.New()
+	skills := `{"incident-management"}`
 
-	rows := sqlmock.NewRows([]string{"id", "created_by", "assigned_to", "title", "description", "state", "priority", "created_at", "updated_at"}).
-		AddRow(ticketID, creatorID, fmt.Sprintf("{%s}", assigned.String()), "title", "desc", int32(domain.TicketStateOpen), int32(domain.TicketPriorityHigh), now, now)
+	rows := sqlmock.NewRows([]string{"id", "created_by", "assigned_to", "title", "description", "state", "priority", "created_at", "updated_at", "ticket_number", "skills"}).
+		AddRow(ticketID, creatorID, fmt.Sprintf("{%s}", assigned.String()), "title", "desc", int32(domain.TicketStateOpen), int32(domain.TicketPriorityHigh), now, now, int64(1001), skills)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at FROM tickets ORDER BY id LIMIT $1 OFFSET $2")).
+	mock.ExpectQuery(`(?s).*SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets ORDER BY id LIMIT \$1 OFFSET \$2`).
 		WithArgs(int32(5), int32(0)).
 		WillReturnRows(rows)
 
@@ -56,20 +56,12 @@ func TestTicketRepository_Update(t *testing.T) {
 	ticketID := uuid.New()
 	creatorID := uuid.New()
 	assigned := uuid.New()
+	skills := `{"incident-management"}`
 
-	mock.ExpectQuery(regexp.QuoteMeta(`UPDATE tickets
-SET 
-    title = $2,
-    description = $3,
-    state = $4,
-    priority = $5,
-    assigned_to = $6,
-    updated_at = $7
-WHERE id = $1
-RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at`)).
-		WithArgs(ticketID, "new title", "new desc", int32(domain.TicketStatePending), int32(domain.TicketPriorityCritical), sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "created_by", "assigned_to", "title", "description", "state", "priority", "created_at", "updated_at"}).
-			AddRow(ticketID, creatorID, fmt.Sprintf("{%s}", assigned.String()), "new title", "new desc", int32(domain.TicketStatePending), int32(domain.TicketPriorityCritical), now, now))
+	mock.ExpectQuery(`(?s).*UPDATE tickets\s+SET\s+title = \$2,\s+description = \$3,\s+state = \$4,\s+priority = \$5,\s+assigned_to = \$6,\s+updated_at = \$7,\s+skills = \$8\s+WHERE id = \$1\s+RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills`).
+		WithArgs(ticketID, "new title", "new desc", int32(domain.TicketStatePending), int32(domain.TicketPriorityCritical), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_by", "assigned_to", "title", "description", "state", "priority", "created_at", "updated_at", "ticket_number", "skills"}).
+			AddRow(ticketID, creatorID, fmt.Sprintf("{%s}", assigned.String()), "new title", "new desc", int32(domain.TicketStatePending), int32(domain.TicketPriorityCritical), now, now, int64(1001), skills))
 
 	updated, err := repo.Update(context.Background(), domain.Ticket{
 		ID:          ticketID,
@@ -78,6 +70,7 @@ RETURNING id, created_by, assigned_to, title, description, state, priority, crea
 		State:       domain.TicketStatePending,
 		Priority:    domain.TicketPriorityCritical,
 		AssignedTo:  []uuid.UUID{assigned},
+		Skills:      domain.NewSkillsFromSlice([]string{"incident-management"}),
 		UpdatedAt:   now,
 	})
 	require.NoError(t, err)

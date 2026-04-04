@@ -129,15 +129,17 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 			log.Printf("Auto-assignment failed: %v", err)
 			// Continue with unassigned ticket
 		} else if bestAgent != nil {
-			// Update ticket with assignment
-			createdTicket.AssignedTo = []uuid.UUID{bestAgent.ID}
-			createdTicket.State = domain.TicketStatePending // Auto-transition
-			createdTicket.UpdatedAt = time.Now()
+			// Persist assignment on a copy and only return it if the write succeeds.
+			assignedTicket := *createdTicket
+			assignedTicket.AssignedTo = []uuid.UUID{bestAgent.ID}
+			assignedTicket.State = domain.TicketStatePending
+			assignedTicket.UpdatedAt = time.Now()
 
-			_, updateErr := s.repo.Update(ctx, *createdTicket)
+			updatedTicket, updateErr := s.repo.Update(ctx, assignedTicket)
 			if updateErr != nil {
 				log.Printf("Failed to update ticket with assignment: %v", updateErr)
-				// Return created ticket without assignment
+			} else {
+				createdTicket = updatedTicket
 			}
 		}
 	}
@@ -165,7 +167,9 @@ func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket, 
 	for _, field := range updatedFields {
 		switch field {
 		case "state":
-			if !authorization.CanUpdateTicketState(auth, prev) {
+			// Pass the updated/new ticket state so state-level authorization can
+			// enforce allowed target states (e.g., user may close/cancel).
+			if !authorization.CanUpdateTicketState(auth, &ticket) {
 				return nil, authorization.ErrAccessDenied
 			}
 		case "priority":

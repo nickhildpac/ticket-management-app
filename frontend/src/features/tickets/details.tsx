@@ -46,7 +46,6 @@ export function TicketDetails() {
     const canCancel = isCreator && ticket?.state !== 'cancelled' && ticket?.state !== 'closed';
 
     // Local state for editable fields
-    const [description, setDescription] = useState("");
     const [assignedTo, setAssignedTo] = useState<string[]>([]);
     const [skills, setSkills] = useState<string[]>([]);
     const [state, setState] = useState("");
@@ -57,7 +56,6 @@ export function TicketDetails() {
     // Initialize local state when ticket data loads
     useEffect(() => {
         if (ticket) {
-            setDescription(ticket.description);
             setAssignedTo(ticket.assigned_to || []);
             setSkills(ticket.skills || []);
             setState(String(ticket.state));
@@ -68,20 +66,18 @@ export function TicketDetails() {
     // Track changes
     useEffect(() => {
         if (ticket) {
-            const descChanged = description !== ticket.description;
             const assigneeChanged = JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || []);
             const stateChanged = state !== ticket.state;
             const priorityChanged = priority !== ticket.priority;
             const skillsChanged = JSON.stringify(skills) !== JSON.stringify(ticket.skills || []);
-            setHasChanges(descChanged || assigneeChanged || stateChanged || priorityChanged || skillsChanged);
+            setHasChanges(assigneeChanged || stateChanged || priorityChanged || skillsChanged);
         }
-    }, [description, assignedTo, state, priority, skills, ticket]);
+    }, [assignedTo, state, priority, skills, ticket]);
 
     const handleUpdate = () => {
         if (!ticket || !hasChanges) return;
 
         const patch: any = {};
-        if (description !== ticket.description) patch.description = description;
         if (JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || [])) patch.assigned_to = assignedTo;
         if (state !== ticket.state) patch.state = state;
         if (priority !== ticket.priority) patch.priority = priority;
@@ -188,10 +184,9 @@ export function TicketDetails() {
                             <CardHeader><CardTitle>Description</CardTitle></CardHeader>
                             <CardContent>
                                 <Textarea
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="min-h-[150px] font-mono text-sm"
-                                    placeholder="Enter description..."
+                                    value={ticket.description}
+                                    readOnly
+                                    className="min-h-[150px] resize-none font-mono text-sm bg-muted/30 cursor-default"
                                 />
                             </CardContent>
                         </Card>
@@ -332,7 +327,7 @@ export function TicketDetails() {
                                                     </Badge>
                                                 ))
                                             ) : (
-                                                <span className="text-muted-foreground italic">None required</span>
+                                                <span className="text-muted-foreground italic">None selected</span>
                                             )}
                                         </div>
                                     )}

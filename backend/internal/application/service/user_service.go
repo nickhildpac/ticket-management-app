@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nickhildpac/ticket-management-app/internal/application/apperrors"
 	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/internal/ports"
@@ -92,7 +93,7 @@ func (s *UserService) DeleteUser(ctx context.Context, id uuid.UUID) error {
 
 	// Prevent self-deletion
 	if auth.UserID == id {
-		return errors.New("cannot delete your own account")
+		return fmt.Errorf("%w: cannot delete your own account", apperrors.ErrBadRequest)
 	}
 
 	return s.repo.DeleteUser(ctx, id)

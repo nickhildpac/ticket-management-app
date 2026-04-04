@@ -19,7 +19,7 @@ func NewTicketRepository(store sqlc.Store) *TicketRepository {
 func (r *TicketRepository) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
 	rows, err := r.store.ListAllTickets(ctx, sqlc.ListAllTicketsParams{Limit: limit, Offset: offset})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
 }
@@ -27,7 +27,7 @@ func (r *TicketRepository) ListAll(ctx context.Context, limit, offset int32) ([]
 func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	rows, err := r.store.ListTickets(ctx, sqlc.ListTicketsParams{
 		CreatedBy: user.ID,
@@ -35,7 +35,7 @@ func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limi
 		Offset:    offset,
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
 }
@@ -43,7 +43,7 @@ func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limi
 func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	rows, err := r.store.ListTicketsAssigned(ctx, sqlc.ListTicketsAssignedParams{
 		Column1: []uuid.UUID{user.ID},
@@ -51,7 +51,7 @@ func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, lim
 		Offset:  offset,
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
 }
@@ -59,7 +59,7 @@ func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, lim
 func (r *TicketRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
 	ticket, err := r.store.GetTicket(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTicket(ticket), nil
 }
@@ -67,7 +67,7 @@ func (r *TicketRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Ticke
 func (r *TicketRepository) GetByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
 	ticket, err := r.store.GetTicketByNumber(ctx, ticketNumber)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTicket(ticket), nil
 }
@@ -81,7 +81,7 @@ func (r *TicketRepository) Create(ctx context.Context, ticket domain.Ticket) (*d
 		Skills:      ticket.Skills.ToSlice(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTicket(created), nil
 }
@@ -98,19 +98,19 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 		Skills:      ticket.Skills.ToSlice(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTicket(updated), nil
 }
 
 func (r *TicketRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.store.DeleteTicket(ctx, id)
+	return normalizeDBError(r.store.DeleteTicket(ctx, id))
 }
 
 func (r *TicketRepository) GetActiveTickets(ctx context.Context) ([]domain.Ticket, error) {
 	rows, err := r.store.GetActiveTickets(ctx)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
 }

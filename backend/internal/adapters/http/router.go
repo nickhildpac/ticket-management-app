@@ -6,12 +6,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	httpSwagger "github.com/swaggo/http-swagger"
 	_ "github.com/nickhildpac/ticket-management-app/docs" // Import generated docs
 	"github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
 	middlewares "github.com/nickhildpac/ticket-management-app/internal/adapters/http/middleware"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
@@ -67,6 +67,7 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 		// Admin-only user management routes
 		r.Route("/admin/users", func(mux chi.Router) {
 			mux.Use(middlewares.AdminRequired(conf))
+			mux.Get("/", h.GetAllUsers)
 			mux.Put("/{id}/role", h.UpdateUserRole)
 			mux.Delete("/{id}", h.DeleteUser)
 		})

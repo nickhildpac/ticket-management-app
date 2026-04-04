@@ -148,7 +148,7 @@ func (q *Queries) GetTicketByNumber(ctx context.Context, ticketNumber int64) (Ti
 
 const getTicketsByAssignee = `-- name: GetTicketsByAssignee :many
 SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets
-WHERE assigned_to @> ARRAY[$1]::uuid[]
+WHERE assigned_to @> $1::uuid[]
 ORDER BY created_at DESC
 `
 
@@ -318,7 +318,7 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 }
 
 const listTicketsAssigned = `-- name: ListTicketsAssigned :many
-SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets WHERE assigned_to @> ARRAY[$1]::uuid[] ORDER BY id LIMIT $2 OFFSET $3
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets WHERE assigned_to @> $1::uuid[] ORDER BY id LIMIT $2 OFFSET $3
 `
 
 type ListTicketsAssignedParams struct {

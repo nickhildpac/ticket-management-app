@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
+import { setAuthUser } from "@/app/auth";
 import { useMe } from "@/features/users/queries";
 
 export interface UserInfo {
@@ -28,6 +29,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (me) {
             setUser(me);
+            setAuthUser(me);
         }
     }, [me]);
 

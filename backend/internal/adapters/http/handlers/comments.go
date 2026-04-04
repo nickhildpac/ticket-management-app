@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
@@ -17,18 +16,18 @@ type CommentPayload struct {
 	Description string `json:"description"`
 }
 
-//	@Summary		Get ticket comments
-//	@Description	Retrieve all comments for a specific ticket
-//	@Tags			Comments
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			id		path		string				true	"Ticket UUID"	format(uuid)
-//	@Success		200		{array}		CommentResponse
-//	@Failure		400		{object}	map[string]string
-//	@Failure		401		{object}	map[string]string
-//	@Failure		403		{object}	map[string]string
-//	@Failure		500		{object}	map[string]string
-//	@Router			/ticket/{id}/comments [get]
+// @Summary		Get ticket comments
+// @Description	Retrieve all comments for a specific ticket
+// @Tags			Comments
+// @Produce		json
+// @Security		BearerAuth
+// @Param			id		path		string				true	"Ticket UUID"	format(uuid)
+// @Success		200		{array}		CommentResponse
+// @Failure		400		{object}	map[string]string
+// @Failure		401		{object}	map[string]string
+// @Failure		403		{object}	map[string]string
+// @Failure		500		{object}	map[string]string
+// @Router			/ticket/{id}/comments [get]
 func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -39,11 +38,7 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 
 	comments, err := h.commentService.ListByTicket(r.Context(), tid, 10, 0)
 	if err != nil {
-		if err == authorization.ErrAccessDenied {
-			util.ErrorResponse(w, http.StatusForbidden, err)
-			return
-		}
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeHandlerError(w, err)
 		return
 	}
 
@@ -52,20 +47,15 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	for i, comment := range comments {
 		creator, err := h.userService.GetUserByID(r.Context(), comment.CreatedBy)
 		if err != nil {
-			util.ErrorResponse(w, http.StatusInternalServerError, err)
+			writeHandlerError(w, err)
 			return
 		}
 
 		response[i] = CommentResponse{
-			ID:        comment.ID,
-			TicketID:  comment.TicketID,
-			CreatedBy: comment.CreatedBy,
-			Creator: UserInfo{
-				ID:        creator.ID,
-				FirstName: creator.FirstName,
-				LastName:  creator.LastName,
-				Email:     creator.Email,
-			},
+			ID:          comment.ID,
+			TicketID:    comment.TicketID,
+			CreatedBy:   comment.CreatedBy,
+			Creator:     newUserInfo(creator),
 			Description: comment.Description,
 			CreatedAt:   comment.CreatedAt,
 		}
@@ -74,17 +64,17 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, response)
 }
 
-//	@Summary		Get comment by ID
-//	@Description	Retrieve a specific comment
-//	@Tags			Comments
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			id		path		string				true	"Comment UUID"	format(uuid)
-//	@Success		200		{object}	CommentResponse
-//	@Failure		400		{object}	map[string]string
-//	@Failure		401		{object}	map[string]string
-//	@Failure		404		{object}	map[string]string
-//	@Router			/comment/{id} [get]
+// @Summary		Get comment by ID
+// @Description	Retrieve a specific comment
+// @Tags			Comments
+// @Produce		json
+// @Security		BearerAuth
+// @Param			id		path		string				true	"Comment UUID"	format(uuid)
+// @Success		200		{object}	CommentResponse
+// @Failure		400		{object}	map[string]string
+// @Failure		401		{object}	map[string]string
+// @Failure		404		{object}	map[string]string
+// @Router			/comment/{id} [get]
 func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -94,34 +84,30 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 	}
 	comment, err := h.commentService.GetComment(r.Context(), tid)
 	if err != nil {
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeHandlerError(w, err)
 		return
 	}
 	_, err = h.ticketService.GetTicket(r.Context(), comment.TicketID)
 	if err != nil {
-		if err == authorization.ErrAccessDenied {
-			util.ErrorResponse(w, http.StatusForbidden, err)
-			return
-		}
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeHandlerError(w, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusOK, comment)
 }
 
-//	@Summary		Create comment
-//	@Description	Add a new comment to a ticket
-//	@Tags			Comments
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			request	body		object{ticket_id=string,description=string}	true	"Comment details"
-//	@Success		202		{object}	CommentResponse
-//	@Failure		400		{object}	map[string]string
-//	@Failure		401		{object}	map[string]string
-//	@Failure		403		{object}	map[string]string
-//	@Failure		500		{object}	map[string]string
-//	@Router			/comment [post]
+// @Summary		Create comment
+// @Description	Add a new comment to a ticket
+// @Tags			Comments
+// @Accept			json
+// @Produce		json
+// @Security		BearerAuth
+// @Param			request	body		object{ticket_id=string,description=string}	true	"Comment details"
+// @Success		202		{object}	CommentResponse
+// @Failure		400		{object}	map[string]string
+// @Failure		401		{object}	map[string]string
+// @Failure		403		{object}	map[string]string
+// @Failure		500		{object}	map[string]string
+// @Router			/comment [post]
 func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	var payload CommentPayload
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
@@ -148,11 +134,7 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:   userID,
 	})
 	if err != nil {
-		if err == authorization.ErrAccessDenied {
-			util.ErrorResponse(w, http.StatusForbidden, err)
-			return
-		}
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeHandlerError(w, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusAccepted, comment)

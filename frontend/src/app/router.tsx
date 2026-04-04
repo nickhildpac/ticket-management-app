@@ -10,7 +10,8 @@ import { TicketDetails } from "@/features/tickets/details";
 import { TicketForm } from "@/features/tickets/form";
 import { AdminPanel } from "@/features/admin";
 import { Profile } from "@/features/profile/profile";
-import { isAuthenticated } from "@/app/auth";
+import { getAuthUser, isAuthenticated } from "@/app/auth";
+import type { Role } from "@/lib/types";
 
 export type AppContext = { qc: QueryClient; };
 
@@ -25,16 +26,20 @@ const requireAuth = () => {
     }
 };
 
+const getAuthUserRole = (): Role | null => {
+    const role = getAuthUser()?.role;
+    return role ? (role as Role) : null;
+};
+
 const requireAdmin = () => {
     if (!isAuthenticated()) {
         throw redirect({ to: '/login' });
     }
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
+    const role = getAuthUserRole();
+    if (!role) {
         throw redirect({ to: '/login' });
     }
-    const user = JSON.parse(userStr);
-    if (user.role !== 'admin') {
+    if (role !== 'admin') {
         throw redirect({ to: '/' });
     }
 };
@@ -43,13 +48,23 @@ const requireAgent = () => {
     if (!isAuthenticated()) {
         throw redirect({ to: '/login' });
     }
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
+    const role = getAuthUserRole();
+    if (!role) {
         throw redirect({ to: '/login' });
     }
-    const user = JSON.parse(userStr);
-    if (user.role !== 'agent' && user.role !== 'admin') {
+    if (role !== 'agent' && role !== 'admin') {
         throw redirect({ to: '/' });
+    }
+};
+
+const requireDashboardAccess = () => {
+    requireAuth();
+    const role = getAuthUserRole();
+    if (!role) {
+        throw redirect({ to: '/login' });
+    }
+    if (role === 'user') {
+        throw redirect({ to: '/tickets' });
     }
 };
 
@@ -57,7 +72,7 @@ const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
     component: Dashboard,
-    beforeLoad: requireAuth
+    beforeLoad: requireDashboardAccess
 });
 
 const loginRoute = createRoute({
