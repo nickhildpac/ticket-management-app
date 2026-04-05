@@ -21,7 +21,7 @@ export interface Ticket {
     ticket_number: number;
     title: string;
     description: string;
-    state: TicketStateValue | 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled';
+    state: TicketStateValue | 'open' | 'pending' | 'in progress' | 'resolved' | 'closed' | 'cancelled';
     priority: TicketPriorityValue | 'low' | 'medium' | 'high' | 'critical';
     assigned_to: string[];
     created_by: string;

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -95,21 +96,7 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to summary responses
-	summaries := make([]TicketSummaryResponse, 0, len(tickets))
-	for _, t := range tickets {
-		summaries = append(summaries, TicketSummaryResponse{
-			ID:           t.ID,
-			TicketNumber: t.TicketNumber,
-			Title:        t.Title,
-			Description:  t.Description,
-			State:        t.State.String(),
-			Priority:     t.Priority.String(),
-			CreatedAt:    t.CreatedAt,
-			UpdatedAt:    t.UpdatedAt,
-		})
-	}
-	util.WriteResponse(w, http.StatusOK, summaries)
+	util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
 }
 
 // @Summary		Get all tickets
@@ -128,21 +115,7 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to summary responses
-	summaries := make([]TicketSummaryResponse, 0, len(tickets))
-	for _, t := range tickets {
-		summaries = append(summaries, TicketSummaryResponse{
-			ID:           t.ID,
-			TicketNumber: t.TicketNumber,
-			Title:        t.Title,
-			Description:  t.Description,
-			State:        t.State.String(),
-			Priority:     t.Priority.String(),
-			CreatedAt:    t.CreatedAt,
-			UpdatedAt:    t.UpdatedAt,
-		})
-	}
-	util.WriteResponse(w, http.StatusOK, summaries)
+	util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
 }
 
 // @Summary		Get assigned tickets
@@ -168,21 +141,7 @@ func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to summary responses
-	summaries := make([]TicketSummaryResponse, 0, len(tickets))
-	for _, t := range tickets {
-		summaries = append(summaries, TicketSummaryResponse{
-			ID:           t.ID,
-			TicketNumber: t.TicketNumber,
-			Title:        t.Title,
-			Description:  t.Description,
-			State:        t.State.String(),
-			Priority:     t.Priority.String(),
-			CreatedAt:    t.CreatedAt,
-			UpdatedAt:    t.UpdatedAt,
-		})
-	}
-	util.WriteResponse(w, http.StatusOK, summaries)
+	util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
 }
 
 // @Summary		Get ticket by ID
@@ -332,12 +291,17 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	summary := TicketSummaryResponse{
 		ID:           ticket.ID,
 		TicketNumber: ticket.TicketNumber,
+		CreatedBy:    ticket.CreatedBy,
 		Title:        ticket.Title,
 		Description:  ticket.Description,
 		State:        ticket.State.String(),
 		Priority:     ticket.Priority.String(),
 		CreatedAt:    ticket.CreatedAt,
 		UpdatedAt:    ticket.UpdatedAt,
+	}
+	if creator, err := h.userService.GetUserByID(r.Context(), ticket.CreatedBy); err == nil && creator != nil {
+		ui := newUserInfo(creator)
+		summary.Creator = &ui
 	}
 	util.WriteResponse(w, http.StatusAccepted, summary)
 }
@@ -443,11 +407,17 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 	summary := TicketSummaryResponse{
 		ID:           updated.ID,
 		TicketNumber: updated.TicketNumber,
+		CreatedBy:    updated.CreatedBy,
 		Title:        updated.Title,
+		Description:  updated.Description,
 		State:        updated.State.String(),
 		Priority:     updated.Priority.String(),
 		CreatedAt:    updated.CreatedAt,
 		UpdatedAt:    updated.UpdatedAt,
+	}
+	if creator, err := h.userService.GetUserByID(r.Context(), updated.CreatedBy); err == nil && creator != nil {
+		ui := newUserInfo(creator)
+		summary.Creator = &ui
 	}
 	util.WriteResponse(w, http.StatusOK, summary)
 }
@@ -479,4 +449,44 @@ func (h *Handler) DeleteTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.WriteResponse(w, http.StatusNoContent, nil)
+}
+
+func (h *Handler) ticketSummariesWithCreators(ctx context.Context, tickets []domain.Ticket) []TicketSummaryResponse {
+	uniqueCreators := make(map[uuid.UUID]struct{})
+	for _, t := range tickets {
+		if t.CreatedBy != uuid.Nil {
+			uniqueCreators[t.CreatedBy] = struct{}{}
+		}
+	}
+	usersByID := make(map[uuid.UUID]*domain.User, len(uniqueCreators))
+	for id := range uniqueCreators {
+		u, err := h.userService.GetUserByID(ctx, id)
+		if err == nil && u != nil {
+			usersByID[id] = u
+		}
+	}
+
+	summaries := make([]TicketSummaryResponse, 0, len(tickets))
+	for _, t := range tickets {
+		s := TicketSummaryResponse{
+			ID:           t.ID,
+			TicketNumber: t.TicketNumber,
+			CreatedBy:    t.CreatedBy,
+			Title:        t.Title,
+			Description:  t.Description,
+			State:        t.State.String(),
+			Priority:     t.Priority.String(),
+			CreatedAt:    t.CreatedAt,
+			UpdatedAt:    t.UpdatedAt,
+		}
+		if u, ok := usersByID[t.CreatedBy]; ok {
+			ui := newUserInfo(u)
+			s.Creator = &ui
+		} else {
+			// Always emit creator so clients get a stable shape; names/email empty if user missing.
+			s.Creator = &UserInfo{ID: t.CreatedBy}
+		}
+		summaries = append(summaries, s)
+	}
+	return summaries
 }

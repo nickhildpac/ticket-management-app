@@ -30,14 +30,18 @@ export function Login() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-muted/50">
-            <Card className="w-full max-w-sm">
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8 font-body">
+            <Card className="w-full max-w-sm border-outline-variant/40 bg-surface-container-low">
                 <CardHeader>
-                    <CardTitle className="text-xl">Login</CardTitle>
+                    <CardTitle className="font-headline text-xl text-on-surface">Login</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogin} className="grid gap-4">
-                        {error && <div className="text-red-500 text-sm text-center font-medium bg-red-100 p-2 rounded">{error}</div>}
+                        {error && (
+                            <div className="rounded-lg border border-error/30 bg-error/10 p-2 text-center text-sm font-medium text-error">
+                                {error}
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
                             <Input

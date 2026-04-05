@@ -56,6 +56,8 @@ type TicketResponse struct {
 type TicketSummaryResponse struct {
 	ID           uuid.UUID `json:"id" example:"550e8400-e29b-41d4-a716-446655440000" format:"uuid"`
 	TicketNumber int64     `json:"ticket_number" example:"1001"`
+	CreatedBy    uuid.UUID `json:"created_by" example:"550e8400-e29b-41d4-a716-446655440000" format:"uuid"`
+	Creator      *UserInfo `json:"creator"`
 	Title        string    `json:"title" example:"Fix login bug"`
 	Description  string    `json:"description" example:"Users cannot login with SSO"`
 	State        string    `json:"state" example:"open" enum:"open,pending,resolved,closed,cancelled"`
