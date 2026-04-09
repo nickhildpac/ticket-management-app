@@ -56,6 +56,10 @@ func (m *mockTicketRepository) ListAll(ctx context.Context, limit, offset int32)
 	return nil, nil
 }
 
+func (m *mockTicketRepository) ListAllFiltered(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+	return nil, nil
+}
+
 func (m *mockTicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
 	return nil, nil
 }

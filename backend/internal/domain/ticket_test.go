@@ -58,14 +58,14 @@ func TestGetValidTransitions(t *testing.T) {
 		{
 			name:           "Open states",
 			from:           TicketStateOpen,
-			expectedCount:  3, // Open + Pending + Cancelled
-			expectedStates: []TicketState{TicketStateOpen, TicketStatePending, TicketStateCancelled},
+			expectedCount:  4, // Open + Pending + InProgress + Cancelled
+			expectedStates: []TicketState{TicketStateOpen, TicketStatePending, TicketStateInProgress, TicketStateCancelled},
 		},
 		{
 			name:           "Pending states",
 			from:           TicketStatePending,
-			expectedCount:  4, // Pending + Open + Resolved + Cancelled
-			expectedStates: []TicketState{TicketStatePending, TicketStateOpen, TicketStateResolved, TicketStateCancelled},
+			expectedCount:  5, // Pending + Open + InProgress + Resolved + Cancelled
+			expectedStates: []TicketState{TicketStatePending, TicketStateOpen, TicketStateInProgress, TicketStateResolved, TicketStateCancelled},
 		},
 		{
 			name:           "Closed states",

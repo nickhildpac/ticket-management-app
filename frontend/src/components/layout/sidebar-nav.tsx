@@ -8,8 +8,8 @@ const navLinkClass =
 const activeNavClass =
     "border-r-2 border-primary bg-primary/10 font-bold text-primary";
 
-/** Matches topbar: "My Tickets" is not active on /tickets/all, /tickets/assigned, or /tickets/new. */
-function isMyTicketsNavActive(pathname: string) {
+/** Primary ticket queue at /tickets; not active on /tickets/all, /tickets/assigned, or /tickets/new. */
+function isTicketsQueueNavActive(pathname: string) {
     return (
         pathname === "/tickets" ||
         (pathname.startsWith("/tickets/") &&
@@ -31,8 +31,7 @@ export function SidebarNavLinks({ onNavigate }: SidebarNavProps) {
     const canSeeDashboard = isAdmin || isAgent;
 
     const dashboardActive = pathname === "/";
-    const myTicketsActive = isMyTicketsNavActive(pathname);
-    const allTicketsActive = pathname.startsWith("/tickets/all");
+    const ticketsQueueActive = isTicketsQueueNavActive(pathname);
     const assignedActive = pathname.startsWith("/tickets/assigned");
     const adminActive = pathname.startsWith("/admin");
 
@@ -51,21 +50,11 @@ export function SidebarNavLinks({ onNavigate }: SidebarNavProps) {
             <Link
                 to="/tickets"
                 onClick={onNavigate}
-                className={cn(navLinkClass, myTicketsActive && activeNavClass)}
+                className={cn(navLinkClass, ticketsQueueActive && activeNavClass)}
             >
                 <MaterialSymbol name="confirmation_number" />
-                My Tickets
+                All tickets
             </Link>
-            {isAdmin && (
-                <Link
-                    to="/tickets/all"
-                    onClick={onNavigate}
-                    className={cn(navLinkClass, allTicketsActive && activeNavClass)}
-                >
-                    <MaterialSymbol name="layers" />
-                    All Tickets
-                </Link>
-            )}
             {isAgent && (
                 <Link
                     to="/tickets/assigned"

@@ -12,7 +12,8 @@ export type ApiTicketState =
 
 /**
  * allowedTransitions[from] = states reachable in one step (excluding staying put).
- * Mirrors backend allowedTransitions map. States not listed as keys (e.g. in progress) have no outbound edges in domain.
+ * Mirrors backend/internal/domain/ticket.go allowedTransitions. TicketStateInProgress has no map entry there,
+ * so no outbound transitions except identity (handled in canTransition on backend).
  */
 const ALLOWED: Record<ApiTicketState, readonly ApiTicketState[]> = {
     open: ["pending", "cancelled", "in progress"],
@@ -23,13 +24,18 @@ const ALLOWED: Record<ApiTicketState, readonly ApiTicketState[]> = {
     cancelled: [],
 };
 
+const STATE_ORDER: readonly ApiTicketState[] = [
+    "open",
+    "pending",
+    "in progress",
+    "resolved",
+    "closed",
+    "cancelled",
+];
+
 export function normalizeTicketState(state: Ticket["state"]): ApiTicketState {
     if (typeof state === "number") {
-        const s = getTicketStateString(state);
-        if (s === "open" || s === "pending" || s === "resolved" || s === "closed" || s === "cancelled") {
-            return s;
-        }
-        return "open";
+        return getTicketStateString(state);
     }
     const raw = String(state).toLowerCase().trim();
     if (raw === "in progress" || raw === "in_progress") return "in progress";
@@ -49,6 +55,13 @@ export function getValidNextStates(current: Ticket["state"]): ApiTicketState[] {
     const key = normalizeTicketState(current);
     const next = ALLOWED[key];
     return next ? [...next] : [];
+}
+
+/** Current state plus all states allowed by the domain FSM (for admin State dropdown on ticket detail). */
+export function getValidTransitionTargets(current: Ticket["state"]): ApiTicketState[] {
+    const key = normalizeTicketState(current);
+    const reachable = new Set<ApiTicketState>([key, ...(ALLOWED[key] ?? [])]);
+    return STATE_ORDER.filter((s) => reachable.has(s));
 }
 
 export function canTransition(from: Ticket["state"], to: ApiTicketState): boolean {

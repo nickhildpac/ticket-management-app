@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -239,6 +240,76 @@ type ListAllTicketsParams struct {
 
 func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) ([]Ticket, error) {
 	rows, err := q.db.QueryContext(ctx, listAllTickets, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Ticket{}
+	for rows.Next() {
+		var i Ticket
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedBy,
+			pq.Array(&i.AssignedTo),
+			&i.Title,
+			&i.Description,
+			&i.State,
+			&i.Priority,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TicketNumber,
+			pq.Array(&i.Skills),
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllTicketsByStatePriority = `-- name: ListAllTicketsByStatePriority :many
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills
+FROM tickets
+WHERE ($1::integer IS NULL OR state = $1::integer)
+  AND ($2::integer IS NULL OR priority = $2::integer)
+  AND ($3::uuid IS NULL OR created_by = $3::uuid)
+  AND (
+    $4::uuid IS NULL
+    OR assigned_to @> ARRAY[$4::uuid]::uuid[]
+  )
+  AND ($5::bigint IS NULL OR ticket_number = $5::bigint)
+ORDER BY id
+LIMIT $7 OFFSET $6
+`
+
+type ListAllTicketsByStatePriorityParams struct {
+	FilterState        sql.NullInt32 `json:"filter_state"`
+	FilterPriority     sql.NullInt32 `json:"filter_priority"`
+	FilterCreatedBy    uuid.NullUUID `json:"filter_created_by"`
+	FilterAssignee     uuid.NullUUID `json:"filter_assignee"`
+	FilterTicketNumber sql.NullInt64 `json:"filter_ticket_number"`
+	OffsetVal          int32         `json:"offset_val"`
+	LimitVal           int32         `json:"limit_val"`
+}
+
+// Optional filters: pass NULL for any sqlc.narg to skip that condition.
+// filter_assignee: tickets where assigned_to contains this user id.
+func (q *Queries) ListAllTicketsByStatePriority(ctx context.Context, arg ListAllTicketsByStatePriorityParams) ([]Ticket, error) {
+	rows, err := q.db.QueryContext(ctx, listAllTicketsByStatePriority,
+		arg.FilterState,
+		arg.FilterPriority,
+		arg.FilterCreatedBy,
+		arg.FilterAssignee,
+		arg.FilterTicketNumber,
+		arg.OffsetVal,
+		arg.LimitVal,
+	)
 	if err != nil {
 		return nil, err
 	}

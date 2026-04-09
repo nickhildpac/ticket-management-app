@@ -20,6 +20,7 @@ type UserRepository interface {
 
 type TicketRepository interface {
 	ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error)
+	ListAllFiltered(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
 	ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)

@@ -66,6 +66,9 @@ type QueueFilterBarProps = {
     onSearchChange: (v: string) => void;
     state: string;
     onStateChange: (v: string) => void;
+    /** When set with onPriorityChange, shows priority filter (GET /ticket/all only). */
+    priority?: string;
+    onPriorityChange?: (v: string) => void;
     metaRight?: string;
 };
 
@@ -74,6 +77,8 @@ export function QueueFilterBar({
     onSearchChange,
     state,
     onStateChange,
+    priority = "all",
+    onPriorityChange,
     metaRight,
 }: QueueFilterBarProps) {
     return (
@@ -84,7 +89,7 @@ export function QueueFilterBar({
                     className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
                 />
                 <Input
-                    placeholder="Search tickets..."
+                    placeholder="Search by ticket number…"
                     value={searchValue}
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="rounded-xl border-0 bg-surface-container pl-10 focus-visible:ring-primary/20"
@@ -102,19 +107,30 @@ export function QueueFilterBar({
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="open">Open</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in progress">In progress</SelectItem>
                     <SelectItem value="resolved">Resolved</SelectItem>
                     <SelectItem value="closed">Closed</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
             </Select>
-            <button
-                type="button"
-                className="hidden items-center gap-2 rounded-xl bg-surface-container px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-highest sm:flex"
-            >
-                <MaterialSymbol name="bolt" className="!text-lg" />
-                Priority
-                <MaterialSymbol name="expand_more" className="!text-sm opacity-70" />
-            </button>
+            {onPriorityChange ? (
+                <Select value={priority} onValueChange={onPriorityChange}>
+                    <SelectTrigger className="relative h-auto min-w-[160px] rounded-xl border-0 bg-surface-container py-2.5 pl-10 pr-8 font-medium text-on-surface shadow-none hover:bg-surface-container-highest sm:flex">
+                        <MaterialSymbol
+                            name="bolt"
+                            className="pointer-events-none absolute left-3 top-1/2 !text-lg -translate-y-1/2 text-on-surface-variant"
+                        />
+                        <SelectValue placeholder="All priorities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All priorities</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                </Select>
+            ) : null}
             <button
                 type="button"
                 className="hidden items-center gap-2 rounded-xl bg-surface-container px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-highest md:flex"
@@ -147,6 +163,8 @@ function stateLeftBorder(stateStr: string) {
             return "border-l-primary";
         case "pending":
             return "border-l-amber-500";
+        case "in progress":
+            return "border-l-sky-500";
         case "resolved":
             return "border-l-emerald-500/50";
         default:
@@ -160,6 +178,8 @@ function statusPillClass(stateStr: string) {
             return "border-primary/30 bg-primary/20 text-primary";
         case "pending":
             return "border-amber-500/30 bg-amber-500/20 text-amber-500";
+        case "in progress":
+            return "border-sky-500/30 bg-sky-500/15 text-sky-600 dark:text-sky-400";
         case "resolved":
             return "border-emerald-500/20 bg-emerald-500/10 text-emerald-500/80";
         case "closed":
@@ -246,6 +266,7 @@ export function TicketQueueRow({
                             "mr-2 h-1.5 w-1.5 shrink-0 rounded-full",
                             stateStr === "open" && "bg-primary",
                             stateStr === "pending" && "bg-amber-500",
+                            stateStr === "in progress" && "bg-sky-500",
                             stateStr === "resolved" && "bg-emerald-500/50",
                             (stateStr === "closed" || stateStr === "cancelled") && "bg-on-surface-variant"
                         )}

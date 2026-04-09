@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Ticket, User } from "@/lib/types";
-import { formatStateLabel, normalizeTicketState } from "@/lib/ticket-transitions";
+import { formatStateLabel, getValidTransitionTargets, normalizeTicketState } from "@/lib/ticket-transitions";
 
 const VALID_SKILLS = [
     "incident-management",
@@ -22,15 +22,6 @@ const VALID_SKILLS = [
     "production-support",
     "sla-management",
     "post-incident-review",
-] as const;
-
-const STATE_OPTIONS = [
-    "open",
-    "pending",
-    "in progress",
-    "resolved",
-    "closed",
-    "cancelled",
 ] as const;
 
 type TicketSidebarMetadataProps = {
@@ -91,6 +82,7 @@ export function TicketSidebarMetadata({
 
     const created = new Date(ticket.created_at);
     const updated = new Date(ticket.updated_at);
+    const stateOptions = getValidTransitionTargets(ticket.state);
 
     return (
         <section className="rounded-xl border border-outline-variant/5 bg-surface-container-low p-6">
@@ -278,7 +270,7 @@ export function TicketSidebarMetadata({
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {STATE_OPTIONS.map((s) => (
+                                {stateOptions.map((s) => (
                                     <SelectItem key={s} value={s}>
                                         {formatStateLabel(s)}
                                     </SelectItem>

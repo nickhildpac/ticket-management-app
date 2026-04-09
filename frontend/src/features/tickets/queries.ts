@@ -2,30 +2,98 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { Ticket, PaginatedResult, Comment, TicketStats } from '@/lib/types';
 
+/** Matches backend defaultTicketListLimit. */
+export const TICKET_LIST_PAGE_SIZE = 20;
+
+export type TicketListQueryInput = {
+    state?: string;
+    priority?: string;
+    page?: number;
+    /** Search box: if purely numeric (optional leading #), sent as ticket_number */
+    search?: string;
+    limit?: number;
+};
+
+function parseTicketNumberFromSearch(raw: string): string | undefined {
+    const t = raw.trim().replace(/^#/, '');
+    if (t === '') return undefined;
+    if (/^\d+$/.test(t)) return t;
+    return undefined;
+}
+
+/** Query string for GET /api/v1/ticket/all and /ticket/assigned (see parseListTicketsQuery on the server). */
+export function buildTicketListQueryParams(input: TicketListQueryInput): URLSearchParams {
+    const limit = input.limit ?? TICKET_LIST_PAGE_SIZE;
+    const page = Math.max(1, input.page ?? 1);
+    const offset = (page - 1) * limit;
+
+    const q = new URLSearchParams();
+    q.set('limit', String(limit));
+    q.set('offset', String(offset));
+
+    if (input.state && input.state !== 'all') {
+        q.set('state', input.state);
+    }
+    if (input.priority && input.priority !== 'all') {
+        q.set('priority', input.priority);
+    }
+
+    const ticketNumber = input.search != null ? parseTicketNumberFromSearch(input.search) : undefined;
+    if (ticketNumber) {
+        q.set('ticket_number', ticketNumber);
+    }
+
+    return q;
+}
+
 export const useTicketStats = () =>
     useQuery({
         queryKey: ['tickets', 'stats'],
         queryFn: () => api<TicketStats>('/api/v1/ticket/stats'),
     });
 
-export const useTickets = (params: { q?: string; state?: string; page?: number }) =>
+export const useTickets = (params: TicketListQueryInput = {}) =>
     useQuery({
-        queryKey: ['tickets', params],
+        queryKey: ['tickets', 'list', params],
         queryFn: async () => {
-            // Filter out undefined params
-            const queryParams = new URLSearchParams();
-            Object.entries(params).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
-                    queryParams.append(key, String(value));
-                }
-            });
-            const response = await api<Ticket[] | PaginatedResult<Ticket>>(`/api/v1/ticket/all?${queryParams.toString()}`);
-            // Handle both array response (current backend) and paginated result (expected)
+            const queryParams = buildTicketListQueryParams(params);
+            const limit = params.limit ?? TICKET_LIST_PAGE_SIZE;
+            const page = Math.max(1, params.page ?? 1);
+            const response = await api<Ticket[] | PaginatedResult<Ticket>>(
+                `/api/v1/ticket/all?${queryParams.toString()}`
+            );
             if (Array.isArray(response)) {
-                return { items: response, total: response.length, page: 1, pageSize: 20 };
+                return {
+                    items: response,
+                    total: response.length,
+                    page,
+                    pageSize: limit,
+                };
             }
             return response;
-        }
+        },
+    });
+
+export const useAssignedTickets = (params: TicketListQueryInput = {}) =>
+    useQuery({
+        queryKey: ['tickets', 'assigned', params],
+        queryFn: async () => {
+            const queryParams = buildTicketListQueryParams(params);
+            const limit = params.limit ?? TICKET_LIST_PAGE_SIZE;
+            const page = Math.max(1, params.page ?? 1);
+            const response = await api<Ticket[] | PaginatedResult<Ticket>>(
+                `/api/v1/ticket/assigned?${queryParams.toString()}`
+            );
+            if (Array.isArray(response)) {
+                return {
+                    items: response,
+                    total: response.length,
+                    page,
+                    pageSize: limit,
+                };
+            }
+            return response;
+        },
     });
 
 export const useTicket = (id: string) =>

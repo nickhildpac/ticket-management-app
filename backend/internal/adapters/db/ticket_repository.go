@@ -24,6 +24,22 @@ func (r *TicketRepository) ListAll(ctx context.Context, limit, offset int32) ([]
 	return mapTickets(rows), nil
 }
 
+func (r *TicketRepository) ListAllFiltered(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+	rows, err := r.store.ListAllTicketsByStatePriority(ctx, sqlc.ListAllTicketsByStatePriorityParams{
+		FilterState:        params.FilterState,
+		FilterPriority:     params.FilterPriority,
+		FilterCreatedBy:    params.FilterCreatedBy,
+		FilterAssignee:     params.FilterAssignee,
+		FilterTicketNumber: params.FilterTicketNumber,
+		OffsetVal:          params.OffsetVal,
+		LimitVal:           params.LimitVal,
+	})
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	return mapTickets(rows), nil
+}
+
 func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {

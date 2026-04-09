@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -27,6 +31,7 @@ type TicketPayload struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Skills      []string `json:"skills"`
+	Priority    string   `json:"priority"`
 }
 
 // @Summary		Get ticket statistics
@@ -100,16 +105,37 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary		Get all tickets
-// @Description	Retrieve a list of all tickets
+// @Description	Retrieve a list of tickets. Without filter query parameters, listing follows role rules (admin: all, agent: assigned, user: created). With any of state, priority, created_by, assignee, assigned_to, or ticket_number, filters are applied with the same role scoping (non-admins cannot widen scope via query params).
 // @Tags			Tickets
 // @Produce		json
 // @Security		BearerAuth
+// @Param			limit			query		int		false	"Page size (default 20, max 100)"
+// @Param			offset			query		int		false	"Offset (default 0)"
+// @Param			state			query		string	false	"Filter by state (e.g. open, pending)"
+// @Param			priority		query		string	false	"Filter by priority (critical, high, medium, low)"
+// @Param			created_by		query		string	false	"Filter by creator user UUID (admin only; standard users are scoped to self)"
+// @Param			assignee		query		string	false	"Filter by assignee user UUID (admin or matching agent)"
+// @Param			assigned_to		query		string	false	"Alias for assignee"
+// @Param			ticket_number	query		int		false	"Filter by ticket number"
 // @Success		200	{array}		TicketSummaryResponse
+// @Failure		400	{object}	map[string]string
 // @Failure		401	{object}	map[string]string
+// @Failure		403	{object}	map[string]string
 // @Failure		500	{object}	map[string]string
 // @Router			/ticket/all [get]
 func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
-	tickets, err := h.ticketService.ListAll(r.Context(), 20, 0)
+	filterParams, useFilters, err := parseListTicketsQuery(r.URL.Query())
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var tickets []domain.Ticket
+	if useFilters {
+		tickets, err = h.ticketService.ListTicketsWithFilters(r.Context(), filterParams)
+	} else {
+		tickets, err = h.ticketService.ListAll(r.Context(), filterParams.LimitVal, filterParams.OffsetVal)
+	}
 	if err != nil {
 		writeHandlerError(w, err)
 		return
@@ -118,24 +144,126 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
 }
 
+const (
+	defaultTicketListLimit int32 = 20
+	maxTicketListLimit     int32 = 100
+)
+
+func parseListTicketsQuery(q url.Values) (params domain.ListAllTicketsByStatePriorityParams, useFilters bool, err error) {
+	params.LimitVal = defaultTicketListLimit
+	params.OffsetVal = 0
+
+	if v := strings.TrimSpace(q.Get("limit")); v != "" {
+		l, convErr := strconv.ParseInt(v, 10, 32)
+		if convErr != nil || l < 1 || l > int64(maxTicketListLimit) {
+			return params, false, fmt.Errorf("invalid limit")
+		}
+		params.LimitVal = int32(l)
+	}
+	if v := strings.TrimSpace(q.Get("offset")); v != "" {
+		o, convErr := strconv.ParseInt(v, 10, 32)
+		if convErr != nil || o < 0 {
+			return params, false, fmt.Errorf("invalid offset")
+		}
+		params.OffsetVal = int32(o)
+	}
+
+	if v := strings.TrimSpace(q.Get("state")); v != "" {
+		st, stErr := domain.GetTicketState(v)
+		if stErr != nil {
+			return params, false, stErr
+		}
+		params.FilterState = sql.NullInt32{Int32: int32(st), Valid: true}
+		useFilters = true
+	}
+	if v := strings.TrimSpace(q.Get("priority")); v != "" {
+		pr, prErr := domain.ParseTicketPriority(v)
+		if prErr != nil {
+			return params, false, prErr
+		}
+		params.FilterPriority = sql.NullInt32{Int32: int32(pr), Valid: true}
+		useFilters = true
+	}
+	if v := strings.TrimSpace(q.Get("created_by")); v != "" {
+		id, idErr := uuid.Parse(v)
+		if idErr != nil {
+			return params, false, fmt.Errorf("invalid created_by: %w", idErr)
+		}
+		params.FilterCreatedBy = uuid.NullUUID{UUID: id, Valid: true}
+		useFilters = true
+	}
+	assignee, assigneeSet, assigneeErr := assigneeFromQuery(q)
+	if assigneeErr != nil {
+		return params, false, assigneeErr
+	}
+	if assigneeSet {
+		params.FilterAssignee = assignee
+		useFilters = true
+	}
+	if v := strings.TrimSpace(q.Get("ticket_number")); v != "" {
+		n, nErr := strconv.ParseInt(v, 10, 64)
+		if nErr != nil {
+			return params, false, fmt.Errorf("invalid ticket_number")
+		}
+		params.FilterTicketNumber = sql.NullInt64{Int64: n, Valid: true}
+		useFilters = true
+	}
+
+	return params, useFilters, nil
+}
+
+func assigneeFromQuery(q url.Values) (uuid.NullUUID, bool, error) {
+	a := strings.TrimSpace(q.Get("assignee"))
+	b := strings.TrimSpace(q.Get("assigned_to"))
+	if a == "" && b == "" {
+		return uuid.NullUUID{}, false, nil
+	}
+	if a != "" && b != "" && a != b {
+		return uuid.NullUUID{}, false, errors.New("assignee and assigned_to must match when both are set")
+	}
+	raw := a
+	if raw == "" {
+		raw = b
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return uuid.NullUUID{}, true, fmt.Errorf("invalid assignee: %w", err)
+	}
+	return uuid.NullUUID{UUID: id, Valid: true}, true, nil
+}
+
 // @Summary		Get assigned tickets
-// @Description	Retrieve tickets assigned to the current user
+// @Description	Retrieve tickets assigned to the current user. Supports the same filter query parameters as GET /ticket/all (limit, offset, state, priority, ticket_number); scope is always limited to tickets assigned to the caller.
 // @Tags			Tickets
 // @Produce		json
 // @Security		BearerAuth
+// @Param			limit			query		int		false	"Page size (default 20, max 100)"
+// @Param			offset			query		int		false	"Offset (default 0)"
+// @Param			state			query		string	false	"Filter by state (e.g. open, pending)"
+// @Param			priority		query		string	false	"Filter by priority (critical, high, medium, low)"
+// @Param			ticket_number	query		int		false	"Filter by ticket number"
 // @Success		200	{array}		TicketSummaryResponse
+// @Failure		400	{object}	map[string]string
 // @Failure		401	{object}	map[string]string
 // @Failure		500	{object}	map[string]string
 // @Router			/ticket/assigned [get]
 func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
-	userID, err := uuid.Parse(userIDStr)
+	_, err := uuid.Parse(userIDStr)
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	tickets, err := h.ticketService.ListByAssignee(r.Context(), userID, 20, 0)
+	filterParams, _, err := parseListTicketsQuery(r.URL.Query())
+	if err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+	filterParams.FilterCreatedBy = uuid.NullUUID{}
+	// Assignee is forced to JWT user inside the service; ignore assignee/created_by from query for this route.
+
+	tickets, err := h.ticketService.ListAssignedToCurrentUser(r.Context(), filterParams)
 	if err != nil {
 		writeHandlerError(w, err)
 		return
@@ -281,6 +409,7 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 		Description: payload.Description,
 		CreatedBy:   userID,
 		Skills:      *skills,
+		Priority:    domain.GetTicketPriority(payload.Priority),
 	})
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
@@ -367,9 +496,9 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 		updatedFields = append(updatedFields, "state")
 	}
 	if payload.Priority != nil {
-		priority := domain.GetTicketPriority(*payload.Priority)
-		if priority == -1 {
-			util.ErrorResponse(w, http.StatusBadRequest, errors.New("invalid priority"))
+		priority, err := domain.ParseTicketPriority(*payload.Priority)
+		if err != nil {
+			util.ErrorResponse(w, http.StatusBadRequest, err)
 			return
 		}
 		ticket.Priority = priority

@@ -1,5 +1,5 @@
 import { AppShell } from "@/app/shell";
-import { useTickets } from "./queries";
+import { TICKET_LIST_PAGE_SIZE, useTickets } from "./queries";
 import { useState, useEffect, useMemo } from "react";
 import { getTicketStateString, getTicketPriorityString } from "@/lib/types";
 import {
@@ -14,6 +14,7 @@ import {
 export function TicketList() {
     const [page, setPage] = useState(1);
     const [state, setState] = useState<string>("all");
+    const [priority, setPriority] = useState<string>("all");
     const [q, setQ] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -30,7 +31,17 @@ export function TicketList() {
         setPage(1);
     };
 
-    const { data, isLoading, isError } = useTickets({ page, state, q: searchQuery });
+    const handlePriorityChange = (newPriority: string) => {
+        setPriority(newPriority);
+        setPage(1);
+    };
+
+    const { data, isLoading, isError } = useTickets({
+        page,
+        state,
+        priority,
+        search: searchQuery,
+    });
 
     const stats = useMemo(() => {
         const items = data?.items ?? [];
@@ -69,6 +80,8 @@ export function TicketList() {
                 onSearchChange={setQ}
                 state={state}
                 onStateChange={handleStateChange}
+                priority={priority}
+                onPriorityChange={handlePriorityChange}
                 metaRight={metaRight}
             />
 
@@ -97,7 +110,10 @@ export function TicketList() {
                 onPageChange={setPage}
                 disabledPrev={page === 1 || isLoading}
                 disabledNext={
-                    !data || !data.items || data.items.length < (data.pageSize || 10) || isLoading
+                    !data ||
+                    !data.items ||
+                    data.items.length < (data.pageSize || TICKET_LIST_PAGE_SIZE) ||
+                    isLoading
                 }
             />
         </AppShell>

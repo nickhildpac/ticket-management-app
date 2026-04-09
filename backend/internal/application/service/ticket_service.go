@@ -47,6 +47,57 @@ func (s *TicketService) ListAll(ctx context.Context, limit, offset int32) ([]dom
 	return nil, authorization.ErrAccessDenied
 }
 
+// ListTicketsWithFilters lists tickets using SQL filters. Role rules:
+//   - Admin: all filter fields honored.
+//   - Agent: scoped to tickets assigned to the current user; rejects created_by or a different assignee filter.
+//   - User: scoped to tickets created by the current user; rejects assignee or a different created_by filter.
+func (s *TicketService) ListTicketsWithFilters(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	p := params
+
+	switch auth.Role {
+	case domain.RoleAdmin:
+		return s.repo.ListAllFiltered(ctx, p)
+	case domain.RoleAgent:
+		if p.FilterCreatedBy.Valid {
+			return nil, authorization.ErrAccessDenied
+		}
+		if p.FilterAssignee.Valid && p.FilterAssignee.UUID != auth.UserID {
+			return nil, authorization.ErrAccessDenied
+		}
+		p.FilterAssignee = uuid.NullUUID{UUID: auth.UserID, Valid: true}
+		return s.repo.ListAllFiltered(ctx, p)
+	case domain.RoleUser:
+		if p.FilterAssignee.Valid {
+			return nil, authorization.ErrAccessDenied
+		}
+		if p.FilterCreatedBy.Valid && p.FilterCreatedBy.UUID != auth.UserID {
+			return nil, authorization.ErrAccessDenied
+		}
+		p.FilterCreatedBy = uuid.NullUUID{UUID: auth.UserID, Valid: true}
+		return s.repo.ListAllFiltered(ctx, p)
+	default:
+		return nil, authorization.ErrAccessDenied
+	}
+}
+
+// ListAssignedToCurrentUser returns tickets where assigned_to contains the authenticated user,
+// with optional state/priority/ticket_number and pagination. Strips creator filter; overwrites assignee with the current user.
+func (s *TicketService) ListAssignedToCurrentUser(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p := params
+	p.FilterCreatedBy = uuid.NullUUID{}
+	p.FilterAssignee = uuid.NullUUID{UUID: auth.UserID, Valid: true}
+	return s.repo.ListAllFiltered(ctx, p)
+}
+
 func (s *TicketService) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
 	auth, err := authorization.GetAuthContext(ctx)
 	if err != nil {

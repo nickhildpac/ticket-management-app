@@ -1,7 +1,5 @@
 import { AppShell } from "@/app/shell";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import type { Ticket } from "@/lib/types";
+import { TICKET_LIST_PAGE_SIZE, useAssignedTickets } from "./queries";
 import { useState, useEffect, useMemo } from "react";
 import { getTicketStateString, getTicketPriorityString } from "@/lib/types";
 import {
@@ -16,6 +14,7 @@ import {
 export function AssignedTicketsList() {
     const [page, setPage] = useState(1);
     const [state, setState] = useState<string>("all");
+    const [priority, setPriority] = useState<string>("all");
     const [q, setQ] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -32,20 +31,16 @@ export function AssignedTicketsList() {
         setPage(1);
     };
 
-    const { data, isLoading, isError } = useQuery({
-        queryKey: ["tickets", "assigned", page, state, searchQuery],
-        queryFn: async () => {
-            const queryParams = new URLSearchParams();
-            if (page) queryParams.append("page", String(page));
-            if (state && state !== "all") queryParams.append("state", state);
-            if (searchQuery) queryParams.append("q", searchQuery);
+    const handlePriorityChange = (newPriority: string) => {
+        setPriority(newPriority);
+        setPage(1);
+    };
 
-            const response = await api<Ticket[]>(`/api/v1/ticket/assigned?${queryParams.toString()}`);
-            if (Array.isArray(response)) {
-                return { items: response, total: response.length, page: 1, pageSize: 20 };
-            }
-            return response;
-        },
+    const { data, isLoading, isError } = useAssignedTickets({
+        page,
+        state,
+        priority,
+        search: searchQuery,
     });
 
     const stats = useMemo(() => {
@@ -85,6 +80,8 @@ export function AssignedTicketsList() {
                 onSearchChange={setQ}
                 state={state}
                 onStateChange={handleStateChange}
+                priority={priority}
+                onPriorityChange={handlePriorityChange}
                 metaRight={metaRight}
             />
 
@@ -115,7 +112,10 @@ export function AssignedTicketsList() {
                 onPageChange={setPage}
                 disabledPrev={page === 1 || isLoading}
                 disabledNext={
-                    !data || !data.items || data.items.length < (data.pageSize || 10) || isLoading
+                    !data ||
+                    !data.items ||
+                    data.items.length < (data.pageSize || TICKET_LIST_PAGE_SIZE) ||
+                    isLoading
                 }
             />
         </AppShell>

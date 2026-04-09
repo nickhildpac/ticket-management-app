@@ -39,7 +39,6 @@ export function Topbar() {
     const ticketsActive =
         pathname === "/tickets" || (pathname.startsWith("/tickets/") && !pathname.startsWith("/tickets/all") && !pathname.startsWith("/tickets/assigned") && !pathname.startsWith("/tickets/new"));
     const assignedActive = pathname.startsWith("/tickets/assigned");
-    const allActive = pathname.startsWith("/tickets/all");
 
     return (
         <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-outline-variant bg-surface-container-lowest/80 shadow-sm backdrop-blur-xl lg:left-64">
@@ -59,16 +58,11 @@ export function Topbar() {
                     </div>
                     <nav className="hidden items-center gap-6 lg:flex">
                         <Link to="/tickets" className={tabClass(ticketsActive)}>
-                            My Tickets
+                            All tickets
                         </Link>
                         {(isAgent || isAdmin) && (
                             <Link to="/tickets/assigned" className={tabClass(assignedActive)}>
                                 Assigned
-                            </Link>
-                        )}
-                        {isAdmin && (
-                            <Link to="/tickets/all" className={tabClass(allActive)}>
-                                All Tickets
                             </Link>
                         )}
                     </nav>

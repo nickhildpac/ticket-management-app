@@ -129,7 +129,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.User"
+                            "$ref": "#/definitions/handlers.UserResponse"
                         }
                     },
                     "400": {
@@ -428,7 +428,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.User"
+                            "$ref": "#/definitions/handlers.UserResponse"
                         }
                     },
                     "401": {
@@ -587,7 +587,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a list of all tickets",
+                "description": "Retrieve a list of tickets. Without filter query parameters, listing follows role rules (admin: all, agent: assigned, user: created). With any of state, priority, created_by, assignee, assigned_to, or ticket_number, filters are applied with the same role scoping (non-admins cannot widen scope via query params).",
                 "produces": [
                     "application/json"
                 ],
@@ -595,6 +595,56 @@ const docTemplate = `{
                     "Tickets"
                 ],
                 "summary": "Get all tickets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by state (e.g. open, pending)",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by priority (critical, high, medium, low)",
+                        "name": "priority",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by creator user UUID (admin only; standard users are scoped to self)",
+                        "name": "created_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by assignee user UUID (admin or matching agent)",
+                        "name": "assignee",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Alias for assignee",
+                        "name": "assigned_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by ticket number",
+                        "name": "ticket_number",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -605,8 +655,26 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1141,7 +1209,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.User"
+                            "$ref": "#/definitions/handlers.UserResponse"
                         }
                     },
                     "400": {
@@ -1186,7 +1254,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handlers.UserInfo"
+                                "$ref": "#/definitions/handlers.AssignmentUserResponse"
                             }
                         }
                     },
@@ -1204,41 +1272,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "domain.Skills": {
-            "type": "object"
-        },
-        "domain.User": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "hashed_password": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "role": {
-                    "$ref": "#/definitions/domain.UserRole"
-                },
-                "skills": {
-                    "$ref": "#/definitions/domain.Skills"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "domain.UserRole": {
             "type": "string",
             "enum": [
@@ -1251,6 +1284,37 @@ const docTemplate = `{
                 "RoleAgent",
                 "RoleAdmin"
             ]
+        },
+        "handlers.AssignmentUserResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john.doe@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "example": "John"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "last_name": {
+                    "type": "string",
+                    "example": "Doe"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.UserRole"
+                        }
+                    ],
+                    "example": "agent"
+                }
+            }
         },
         "handlers.CommentResponse": {
             "type": "object",
@@ -1379,6 +1443,14 @@ const docTemplate = `{
                     "format": "date-time",
                     "example": "2025-01-22T10:30:00Z"
                 },
+                "created_by": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "creator": {
+                    "$ref": "#/definitions/handlers.UserInfo"
+                },
                 "description": {
                     "type": "string",
                     "example": "Users cannot login with SSO"
@@ -1431,6 +1503,57 @@ const docTemplate = `{
                 "last_name": {
                     "type": "string",
                     "example": "Doe"
+                }
+            }
+        },
+        "handlers.UserResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2025-01-22T10:30:00Z"
+                },
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john.doe@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "example": "John"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "last_name": {
+                    "type": "string",
+                    "example": "Doe"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.UserRole"
+                        }
+                    ],
+                    "example": "agent"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "incident-management",
+                        "log-analysis"
+                    ]
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2025-01-22T11:45:00Z"
                 }
             }
         }

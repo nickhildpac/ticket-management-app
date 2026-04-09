@@ -35,14 +35,14 @@ function TicketDetailBody({ ticket }: { ticket: Ticket }) {
 
     const [assignedTo, setAssignedTo] = useState(() => ticket.assigned_to || []);
     const [skills, setSkills] = useState(() => ticket.skills || []);
-    const [state, setState] = useState(() => String(ticket.state));
+    const [state, setState] = useState<string>(() => normalizeTicketState(ticket.state));
     const [priority, setPriority] = useState(() => String(ticket.priority));
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
     const hasChanges = useMemo(() => {
         const assigneeChanged =
             JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || []);
-        const stateChanged = state !== String(ticket.state);
+        const stateChanged = state !== normalizeTicketState(ticket.state);
         const priorityChanged = priority !== String(ticket.priority);
         const skillsChanged = JSON.stringify(skills) !== JSON.stringify(ticket.skills || []);
         return assigneeChanged || stateChanged || priorityChanged || skillsChanged;

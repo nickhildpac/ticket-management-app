@@ -19,6 +19,9 @@ type UserService interface {
 
 type TicketService interface {
 	ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error)
+	ListTicketsWithFilters(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
+	// ListAssignedToCurrentUser lists tickets assigned to the authenticated user with optional filters (limit/offset/state/priority/ticket_number). Ignores created_by / assignee query intent; scope is always the current user as assignee.
+	ListAssignedToCurrentUser(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
 	ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)

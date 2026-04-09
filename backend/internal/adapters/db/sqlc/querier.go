@@ -28,6 +28,9 @@ type Querier interface {
 	GetUser(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	ListAllTickets(ctx context.Context, arg ListAllTicketsParams) ([]Ticket, error)
+	// Optional filters: pass NULL for any sqlc.narg to skip that condition.
+	// filter_assignee: tickets where assigned_to contains this user id.
+	ListAllTicketsByStatePriority(ctx context.Context, arg ListAllTicketsByStatePriorityParams) ([]Ticket, error)
 	ListComment(ctx context.Context, arg ListCommentParams) ([]Comment, error)
 	ListTickets(ctx context.Context, arg ListTicketsParams) ([]Ticket, error)
 	ListTicketsAssigned(ctx context.Context, arg ListTicketsAssignedParams) ([]Ticket, error)

@@ -2,6 +2,7 @@
 package domain
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -63,7 +64,23 @@ func GetTicketPriority(s string) TicketPriority {
 	case "low":
 		return TicketPriorityLow
 	default:
-		return -1
+		return 4
+	}
+}
+
+// ParseTicketPriority parses a priority string for strict validation (unknown values are an error).
+func ParseTicketPriority(s string) (TicketPriority, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "critical":
+		return TicketPriorityCritical, nil
+	case "high":
+		return TicketPriorityHigh, nil
+	case "medium":
+		return TicketPriorityMedium, nil
+	case "low":
+		return TicketPriorityLow, nil
+	default:
+		return 0, fmt.Errorf("invalid ticket priority: %s", s)
 	}
 }
 
@@ -94,6 +111,17 @@ type Ticket struct {
 	Priority     TicketPriority `json:"priority" db:"priority"`
 	CreatedAt    time.Time      `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
+}
+
+// ListAllTicketsByStatePriorityParams holds optional filters for listing tickets (unset/null fields are ignored).
+type ListAllTicketsByStatePriorityParams struct {
+	FilterState        sql.NullInt32
+	FilterPriority     sql.NullInt32
+	FilterCreatedBy    uuid.NullUUID
+	FilterAssignee     uuid.NullUUID
+	FilterTicketNumber sql.NullInt64
+	OffsetVal          int32
+	LimitVal           int32
 }
 
 var allowedTransitions = map[TicketState]map[TicketState]struct{}{
