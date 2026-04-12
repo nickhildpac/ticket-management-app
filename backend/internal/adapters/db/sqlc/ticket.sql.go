@@ -14,8 +14,113 @@ import (
 	"github.com/lib/pq"
 )
 
+const countTicketStatsAll = `-- name: CountTicketStatsAll :one
+SELECT
+  COUNT(*)::int4 AS total,
+  COUNT(*) FILTER (WHERE state = 1)::int4 AS open,
+  COUNT(*) FILTER (WHERE state = 2)::int4 AS pending,
+  COUNT(*) FILTER (WHERE state = 4)::int4 AS resolved,
+  COUNT(*) FILTER (WHERE assigned_to @> $1::uuid[])::int4 AS mine
+FROM tickets
+`
+
+type CountTicketStatsAllRow struct {
+	Total    int32 `json:"total"`
+	Open     int32 `json:"open"`
+	Pending  int32 `json:"pending"`
+	Resolved int32 `json:"resolved"`
+	Mine     int32 `json:"mine"`
+}
+
+func (q *Queries) CountTicketStatsAll(ctx context.Context, dollar_1 []uuid.UUID) (CountTicketStatsAllRow, error) {
+	row := q.db.QueryRowContext(ctx, countTicketStatsAll, pq.Array(dollar_1))
+	var i CountTicketStatsAllRow
+	err := row.Scan(
+		&i.Total,
+		&i.Open,
+		&i.Pending,
+		&i.Resolved,
+		&i.Mine,
+	)
+	return i, err
+}
+
+const countTicketStatsByAssignee = `-- name: CountTicketStatsByAssignee :one
+SELECT
+  COUNT(*)::int4 AS total,
+  COUNT(*) FILTER (WHERE state = 1)::int4 AS open,
+  COUNT(*) FILTER (WHERE state = 2)::int4 AS pending,
+  COUNT(*) FILTER (WHERE state = 4)::int4 AS resolved,
+  COUNT(*) FILTER (WHERE assigned_to @> $2::uuid[])::int4 AS mine
+FROM tickets
+WHERE assigned_to @> $1::uuid[]
+`
+
+type CountTicketStatsByAssigneeParams struct {
+	Column1 []uuid.UUID `json:"column_1"`
+	Column2 []uuid.UUID `json:"column_2"`
+}
+
+type CountTicketStatsByAssigneeRow struct {
+	Total    int32 `json:"total"`
+	Open     int32 `json:"open"`
+	Pending  int32 `json:"pending"`
+	Resolved int32 `json:"resolved"`
+	Mine     int32 `json:"mine"`
+}
+
+func (q *Queries) CountTicketStatsByAssignee(ctx context.Context, arg CountTicketStatsByAssigneeParams) (CountTicketStatsByAssigneeRow, error) {
+	row := q.db.QueryRowContext(ctx, countTicketStatsByAssignee, pq.Array(arg.Column1), pq.Array(arg.Column2))
+	var i CountTicketStatsByAssigneeRow
+	err := row.Scan(
+		&i.Total,
+		&i.Open,
+		&i.Pending,
+		&i.Resolved,
+		&i.Mine,
+	)
+	return i, err
+}
+
+const countTicketStatsByCreator = `-- name: CountTicketStatsByCreator :one
+SELECT
+  COUNT(*)::int4 AS total,
+  COUNT(*) FILTER (WHERE state = 1)::int4 AS open,
+  COUNT(*) FILTER (WHERE state = 2)::int4 AS pending,
+  COUNT(*) FILTER (WHERE state = 4)::int4 AS resolved,
+  COUNT(*) FILTER (WHERE assigned_to @> $2::uuid[])::int4 AS mine
+FROM tickets
+WHERE created_by = $1
+`
+
+type CountTicketStatsByCreatorParams struct {
+	CreatedBy uuid.UUID   `json:"created_by"`
+	Column2   []uuid.UUID `json:"column_2"`
+}
+
+type CountTicketStatsByCreatorRow struct {
+	Total    int32 `json:"total"`
+	Open     int32 `json:"open"`
+	Pending  int32 `json:"pending"`
+	Resolved int32 `json:"resolved"`
+	Mine     int32 `json:"mine"`
+}
+
+func (q *Queries) CountTicketStatsByCreator(ctx context.Context, arg CountTicketStatsByCreatorParams) (CountTicketStatsByCreatorRow, error) {
+	row := q.db.QueryRowContext(ctx, countTicketStatsByCreator, arg.CreatedBy, pq.Array(arg.Column2))
+	var i CountTicketStatsByCreatorRow
+	err := row.Scan(
+		&i.Total,
+		&i.Open,
+		&i.Pending,
+		&i.Resolved,
+		&i.Mine,
+	)
+	return i, err
+}
+
 const createTicket = `-- name: CreateTicket :one
-INSERT INTO tickets (title, description, created_by, updated_at, skills) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills
+INSERT INTO tickets (title, description, created_by, updated_at, skills, priority) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills
 `
 
 type CreateTicketParams struct {
@@ -24,6 +129,7 @@ type CreateTicketParams struct {
 	CreatedBy   uuid.UUID `json:"created_by"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	Skills      []string  `json:"skills"`
+	Priority    int32     `json:"priority"`
 }
 
 func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error) {
@@ -33,6 +139,7 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		arg.CreatedBy,
 		arg.UpdatedAt,
 		pq.Array(arg.Skills),
+		arg.Priority,
 	)
 	var i Ticket
 	err := row.Scan(
@@ -230,16 +337,24 @@ func (q *Queries) GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) 
 }
 
 const listAllTickets = `-- name: ListAllTickets :many
-SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets ORDER BY id LIMIT $1 OFFSET $2
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets
+ORDER BY
+  CASE WHEN $1::integer = 1 THEN ticket_number END ASC NULLS LAST,
+  CASE WHEN $1::integer = 2 THEN ticket_number END DESC NULLS LAST,
+  CASE WHEN $1::integer = 3 THEN created_at END ASC NULLS LAST,
+  CASE WHEN $1::integer = 4 THEN created_at END DESC NULLS LAST,
+  CASE WHEN $1::integer = 0 THEN id END ASC NULLS LAST
+LIMIT $3 OFFSET $2
 `
 
 type ListAllTicketsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	SortVal int32 `json:"sort_val"`
+	Offset  int32 `json:"offset"`
+	Limit   int32 `json:"limit"`
 }
 
 func (q *Queries) ListAllTickets(ctx context.Context, arg ListAllTicketsParams) ([]Ticket, error) {
-	rows, err := q.db.QueryContext(ctx, listAllTickets, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listAllTickets, arg.SortVal, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +399,13 @@ WHERE ($1::integer IS NULL OR state = $1::integer)
     OR assigned_to @> ARRAY[$4::uuid]::uuid[]
   )
   AND ($5::bigint IS NULL OR ticket_number = $5::bigint)
-ORDER BY id
-LIMIT $7 OFFSET $6
+ORDER BY
+  CASE WHEN $6::integer = 1 THEN ticket_number END ASC NULLS LAST,
+  CASE WHEN $6::integer = 2 THEN ticket_number END DESC NULLS LAST,
+  CASE WHEN $6::integer = 3 THEN created_at END ASC NULLS LAST,
+  CASE WHEN $6::integer = 4 THEN created_at END DESC NULLS LAST,
+  CASE WHEN $6::integer = 0 THEN id END ASC NULLS LAST
+LIMIT $8 OFFSET $7
 `
 
 type ListAllTicketsByStatePriorityParams struct {
@@ -294,6 +414,7 @@ type ListAllTicketsByStatePriorityParams struct {
 	FilterCreatedBy    uuid.NullUUID `json:"filter_created_by"`
 	FilterAssignee     uuid.NullUUID `json:"filter_assignee"`
 	FilterTicketNumber sql.NullInt64 `json:"filter_ticket_number"`
+	SortVal            int32         `json:"sort_val"`
 	OffsetVal          int32         `json:"offset_val"`
 	LimitVal           int32         `json:"limit_val"`
 }
@@ -307,6 +428,7 @@ func (q *Queries) ListAllTicketsByStatePriority(ctx context.Context, arg ListAll
 		arg.FilterCreatedBy,
 		arg.FilterAssignee,
 		arg.FilterTicketNumber,
+		arg.SortVal,
 		arg.OffsetVal,
 		arg.LimitVal,
 	)
@@ -344,17 +466,30 @@ func (q *Queries) ListAllTicketsByStatePriority(ctx context.Context, arg ListAll
 }
 
 const listTickets = `-- name: ListTickets :many
-SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets WHERE created_by=$1 ORDER BY id LIMIT $2 OFFSET $3
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets WHERE created_by = $1
+ORDER BY
+  CASE WHEN $2::integer = 1 THEN ticket_number END ASC NULLS LAST,
+  CASE WHEN $2::integer = 2 THEN ticket_number END DESC NULLS LAST,
+  CASE WHEN $2::integer = 3 THEN created_at END ASC NULLS LAST,
+  CASE WHEN $2::integer = 4 THEN created_at END DESC NULLS LAST,
+  CASE WHEN $2::integer = 0 THEN id END ASC NULLS LAST
+LIMIT $4 OFFSET $3
 `
 
 type ListTicketsParams struct {
 	CreatedBy uuid.UUID `json:"created_by"`
-	Limit     int32     `json:"limit"`
+	SortVal   int32     `json:"sort_val"`
 	Offset    int32     `json:"offset"`
+	Limit     int32     `json:"limit"`
 }
 
 func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Ticket, error) {
-	rows, err := q.db.QueryContext(ctx, listTickets, arg.CreatedBy, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listTickets,
+		arg.CreatedBy,
+		arg.SortVal,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -389,17 +524,30 @@ func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]Tic
 }
 
 const listTicketsAssigned = `-- name: ListTicketsAssigned :many
-SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets WHERE assigned_to @> $1::uuid[] ORDER BY id LIMIT $2 OFFSET $3
+SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets WHERE assigned_to @> $1::uuid[]
+ORDER BY
+  CASE WHEN $2::integer = 1 THEN ticket_number END ASC NULLS LAST,
+  CASE WHEN $2::integer = 2 THEN ticket_number END DESC NULLS LAST,
+  CASE WHEN $2::integer = 3 THEN created_at END ASC NULLS LAST,
+  CASE WHEN $2::integer = 4 THEN created_at END DESC NULLS LAST,
+  CASE WHEN $2::integer = 0 THEN id END ASC NULLS LAST
+LIMIT $4 OFFSET $3
 `
 
 type ListTicketsAssignedParams struct {
-	Column1 []uuid.UUID `json:"column_1"`
-	Limit   int32       `json:"limit"`
-	Offset  int32       `json:"offset"`
+	AssigneeIds []uuid.UUID `json:"assignee_ids"`
+	SortVal     int32       `json:"sort_val"`
+	Offset      int32       `json:"offset"`
+	Limit       int32       `json:"limit"`
 }
 
 func (q *Queries) ListTicketsAssigned(ctx context.Context, arg ListTicketsAssignedParams) ([]Ticket, error) {
-	rows, err := q.db.QueryContext(ctx, listTicketsAssigned, pq.Array(arg.Column1), arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listTicketsAssigned,
+		pq.Array(arg.AssigneeIds),
+		arg.SortVal,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

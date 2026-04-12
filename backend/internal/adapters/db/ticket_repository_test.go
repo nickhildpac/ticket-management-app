@@ -30,11 +30,11 @@ func TestTicketRepository_ListAll(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"id", "created_by", "assigned_to", "title", "description", "state", "priority", "created_at", "updated_at", "ticket_number", "skills"}).
 		AddRow(ticketID, creatorID, fmt.Sprintf("{%s}", assigned.String()), "title", "desc", int32(domain.TicketStateOpen), int32(domain.TicketPriorityHigh), now, now, int64(1001), skills)
 
-	mock.ExpectQuery(`(?s).*SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets ORDER BY id LIMIT \$1 OFFSET \$2`).
-		WithArgs(int32(5), int32(0)).
+	mock.ExpectQuery(`(?s)SELECT id, created_by, assigned_to, title, description, state, priority, created_at, updated_at, ticket_number, skills FROM tickets`).
+		WithArgs(int32(domain.TicketListSortCreatedDesc), int32(0), int32(5)).
 		WillReturnRows(rows)
 
-	tickets, err := repo.ListAll(context.Background(), 5, 0)
+	tickets, err := repo.ListAll(context.Background(), 5, 0, domain.TicketListSortCreatedDesc)
 	require.NoError(t, err)
 	require.Len(t, tickets, 1)
 	require.Equal(t, ticketID, tickets[0].ID)

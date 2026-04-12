@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
@@ -43,46 +42,16 @@ type TicketPayload struct {
 // @Failure		401	{object}	map[string]string
 // @Router			/ticket/stats [get]
 func (h *Handler) GetTicketStats(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.Context().Value(configs.UserIDKey).(string)
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		util.ErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	// Role-scoped listing matches TicketService.ListAll (admin: all, agent: assigned, user: created)
-	tickets, err := h.ticketService.ListAll(r.Context(), 1000, 0)
+	counts, err := h.ticketService.GetTicketStats(r.Context())
 	if err != nil {
 		writeHandlerError(w, err)
 		return
 	}
 
-	// Calculate stats
-	stats := TicketStats{}
-	stats.Total = int32(len(tickets))
-
-	for _, ticket := range tickets {
-		switch ticket.State {
-		case domain.TicketStateOpen:
-			stats.Open++
-		case domain.TicketStatePending:
-			stats.Pending++
-		case domain.TicketStateResolved:
-			stats.Resolved++
-		}
-	}
-
-	// Count tickets assigned to current user
-	for _, ticket := range tickets {
-		for _, assignee := range ticket.AssignedTo {
-			if assignee == userID {
-				stats.Mine++
-				break
-			}
-		}
-	}
-
-	util.WriteResponse(w, http.StatusOK, stats)
+	util.WriteResponse(w, http.StatusOK, TicketStats{
+		Total: counts.Total, Open: counts.Open, Pending: counts.Pending,
+		Resolved: counts.Resolved, Mine: counts.Mine,
+	})
 }
 
 type UpdateTicketPayload struct {
@@ -95,7 +64,7 @@ type UpdateTicketPayload struct {
 }
 
 func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
-	tickets, err := h.ticketService.ListAll(r.Context(), 20, 0)
+	tickets, err := h.ticketService.ListAll(r.Context(), 20, 0, domain.TicketListSortCreatedDesc)
 	if err != nil {
 		writeHandlerError(w, err)
 		return
@@ -117,6 +86,8 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 // @Param			assignee		query		string	false	"Filter by assignee user UUID (admin or matching agent)"
 // @Param			assigned_to		query		string	false	"Alias for assignee"
 // @Param			ticket_number	query		int		false	"Filter by ticket number"
+// @Param			sort			query		string	false	"Sort field: ticket_number or created_at (default created_at)"
+// @Param			order			query		string	false	"asc or desc (default desc)"
 // @Success		200	{array}		TicketSummaryResponse
 // @Failure		400	{object}	map[string]string
 // @Failure		401	{object}	map[string]string
@@ -134,7 +105,7 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 	if useFilters {
 		tickets, err = h.ticketService.ListTicketsWithFilters(r.Context(), filterParams)
 	} else {
-		tickets, err = h.ticketService.ListAll(r.Context(), filterParams.LimitVal, filterParams.OffsetVal)
+		tickets, err = h.ticketService.ListAll(r.Context(), filterParams.LimitVal, filterParams.OffsetVal, filterParams.SortVal)
 	}
 	if err != nil {
 		writeHandlerError(w, err)
@@ -209,6 +180,12 @@ func parseListTicketsQuery(q url.Values) (params domain.ListAllTicketsByStatePri
 		useFilters = true
 	}
 
+	sortVal, sortErr := domain.TicketListSortFromQuery(q.Get("sort"), q.Get("order"))
+	if sortErr != nil {
+		return params, false, sortErr
+	}
+	params.SortVal = sortVal
+
 	return params, useFilters, nil
 }
 
@@ -242,6 +219,8 @@ func assigneeFromQuery(q url.Values) (uuid.NullUUID, bool, error) {
 // @Param			state			query		string	false	"Filter by state (e.g. open, pending)"
 // @Param			priority		query		string	false	"Filter by priority (critical, high, medium, low)"
 // @Param			ticket_number	query		int		false	"Filter by ticket number"
+// @Param			sort			query		string	false	"Sort field: ticket_number or created_at (default created_at)"
+// @Param			order			query		string	false	"asc or desc (default desc)"
 // @Success		200	{array}		TicketSummaryResponse
 // @Failure		400	{object}	map[string]string
 // @Failure		401	{object}	map[string]string
@@ -404,12 +383,23 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var priority domain.TicketPriority
+	if strings.TrimSpace(payload.Priority) == "" {
+		priority = domain.TicketPriorityLow
+	} else {
+		priority, err = domain.ParseTicketPriority(payload.Priority)
+		if err != nil {
+			util.ErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
+	}
+
 	ticket, err := h.ticketService.CreateTicket(r.Context(), domain.Ticket{
 		Title:       payload.Title,
 		Description: payload.Description,
 		CreatedBy:   userID,
 		Skills:      *skills,
-		Priority:    domain.GetTicketPriority(payload.Priority),
+		Priority:    priority,
 	})
 	if err != nil {
 		util.ErrorResponse(w, http.StatusInternalServerError, err)
@@ -465,11 +455,7 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.ticketService.GetTicket(r.Context(), tid)
 	if err != nil {
-		if err == authorization.ErrAccessDenied {
-			util.ErrorResponse(w, http.StatusForbidden, err)
-			return
-		}
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeHandlerError(w, err)
 		return
 	}
 
@@ -587,12 +573,13 @@ func (h *Handler) ticketSummariesWithCreators(ctx context.Context, tickets []dom
 			uniqueCreators[t.CreatedBy] = struct{}{}
 		}
 	}
-	usersByID := make(map[uuid.UUID]*domain.User, len(uniqueCreators))
+	ids := make([]uuid.UUID, 0, len(uniqueCreators))
 	for id := range uniqueCreators {
-		u, err := h.userService.GetUserByID(ctx, id)
-		if err == nil && u != nil {
-			usersByID[id] = u
-		}
+		ids = append(ids, id)
+	}
+	usersByID, err := h.userService.GetUsersByIDs(ctx, ids)
+	if err != nil || usersByID == nil {
+		usersByID = make(map[uuid.UUID]*domain.User)
 	}
 
 	summaries := make([]TicketSummaryResponse, 0, len(tickets))

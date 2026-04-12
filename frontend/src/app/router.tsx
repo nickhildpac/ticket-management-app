@@ -12,6 +12,7 @@ import { AdminPanel } from "@/features/admin";
 import { Profile } from "@/features/profile/profile";
 import { getAuthUser, isAuthenticated } from "@/app/auth";
 import type { Role } from "@/lib/types";
+import { validateTicketQueueSearch } from "@/features/tickets/queue-state";
 
 export type AppContext = { qc: QueryClient; };
 
@@ -91,6 +92,7 @@ const ticketsListRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/tickets',
     component: TicketList,
+    validateSearch: validateTicketQueueSearch,
     beforeLoad: requireAuth
 });
 
@@ -98,6 +100,7 @@ const ticketsAllRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/tickets/all',
     component: AllTicketsList,
+    validateSearch: validateTicketQueueSearch,
     beforeLoad: requireAdmin
 });
 
@@ -105,6 +108,7 @@ const ticketsAssignedRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/tickets/assigned',
     component: AssignedTicketsList,
+    validateSearch: validateTicketQueueSearch,
     beforeLoad: requireAgent
 });
 

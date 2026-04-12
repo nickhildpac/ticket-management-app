@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { MaterialSymbol } from "@/components/material-symbol";
 import { cn } from "@/lib/utils";
+import type { TicketListSortField, TicketListSortOrder } from "../queue-state";
 
 type StatChip = { label: string; value: number; icon: string; iconClassName?: string };
 
@@ -232,7 +233,7 @@ export function TicketQueueRow({
     const priorityStr =
         typeof ticket.priority === "number" ? getTicketPriorityString(ticket.priority) : ticket.priority;
     const dimmed = stateStr === "resolved" || stateStr === "closed" || stateStr === "cancelled";
-    const relative = formatDistanceToNow(new Date(ticket.updated_at), { addSuffix: true });
+    const relative = formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true });
 
     return (
         <Link
@@ -312,32 +313,111 @@ export function TicketQueueRow({
                 </span>
             </div>
             <div className="col-span-6 text-right sm:col-span-2">
-                <span className="text-xs font-medium text-on-surface-variant">{relative}</span>
+                <span className="text-xs font-medium text-on-surface-variant" title={ticket.created_at}>
+                    {relative}
+                </span>
             </div>
         </Link>
     );
 }
 
-export function QueueTableHeader({ variant }: { variant: "withId" | "assigned" }) {
+function SortableHeader({
+    label,
+    active,
+    order,
+    className,
+    onClick,
+}: {
+    label: string;
+    active: boolean;
+    order: TicketListSortOrder;
+    className?: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                "inline-flex items-center gap-0.5 text-left transition-colors hover:text-primary",
+                active && "text-primary",
+                className
+            )}
+        >
+            {label}
+            {active ? (
+                <MaterialSymbol
+                    name={order === "asc" ? "arrow_upward" : "arrow_downward"}
+                    className="!text-sm opacity-90"
+                />
+            ) : (
+                <MaterialSymbol name="unfold_more" className="!text-sm opacity-40" />
+            )}
+        </button>
+    );
+}
+
+export function QueueTableHeader({
+    variant,
+    sortBy,
+    sortOrder,
+    onSortClick,
+}: {
+    variant: "withId" | "assigned";
+    sortBy: TicketListSortField;
+    sortOrder: TicketListSortOrder;
+    onSortClick: (field: TicketListSortField) => void;
+}) {
     if (variant === "assigned") {
         return (
-            <div className="mb-2 hidden grid grid-cols-12 gap-4 px-6 py-2 font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant sm:grid">
+            <div className="mb-2 grid grid-cols-12 gap-4 px-2 py-2 font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant sm:px-6">
+                <div className="col-span-1">
+                    <SortableHeader
+                        label="Ticket #"
+                        active={sortBy === "ticket_number"}
+                        order={sortOrder}
+                        onClick={() => onSortClick("ticket_number")}
+                    />
+                </div>
                 <div className="col-span-2">Status</div>
-                <div className="col-span-5">Subject</div>
+                <div className="col-span-4">Subject</div>
                 <div className="col-span-2">Created by</div>
                 <div className="col-span-1 text-center">Priority</div>
-                <div className="col-span-2 text-right">Last Updated</div>
+                <div className="col-span-2 text-right">
+                    <SortableHeader
+                        label="Created"
+                        active={sortBy === "created_at"}
+                        order={sortOrder}
+                        className="ml-auto"
+                        onClick={() => onSortClick("created_at")}
+                    />
+                </div>
             </div>
         );
     }
     return (
-        <div className="mb-2 hidden grid grid-cols-12 gap-4 px-6 py-2 font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant sm:grid">
-            <div className="col-span-1">Ticket ID</div>
+        <div className="mb-2 grid grid-cols-12 gap-4 px-2 py-2 font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant sm:px-6">
+            <div className="col-span-1">
+                <SortableHeader
+                    label="Ticket #"
+                    active={sortBy === "ticket_number"}
+                    order={sortOrder}
+                    onClick={() => onSortClick("ticket_number")}
+                />
+            </div>
             <div className="col-span-2">Status</div>
             <div className="col-span-4">Subject</div>
             <div className="col-span-2">Created by</div>
             <div className="col-span-1 text-center">Priority</div>
-            <div className="col-span-2 text-right">Last Updated</div>
+            <div className="col-span-2 text-right">
+                <SortableHeader
+                    label="Created"
+                    active={sortBy === "created_at"}
+                    order={sortOrder}
+                    className="ml-auto"
+                    onClick={() => onSortClick("created_at")}
+                />
+            </div>
         </div>
     );
 }

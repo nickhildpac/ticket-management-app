@@ -1,7 +1,11 @@
 import { AppShell } from "@/app/shell";
-import { TICKET_LIST_PAGE_SIZE, useAssignedTickets } from "./queries";
-import { useState, useEffect, useMemo } from "react";
+import {
+    TICKET_LIST_PAGE_SIZE,
+    useAssignedTickets,
+} from "./queries";
+import { useMemo } from "react";
 import { getTicketStateString, getTicketPriorityString } from "@/lib/types";
+import { useAssignedTicketQueueControls } from "./queue-state";
 import {
     QueuePageHeader,
     QueueFilterBar,
@@ -12,35 +16,28 @@ import {
 } from "./components/queue-ui";
 
 export function AssignedTicketsList() {
-    const [page, setPage] = useState(1);
-    const [state, setState] = useState<string>("all");
-    const [priority, setPriority] = useState<string>("all");
-    const [q, setQ] = useState("");
-    const [searchQuery, setSearchQuery] = useState("");
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setSearchQuery(q);
-            setPage(1);
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [q]);
-
-    const handleStateChange = (newState: string) => {
-        setState(newState);
-        setPage(1);
-    };
-
-    const handlePriorityChange = (newPriority: string) => {
-        setPriority(newPriority);
-        setPage(1);
-    };
+    const {
+        page,
+        setPage,
+        state,
+        priority,
+        searchValue,
+        searchQuery,
+        sortBy,
+        sortOrder,
+        setSearchValue,
+        setStateFilter,
+        setPriorityFilter,
+        handleSortClick,
+    } = useAssignedTicketQueueControls();
 
     const { data, isLoading, isError } = useAssignedTickets({
         page,
         state,
         priority,
         search: searchQuery,
+        sortBy,
+        sortOrder,
     });
 
     const stats = useMemo(() => {
@@ -76,21 +73,26 @@ export function AssignedTicketsList() {
             />
 
             <QueueFilterBar
-                searchValue={q}
-                onSearchChange={setQ}
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
                 state={state}
-                onStateChange={handleStateChange}
+                onStateChange={setStateFilter}
                 priority={priority}
-                onPriorityChange={handlePriorityChange}
+                onPriorityChange={setPriorityFilter}
                 metaRight={metaRight}
             />
 
-            <QueueTableHeader variant="assigned" />
+            <QueueTableHeader
+                variant="assigned"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSortClick={handleSortClick}
+            />
 
             <div className="space-y-3">
                 {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                        <QueueRowSkeleton key={i} showTicketNumber={false} />
+                        <QueueRowSkeleton key={i} />
                     ))
                 ) : isError ? (
                     <p className="rounded-2xl border border-error/30 bg-error/10 p-6 text-center text-error">
@@ -102,7 +104,7 @@ export function AssignedTicketsList() {
                     </p>
                 ) : (
                     data?.items?.map((ticket) => (
-                        <TicketQueueRow key={ticket.id} ticket={ticket} showTicketNumber={false} />
+                        <TicketQueueRow key={ticket.id} ticket={ticket} showTicketNumber />
                     ))
                 )}
             </div>

@@ -23,6 +23,10 @@ func (m *mockUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*do
 	return nil, nil
 }
 
+func (m *mockUserRepository) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.User, error) {
+	return map[uuid.UUID]*domain.User{}, nil
+}
+
 func (m *mockUserRepository) CreateUser(ctx context.Context, user domain.User) (*domain.User, error) {
 	return nil, nil
 }
@@ -52,7 +56,7 @@ type mockTicketRepository struct {
 	err           error
 }
 
-func (m *mockTicketRepository) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
+func (m *mockTicketRepository) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	return nil, nil
 }
 
@@ -60,11 +64,11 @@ func (m *mockTicketRepository) ListAllFiltered(ctx context.Context, params domai
 	return nil, nil
 }
 
-func (m *mockTicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (m *mockTicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	return nil, nil
 }
 
-func (m *mockTicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (m *mockTicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	return nil, nil
 }
 
@@ -93,6 +97,18 @@ func (m *mockTicketRepository) Update(ctx context.Context, ticket domain.Ticket)
 
 func (m *mockTicketRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
+}
+
+func (m *mockTicketRepository) CountTicketStatsAll(ctx context.Context, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	return domain.TicketListStats{}, nil
+}
+
+func (m *mockTicketRepository) CountTicketStatsByCreator(ctx context.Context, creatorID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	return domain.TicketListStats{}, nil
+}
+
+func (m *mockTicketRepository) CountTicketStatsByAssignee(ctx context.Context, assigneeID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	return domain.TicketListStats{}, nil
 }
 
 func TestFindBestAgentForTicket_Success(t *testing.T) {

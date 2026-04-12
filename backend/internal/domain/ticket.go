@@ -113,6 +113,53 @@ type Ticket struct {
 	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
 }
 
+// TicketListStats holds role-scoped ticket counts (dashboards / GET /ticket/stats).
+type TicketListStats struct {
+	Total    int32
+	Open     int32
+	Pending  int32
+	Resolved int32
+	Mine     int32
+}
+
+// Ticket list sort modes (passed to SQL; validated in HTTP layer).
+const (
+	TicketListSortIDAsc            int32 = 0
+	TicketListSortTicketNumberAsc  int32 = 1
+	TicketListSortTicketNumberDesc int32 = 2
+	TicketListSortCreatedAsc       int32 = 3
+	TicketListSortCreatedDesc      int32 = 4
+)
+
+// TicketListSortFromQuery maps ?sort=&order= to SortVal. Empty sort defaults to newest-first by created time.
+func TicketListSortFromQuery(sortField, order string) (int32, error) {
+	f := strings.ToLower(strings.TrimSpace(sortField))
+	o := strings.ToLower(strings.TrimSpace(order))
+	if f == "" {
+		return TicketListSortCreatedDesc, nil
+	}
+	if o == "" {
+		o = "desc"
+	}
+	if o != "asc" && o != "desc" {
+		return 0, fmt.Errorf("invalid order: use asc or desc")
+	}
+	switch f {
+	case "ticket_number":
+		if o == "asc" {
+			return TicketListSortTicketNumberAsc, nil
+		}
+		return TicketListSortTicketNumberDesc, nil
+	case "created_at":
+		if o == "asc" {
+			return TicketListSortCreatedAsc, nil
+		}
+		return TicketListSortCreatedDesc, nil
+	default:
+		return 0, fmt.Errorf("invalid sort: use ticket_number or created_at")
+	}
+}
+
 // ListAllTicketsByStatePriorityParams holds optional filters for listing tickets (unset/null fields are ignored).
 type ListAllTicketsByStatePriorityParams struct {
 	FilterState        sql.NullInt32
@@ -122,6 +169,7 @@ type ListAllTicketsByStatePriorityParams struct {
 	FilterTicketNumber sql.NullInt64
 	OffsetVal          int32
 	LimitVal           int32
+	SortVal            int32
 }
 
 var allowedTransitions = map[TicketState]map[TicketState]struct{}{

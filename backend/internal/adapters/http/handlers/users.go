@@ -181,6 +181,33 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, newUserResponse(user))
 }
 
+// @Summary		Update current user skills
+// @Description	Update the authenticated user's skills (partial profile update)
+// @Tags			Users
+// @Accept			json
+// @Produce		json
+// @Security		BearerAuth
+// @Param			request	body		object{skills=[]string}	true	"Skills list (validated against allowed values)"
+// @Success		200		{object}	UserResponse
+// @Failure		400		{object}	map[string]string
+// @Failure		401		{object}	map[string]string
+// @Router			/me [patch]
+func (h *Handler) PatchMe(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Skills []string `json:"skills"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		util.ErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+	user, err := h.userService.UpdateMySkills(r.Context(), body.Skills)
+	if err != nil {
+		writeHandlerError(w, err)
+		return
+	}
+	util.WriteResponse(w, http.StatusOK, newUserResponse(user))
+}
+
 // @Summary		Create new user
 // @Description	Register a new user account
 // @Tags			Authentication

@@ -9,7 +9,7 @@ import { useUser } from "@/app/user-context";
 
 export function Login() {
     const navigate = useNavigate();
-    const { setUser } = useUser();
+    const { primeMeCache } = useUser();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -21,7 +21,7 @@ export function Login() {
         setError("");
         const result = await login(email, password);
         if (result.success && result.user) {
-            setUser(result.user);
+            primeMeCache(result.user);
             navigate({ to: '/' });
         } else {
             setError("Invalid credentials");

@@ -34,6 +34,22 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain
 	return mapUser(user), nil
 }
 
+func (r *UserRepository) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.User, error) {
+	if len(ids) == 0 {
+		return map[uuid.UUID]*domain.User{}, nil
+	}
+	rows, err := r.store.GetUsersByIDs(ctx, ids)
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	out := make(map[uuid.UUID]*domain.User, len(rows))
+	for _, row := range rows {
+		u := mapUser(row)
+		out[u.ID] = u
+	}
+	return out, nil
+}
+
 func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) (*domain.User, error) {
 	created, err := r.store.CreateUser(ctx, sqlc.CreateUserParams{
 		FirstName:      user.FirstName,

@@ -16,7 +16,7 @@ import (
 )
 
 type ticketServiceMock struct {
-	listAllFn                    func(ctx context.Context, limit, offset int32) ([]domain.Ticket, error)
+	listAllFn                    func(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error)
 	listTicketsWithFiltersFn   func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
 	listAssignedToCurrentUserFn func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
 	listByCreatorFn           func(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
@@ -26,11 +26,12 @@ type ticketServiceMock struct {
 	createFn         func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	updateFn         func(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error)
 	deleteFn         func(ctx context.Context, id uuid.UUID) error
+	getTicketStatsFn func(ctx context.Context) (domain.TicketListStats, error)
 }
 
-func (m *ticketServiceMock) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
+func (m *ticketServiceMock) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	if m.listAllFn != nil {
-		return m.listAllFn(ctx, limit, offset)
+		return m.listAllFn(ctx, limit, offset, sortVal)
 	}
 	return nil, nil
 }
@@ -98,14 +99,23 @@ func (m *ticketServiceMock) DeleteTicket(ctx context.Context, id uuid.UUID) erro
 	return nil
 }
 
+func (m *ticketServiceMock) GetTicketStats(ctx context.Context) (domain.TicketListStats, error) {
+	if m.getTicketStatsFn != nil {
+		return m.getTicketStatsFn(ctx)
+	}
+	return domain.TicketListStats{}, nil
+}
+
 type userServiceMock struct {
 	getUserFn               func(ctx context.Context, email string) (*domain.User, error)
 	getUserByIDFn           func(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	getUsersByIDsFn         func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.User, error)
 	createUserFn            func(ctx context.Context, user domain.User) (*domain.User, error)
 	getAllUsersFn           func(ctx context.Context) ([]domain.User, error)
 	getAllUsersAssignmentFn func(ctx context.Context) ([]domain.User, error)
 	updateUserRoleFn        func(ctx context.Context, id uuid.UUID, role domain.UserRole) (*domain.User, error)
 	deleteUserFn            func(ctx context.Context, id uuid.UUID) error
+	updateMySkillsFn        func(ctx context.Context, skills []string) (*domain.User, error)
 }
 
 func (m *userServiceMock) GetUser(ctx context.Context, email string) (*domain.User, error) {
@@ -120,6 +130,21 @@ func (m *userServiceMock) GetUserByID(ctx context.Context, id uuid.UUID) (*domai
 		return m.getUserByIDFn(ctx, id)
 	}
 	return nil, nil
+}
+
+func (m *userServiceMock) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.User, error) {
+	if m.getUsersByIDsFn != nil {
+		return m.getUsersByIDsFn(ctx, ids)
+	}
+	out := make(map[uuid.UUID]*domain.User)
+	if m.getUserByIDFn != nil {
+		for _, id := range ids {
+			if u, err := m.getUserByIDFn(ctx, id); err == nil && u != nil {
+				out[id] = u
+			}
+		}
+	}
+	return out, nil
 }
 
 func (m *userServiceMock) CreateUser(ctx context.Context, user domain.User) (*domain.User, error) {
@@ -146,6 +171,13 @@ func (m *userServiceMock) GetAllUsersForAssignment(ctx context.Context) ([]domai
 func (m *userServiceMock) UpdateUserRole(ctx context.Context, id uuid.UUID, role domain.UserRole) (*domain.User, error) {
 	if m.updateUserRoleFn != nil {
 		return m.updateUserRoleFn(ctx, id, role)
+	}
+	return nil, nil
+}
+
+func (m *userServiceMock) UpdateMySkills(ctx context.Context, skills []string) (*domain.User, error) {
+	if m.updateMySkillsFn != nil {
+		return m.updateMySkillsFn(ctx, skills)
 	}
 	return nil, nil
 }
@@ -230,6 +262,25 @@ func TestUpdateTicket_InvalidPriority(t *testing.T) {
 	}
 }
 
+func TestUpdateTicket_NotFoundReturns404(t *testing.T) {
+	ticketID := uuid.New()
+	handler := newHandlerWithMocks(&ticketServiceMock{
+		getTicketFn: func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
+			return nil, apperrors.ErrNotFound
+		},
+	}, nil, nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/ticket/"+ticketID.String(), bytes.NewBufferString(`{"title":"x"}`))
+	req = addRouteParam(req, "id", ticketID.String())
+
+	rr := httptest.NewRecorder()
+	handler.UpdateTicket(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rr.Code)
+	}
+}
+
 func TestUpdateTicket_InvalidTransitionReturnsBadRequest(t *testing.T) {
 	ticketID := uuid.New()
 	handler := newHandlerWithMocks(&ticketServiceMock{
@@ -311,10 +362,10 @@ func TestGetTickets_WithFilterUsesListTicketsWithFilters(t *testing.T) {
 }
 
 func TestGetTickets_NoFilterUsesListAllWithPagination(t *testing.T) {
-	var gotLimit, gotOffset int32
+	var gotLimit, gotOffset, gotSort int32
 	handler := newHandlerWithMocks(&ticketServiceMock{
-		listAllFn: func(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
-			gotLimit, gotOffset = limit, offset
+		listAllFn: func(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
+			gotLimit, gotOffset, gotSort = limit, offset, sortVal
 			return nil, nil
 		},
 	}, &userServiceMock{}, nil)
@@ -330,6 +381,9 @@ func TestGetTickets_NoFilterUsesListAllWithPagination(t *testing.T) {
 	}
 	if gotLimit != 10 || gotOffset != 3 {
 		t.Fatalf("expected limit 10 offset 3, got limit=%d offset=%d", gotLimit, gotOffset)
+	}
+	if gotSort != domain.TicketListSortCreatedDesc {
+		t.Fatalf("expected default sort created_at desc (%d), got %d", domain.TicketListSortCreatedDesc, gotSort)
 	}
 }
 

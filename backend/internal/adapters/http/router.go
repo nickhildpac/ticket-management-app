@@ -63,6 +63,7 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 		// User routes (authenticated) - for getting user list for assignments
 		r.With(middlewares.AuthRequired(conf)).Get("/users", h.GetBasicUsers)
 		r.With(middlewares.AuthRequired(conf)).Get("/me", h.GetMe)
+		r.With(middlewares.AuthRequired(conf)).Patch("/me", h.PatchMe)
 
 		// Admin-only user management routes
 		r.Route("/admin/users", func(mux chi.Router) {

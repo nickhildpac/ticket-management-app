@@ -20,7 +20,7 @@ type ticketRepoStub struct {
 	listAllFilteredFn   func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
 }
 
-func (s *ticketRepoStub) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
+func (s *ticketRepoStub) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	return nil, nil
 }
 func (s *ticketRepoStub) ListAllFiltered(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
@@ -29,10 +29,10 @@ func (s *ticketRepoStub) ListAllFiltered(ctx context.Context, params domain.List
 	}
 	return nil, nil
 }
-func (s *ticketRepoStub) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (s *ticketRepoStub) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	return nil, nil
 }
-func (s *ticketRepoStub) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (s *ticketRepoStub) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	return nil, nil
 }
 func (s *ticketRepoStub) Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
@@ -58,6 +58,18 @@ func (s *ticketRepoStub) Update(ctx context.Context, ticket domain.Ticket) (*dom
 }
 func (s *ticketRepoStub) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
+}
+
+func (s *ticketRepoStub) CountTicketStatsAll(ctx context.Context, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	return domain.TicketListStats{}, nil
+}
+
+func (s *ticketRepoStub) CountTicketStatsByCreator(ctx context.Context, creatorID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	return domain.TicketListStats{}, nil
+}
+
+func (s *ticketRepoStub) CountTicketStatsByAssignee(ctx context.Context, assigneeID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	return domain.TicketListStats{}, nil
 }
 
 func adminCtx() context.Context {

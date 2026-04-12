@@ -1,9 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { Ticket, PaginatedResult, Comment, TicketStats } from '@/lib/types';
+import {
+    TICKET_LIST_PAGE_SIZE,
+    type TicketListSortField,
+    type TicketListSortOrder,
+} from './queue-state';
 
-/** Matches backend defaultTicketListLimit. */
-export const TICKET_LIST_PAGE_SIZE = 20;
+export { TICKET_LIST_PAGE_SIZE } from './queue-state';
 
 export type TicketListQueryInput = {
     state?: string;
@@ -12,6 +16,10 @@ export type TicketListQueryInput = {
     /** Search box: if purely numeric (optional leading #), sent as ticket_number */
     search?: string;
     limit?: number;
+    /** Matches GET ?sort= (default created_at) */
+    sortBy?: TicketListSortField;
+    /** Matches GET ?order= (default desc) */
+    sortOrder?: TicketListSortOrder;
 };
 
 function parseTicketNumberFromSearch(raw: string): string | undefined {
@@ -43,6 +51,11 @@ export function buildTicketListQueryParams(input: TicketListQueryInput): URLSear
         q.set('ticket_number', ticketNumber);
     }
 
+    const sortBy = input.sortBy ?? 'created_at';
+    const sortOrder = input.sortOrder ?? 'desc';
+    q.set('sort', sortBy);
+    q.set('order', sortOrder);
+
     return q;
 }
 
@@ -52,15 +65,27 @@ export const useTicketStats = () =>
         queryFn: () => api<TicketStats>('/api/v1/ticket/stats'),
     });
 
+function ticketListQueryKey(scope: 'list' | 'assigned', input: TicketListQueryInput) {
+    const page = Math.max(1, input.page ?? 1);
+    const state = input.state ?? 'all';
+    const priority = input.priority ?? 'all';
+    const search = input.search ?? '';
+    const sortBy = input.sortBy ?? 'created_at';
+    const sortOrder = input.sortOrder ?? 'desc';
+    const limit = input.limit ?? TICKET_LIST_PAGE_SIZE;
+    return ['tickets', scope, page, state, priority, search, sortBy, sortOrder, limit] as const;
+}
+
 export const useTickets = (params: TicketListQueryInput = {}) =>
     useQuery({
-        queryKey: ['tickets', 'list', params],
+        queryKey: ticketListQueryKey('list', params),
         queryFn: async () => {
             const queryParams = buildTicketListQueryParams(params);
             const limit = params.limit ?? TICKET_LIST_PAGE_SIZE;
             const page = Math.max(1, params.page ?? 1);
             const response = await api<Ticket[] | PaginatedResult<Ticket>>(
-                `/api/v1/ticket/all?${queryParams.toString()}`
+                `/api/v1/ticket/all?${queryParams.toString()}`,
+                { cache: 'no-store' }
             );
             if (Array.isArray(response)) {
                 return {
@@ -76,13 +101,14 @@ export const useTickets = (params: TicketListQueryInput = {}) =>
 
 export const useAssignedTickets = (params: TicketListQueryInput = {}) =>
     useQuery({
-        queryKey: ['tickets', 'assigned', params],
+        queryKey: ticketListQueryKey('assigned', params),
         queryFn: async () => {
             const queryParams = buildTicketListQueryParams(params);
             const limit = params.limit ?? TICKET_LIST_PAGE_SIZE;
             const page = Math.max(1, params.page ?? 1);
             const response = await api<Ticket[] | PaginatedResult<Ticket>>(
-                `/api/v1/ticket/assigned?${queryParams.toString()}`
+                `/api/v1/ticket/assigned?${queryParams.toString()}`,
+                { cache: 'no-store' }
             );
             if (Array.isArray(response)) {
                 return {

@@ -49,7 +49,7 @@ export function TicketForm() {
             title: "",
             description: "",
             skills: [],
-            priority: "medium",
+            priority: "low",
         },
     });
 

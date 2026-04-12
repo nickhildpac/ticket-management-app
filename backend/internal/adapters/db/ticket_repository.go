@@ -16,8 +16,8 @@ func NewTicketRepository(store sqlc.Store) *TicketRepository {
 	return &TicketRepository{store: store}
 }
 
-func (r *TicketRepository) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
-	rows, err := r.store.ListAllTickets(ctx, sqlc.ListAllTicketsParams{Limit: limit, Offset: offset})
+func (r *TicketRepository) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
+	rows, err := r.store.ListAllTickets(ctx, sqlc.ListAllTicketsParams{Limit: limit, Offset: offset, SortVal: sortVal})
 	if err != nil {
 		return nil, normalizeDBError(err)
 	}
@@ -31,6 +31,7 @@ func (r *TicketRepository) ListAllFiltered(ctx context.Context, params domain.Li
 		FilterCreatedBy:    params.FilterCreatedBy,
 		FilterAssignee:     params.FilterAssignee,
 		FilterTicketNumber: params.FilterTicketNumber,
+		SortVal:            params.SortVal,
 		OffsetVal:          params.OffsetVal,
 		LimitVal:           params.LimitVal,
 	})
@@ -40,13 +41,14 @@ func (r *TicketRepository) ListAllFiltered(ctx context.Context, params domain.Li
 	return mapTickets(rows), nil
 }
 
-func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {
 		return nil, normalizeDBError(err)
 	}
 	rows, err := r.store.ListTickets(ctx, sqlc.ListTicketsParams{
 		CreatedBy: user.ID,
+		SortVal:   sortVal,
 		Limit:     limit,
 		Offset:    offset,
 	})
@@ -56,15 +58,16 @@ func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limi
 	return mapTickets(rows), nil
 }
 
-func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {
 		return nil, normalizeDBError(err)
 	}
 	rows, err := r.store.ListTicketsAssigned(ctx, sqlc.ListTicketsAssignedParams{
-		Column1: []uuid.UUID{user.ID},
-		Limit:   limit,
-		Offset:  offset,
+		AssigneeIds: []uuid.UUID{user.ID},
+		SortVal:     sortVal,
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		return nil, normalizeDBError(err)
@@ -95,6 +98,7 @@ func (r *TicketRepository) Create(ctx context.Context, ticket domain.Ticket) (*d
 		CreatedBy:   ticket.CreatedBy,
 		UpdatedAt:   ticket.UpdatedAt,
 		Skills:      ticket.Skills.ToSlice(),
+		Priority:    int32(ticket.Priority),
 	})
 	if err != nil {
 		return nil, normalizeDBError(err)
@@ -129,4 +133,40 @@ func (r *TicketRepository) GetActiveTickets(ctx context.Context) ([]domain.Ticke
 		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
+}
+
+func (r *TicketRepository) CountTicketStatsAll(ctx context.Context, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	row, err := r.store.CountTicketStatsAll(ctx, []uuid.UUID{currentUserID})
+	if err != nil {
+		return domain.TicketListStats{}, normalizeDBError(err)
+	}
+	return domain.TicketListStats{
+		Total: row.Total, Open: row.Open, Pending: row.Pending, Resolved: row.Resolved, Mine: row.Mine,
+	}, nil
+}
+
+func (r *TicketRepository) CountTicketStatsByCreator(ctx context.Context, creatorID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	row, err := r.store.CountTicketStatsByCreator(ctx, sqlc.CountTicketStatsByCreatorParams{
+		CreatedBy: creatorID,
+		Column2:   []uuid.UUID{currentUserID},
+	})
+	if err != nil {
+		return domain.TicketListStats{}, normalizeDBError(err)
+	}
+	return domain.TicketListStats{
+		Total: row.Total, Open: row.Open, Pending: row.Pending, Resolved: row.Resolved, Mine: row.Mine,
+	}, nil
+}
+
+func (r *TicketRepository) CountTicketStatsByAssignee(ctx context.Context, assigneeID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	row, err := r.store.CountTicketStatsByAssignee(ctx, sqlc.CountTicketStatsByAssigneeParams{
+		Column1: []uuid.UUID{assigneeID},
+		Column2: []uuid.UUID{currentUserID},
+	})
+	if err != nil {
+		return domain.TicketListStats{}, normalizeDBError(err)
+	}
+	return domain.TicketListStats{
+		Total: row.Total, Open: row.Open, Pending: row.Pending, Resolved: row.Resolved, Mine: row.Mine,
+	}, nil
 }

@@ -14,6 +14,10 @@ INSERT INTO users (
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
+-- name: GetUsersByIDs :many
+SELECT * FROM users
+WHERE id = ANY($1::uuid[]);
+
 -- name: GetUserByEmail :one
 SELECT * FROM users
 WHERE email = $1 LIMIT 1;

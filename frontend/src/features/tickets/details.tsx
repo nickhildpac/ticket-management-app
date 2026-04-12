@@ -9,7 +9,6 @@ import { TicketDetailHeader } from "./components/ticket-detail-header";
 import { TicketActivityLedger } from "./components/ticket-activity-ledger";
 import { TicketCommentComposer } from "./components/ticket-comment-composer";
 import { TicketSidebarMetadata } from "./components/ticket-sidebar-metadata";
-import { TicketActionItemsLocal } from "./components/ticket-action-items-local";
 import { TicketRequestorCard } from "./components/ticket-requestor-card";
 import { TicketOperationsHub } from "./components/ticket-operations-hub";
 import type { Ticket } from "@/lib/types";
@@ -159,7 +158,6 @@ function TicketDetailBody({ ticket }: { ticket: Ticket }) {
                         setCancelDialogOpen={setCancelDialogOpen}
                         onCancelTicket={handleCancelTicket}
                     />
-                    <TicketActionItemsLocal ticketId={ticket.id} />
                     <TicketRequestorCard ticket={ticket} />
                     <TicketOperationsHub
                         nextStates={nextStates}

@@ -11,6 +11,9 @@ import (
 )
 
 type Querier interface {
+	CountTicketStatsAll(ctx context.Context, dollar_1 []uuid.UUID) (CountTicketStatsAllRow, error)
+	CountTicketStatsByAssignee(ctx context.Context, arg CountTicketStatsByAssigneeParams) (CountTicketStatsByAssigneeRow, error)
+	CountTicketStatsByCreator(ctx context.Context, arg CountTicketStatsByCreatorParams) (CountTicketStatsByCreatorRow, error)
 	CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error)
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
@@ -27,6 +30,7 @@ type Querier interface {
 	GetTicketsByCreator(ctx context.Context, createdBy uuid.UUID) ([]Ticket, error)
 	GetUser(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUsersByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]User, error)
 	ListAllTickets(ctx context.Context, arg ListAllTicketsParams) ([]Ticket, error)
 	// Optional filters: pass NULL for any sqlc.narg to skip that condition.
 	// filter_assignee: tickets where assigned_to contains this user id.

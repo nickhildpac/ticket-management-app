@@ -1,4 +1,5 @@
-import type { UserInfo } from "./user-context";
+import { queryClient } from "@/lib/query-client";
+import type { UserInfo } from "./user-types";
 
 let accessToken: string | null = null;
 
@@ -50,6 +51,13 @@ export const setAccessToken = (token: string | null) => {
 
 export const isAuthenticated = () => !!accessToken;
 
+/** Routes where a failed refresh must not hard-redirect (avoids loops; router guards handle protected routes). */
+export const AUTH_PUBLIC_PATHS = ["/login", "/signup"] as const;
+
+export function isAuthPublicPath(pathname: string): boolean {
+    return (AUTH_PUBLIC_PATHS as readonly string[]).includes(pathname);
+}
+
 export async function tryRefresh(): Promise<boolean> {
     try {
         // We assume the refresh token is in an httpOnly cookie
@@ -64,12 +72,15 @@ export async function tryRefresh(): Promise<boolean> {
 
         setAccessToken(data.access_token);
         setAuthUser(normalizeUserFromAuthPayload(data.user));
+        // Drop stale `me` so UI uses JWT user until /me refetches (avoids wrong profile after account switch).
+        queryClient.removeQueries({ queryKey: ["me"] });
 
         return true;
     } catch {
         clearAuthSession();
-        // Ideally we should redirect to login here or let the caller handle it
-        if (window.location.pathname !== "/login") {
+        queryClient.removeQueries({ queryKey: ["me"] });
+        const path = window.location.pathname;
+        if (!isAuthPublicPath(path)) {
             window.location.href = "/login";
         }
         return false;
@@ -111,7 +122,9 @@ export async function logout() {
         // Ignore error
     }
     clearAuthSession();
-    if (window.location.pathname !== "/login") {
+    queryClient.removeQueries({ queryKey: ["me"] });
+    const path = window.location.pathname;
+    if (!isAuthPublicPath(path)) {
         window.location.href = "/login";
     }
 }

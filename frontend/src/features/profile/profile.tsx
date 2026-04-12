@@ -1,12 +1,11 @@
 import { AppShell } from "@/app/shell";
 import { useUser } from "@/app/user-context";
-import { useMe } from "@/features/users/queries";
+import { useMe, useUpdateMySkills } from "@/features/users/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, User, Shield, Briefcase, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -16,20 +15,52 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { ValidSkillsList } from "@/lib/constants";
+import { getAuthUser, setAuthUser } from "@/app/auth";
+
+function skillsEqual(a: string[] | undefined, b: string[]): boolean {
+    const x = [...(a ?? [])].sort();
+    const y = [...b].sort();
+    return x.length === y.length && x.every((v, i) => v === y[i]);
+}
 
 export function Profile() {
-    const { user, setUser } = useUser();
+    const { user } = useUser();
     const { data: me, isLoading } = useMe();
+    const updateSkills = useUpdateMySkills();
     const [isEditing, setIsEditing] = useState(false);
+    const [draftSkills, setDraftSkills] = useState<string[]>([]);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-    // Sync context with backend data
-    useEffect(() => {
-        if (me) {
-            setUser(me);
+    const startEditing = useCallback(() => {
+        setSaveError(null);
+        setDraftSkills([...(user?.skills ?? [])]);
+        setIsEditing(true);
+    }, [user?.skills]);
+
+    const finishEditing = useCallback(async () => {
+        if (!user) return;
+        setSaveError(null);
+        const baseline = user.skills ?? [];
+        if (!skillsEqual(baseline, draftSkills)) {
+            try {
+                const updated = await updateSkills.mutateAsync(draftSkills);
+                const prev = getAuthUser();
+                if (prev) {
+                    setAuthUser({
+                        ...prev,
+                        ...updated,
+                        skills: updated.skills ?? [],
+                    });
+                }
+            } catch (e) {
+                setSaveError(e instanceof Error ? e.message : "Failed to save skills");
+                return;
+            }
         }
-    }, [me, setUser]);
+        setIsEditing(false);
+    }, [user, draftSkills, updateSkills]);
 
-    if (isLoading && !user) {
+    if (isLoading && !user && !me) {
         return (
             <AppShell>
                 <div className="space-y-4">
@@ -48,15 +79,13 @@ export function Profile() {
         );
     }
 
-    const userSkills = user.skills || [];
+    const displaySkills = isEditing ? draftSkills : (user.skills ?? []);
 
     const toggleSkill = (skill: string) => {
-        const newSkills = userSkills.includes(skill)
-            ? userSkills.filter((s: string) => s !== skill)
-            : [...userSkills, skill];
-
-        setUser({ ...user, skills: newSkills });
-        // Note: In a real app, we would also call an API here to persist the change
+        if (!isEditing) return;
+        setDraftSkills((prev) =>
+            prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
+        );
     };
 
     return (
@@ -67,9 +96,36 @@ export function Profile() {
                         <h1 className="text-3xl font-bold">Profile</h1>
                         <p className="text-muted-foreground">Your account information</p>
                     </div>
-                    <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>
-                        {isEditing ? "Done Editing" : "Edit Profile"}
-                    </Button>
+                    <div className="flex flex-col items-end gap-2">
+                        {isEditing ? (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSaveError(null);
+                                        setIsEditing(false);
+                                    }}
+                                    disabled={updateSkills.isPending}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="default"
+                                    onClick={() => void finishEditing()}
+                                    disabled={updateSkills.isPending}
+                                >
+                                    {updateSkills.isPending ? "Saving…" : "Save"}
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button variant="outline" onClick={startEditing}>
+                                Edit skills
+                            </Button>
+                        )}
+                        {saveError ? (
+                            <p className="text-sm text-destructive max-w-xs text-right">{saveError}</p>
+                        ) : null}
+                    </div>
                 </div>
 
                 <Card>
@@ -123,8 +179,8 @@ export function Profile() {
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline" className="w-full md:w-[300px] justify-between">
-                                            {userSkills.length > 0
-                                                ? `${userSkills.length} skills selected`
+                                            {displaySkills.length > 0
+                                                ? `${displaySkills.length} skills selected`
                                                 : "Select skills..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
@@ -133,7 +189,7 @@ export function Profile() {
                                         {ValidSkillsList.map((skill) => (
                                             <DropdownMenuCheckboxItem
                                                 key={skill}
-                                                checked={userSkills.includes(skill)}
+                                                checked={displaySkills.includes(skill)}
                                                 onCheckedChange={() => toggleSkill(skill)}
                                             >
                                                 {skill.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
@@ -143,8 +199,8 @@ export function Profile() {
                                 </DropdownMenu>
                             ) : (
                                 <div className="flex flex-wrap gap-2 mt-1">
-                                    {userSkills.length > 0 ? (
-                                        userSkills.map(skill => (
+                                    {displaySkills.length > 0 ? (
+                                        displaySkills.map(skill => (
                                             <Badge key={skill} variant="outline" className="capitalize">
                                                 {skill.replace(/-/g, ' ')}
                                             </Badge>
