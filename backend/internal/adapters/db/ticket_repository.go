@@ -16,42 +16,61 @@ func NewTicketRepository(store sqlc.Store) *TicketRepository {
 	return &TicketRepository{store: store}
 }
 
-func (r *TicketRepository) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
-	rows, err := r.store.ListAllTickets(ctx, sqlc.ListAllTicketsParams{Limit: limit, Offset: offset})
+func (r *TicketRepository) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
+	rows, err := r.store.ListAllTickets(ctx, sqlc.ListAllTicketsParams{Limit: limit, Offset: offset, SortVal: sortVal})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
 }
 
-func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (r *TicketRepository) ListAllFiltered(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+	rows, err := r.store.ListAllTicketsByStatePriority(ctx, sqlc.ListAllTicketsByStatePriorityParams{
+		FilterState:        params.FilterState,
+		FilterPriority:     params.FilterPriority,
+		FilterCreatedBy:    params.FilterCreatedBy,
+		FilterAssignee:     params.FilterAssignee,
+		FilterTicketNumber: params.FilterTicketNumber,
+		SortVal:            params.SortVal,
+		OffsetVal:          params.OffsetVal,
+		LimitVal:           params.LimitVal,
+	})
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	return mapTickets(rows), nil
+}
+
+func (r *TicketRepository) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	rows, err := r.store.ListTickets(ctx, sqlc.ListTicketsParams{
 		CreatedBy: user.ID,
+		SortVal:   sortVal,
 		Limit:     limit,
 		Offset:    offset,
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
 }
 
-func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
+func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	user, err := r.store.GetUser(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	rows, err := r.store.ListTicketsAssigned(ctx, sqlc.ListTicketsAssignedParams{
-		Column1: []uuid.UUID{user.ID},
-		Limit:   limit,
-		Offset:  offset,
+		AssigneeIds: []uuid.UUID{user.ID},
+		SortVal:     sortVal,
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTickets(rows), nil
 }
@@ -59,7 +78,15 @@ func (r *TicketRepository) ListByAssignee(ctx context.Context, id uuid.UUID, lim
 func (r *TicketRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
 	ticket, err := r.store.GetTicket(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
+	}
+	return mapTicket(ticket), nil
+}
+
+func (r *TicketRepository) GetByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
+	ticket, err := r.store.GetTicketByNumber(ctx, ticketNumber)
+	if err != nil {
+		return nil, normalizeDBError(err)
 	}
 	return mapTicket(ticket), nil
 }
@@ -70,9 +97,11 @@ func (r *TicketRepository) Create(ctx context.Context, ticket domain.Ticket) (*d
 		Description: ticket.Description,
 		CreatedBy:   ticket.CreatedBy,
 		UpdatedAt:   ticket.UpdatedAt,
+		Skills:      ticket.Skills.ToSlice(),
+		Priority:    int32(ticket.Priority),
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTicket(created), nil
 }
@@ -86,13 +115,58 @@ func (r *TicketRepository) Update(ctx context.Context, ticket domain.Ticket) (*d
 		Priority:    int32(ticket.Priority),
 		AssignedTo:  ticket.AssignedTo,
 		UpdatedAt:   ticket.UpdatedAt,
+		Skills:      ticket.Skills.ToSlice(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapTicket(updated), nil
 }
 
 func (r *TicketRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.store.DeleteTicket(ctx, id)
+	return normalizeDBError(r.store.DeleteTicket(ctx, id))
+}
+
+func (r *TicketRepository) GetActiveTickets(ctx context.Context) ([]domain.Ticket, error) {
+	rows, err := r.store.GetActiveTickets(ctx)
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	return mapTickets(rows), nil
+}
+
+func (r *TicketRepository) CountTicketStatsAll(ctx context.Context, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	row, err := r.store.CountTicketStatsAll(ctx, []uuid.UUID{currentUserID})
+	if err != nil {
+		return domain.TicketListStats{}, normalizeDBError(err)
+	}
+	return domain.TicketListStats{
+		Total: row.Total, Open: row.Open, Pending: row.Pending, Resolved: row.Resolved, Mine: row.Mine,
+	}, nil
+}
+
+func (r *TicketRepository) CountTicketStatsByCreator(ctx context.Context, creatorID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	row, err := r.store.CountTicketStatsByCreator(ctx, sqlc.CountTicketStatsByCreatorParams{
+		CreatedBy: creatorID,
+		Column2:   []uuid.UUID{currentUserID},
+	})
+	if err != nil {
+		return domain.TicketListStats{}, normalizeDBError(err)
+	}
+	return domain.TicketListStats{
+		Total: row.Total, Open: row.Open, Pending: row.Pending, Resolved: row.Resolved, Mine: row.Mine,
+	}, nil
+}
+
+func (r *TicketRepository) CountTicketStatsByAssignee(ctx context.Context, assigneeID, currentUserID uuid.UUID) (domain.TicketListStats, error) {
+	row, err := r.store.CountTicketStatsByAssignee(ctx, sqlc.CountTicketStatsByAssigneeParams{
+		Column1: []uuid.UUID{assigneeID},
+		Column2: []uuid.UUID{currentUserID},
+	})
+	if err != nil {
+		return domain.TicketListStats{}, normalizeDBError(err)
+	}
+	return domain.TicketListStats{
+		Total: row.Total, Open: row.Open, Pending: row.Pending, Resolved: row.Resolved, Mine: row.Mine,
+	}, nil
 }

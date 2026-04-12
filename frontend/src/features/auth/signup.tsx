@@ -11,13 +11,18 @@ export function Signup() {
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
         setError("");
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+        setLoading(true);
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/user`, {
                 method: "POST",
@@ -48,14 +53,18 @@ export function Signup() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-muted/50">
-            <Card className="w-full max-w-sm">
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8 font-body">
+            <Card className="w-full max-w-sm border-outline-variant/40 bg-surface-container-low">
                 <CardHeader>
-                    <CardTitle className="text-xl">Sign Up</CardTitle>
+                    <CardTitle className="font-headline text-xl text-on-surface">Sign Up</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSignup} className="grid gap-4">
-                        {error && <div className="text-red-500 text-sm text-center font-medium bg-red-100 p-2 rounded">{error}</div>}
+                        {error && (
+                            <div className="rounded-lg border border-error/30 bg-error/10 p-2 text-center text-sm font-medium text-error">
+                                {error}
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label htmlFor="firstName">First Name</Label>
                             <Input
@@ -93,8 +102,20 @@ export function Signup() {
                                 id="password"
                                 type="password"
                                 required
+                                autoComplete="new-password"
                                 value={password}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="confirmPassword">Confirm password</Label>
+                            <Input
+                                id="confirmPassword"
+                                type="password"
+                                required
+                                autoComplete="new-password"
+                                value={confirmPassword}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                             />
                         </div>
                         <Button type="submit" className="w-full" disabled={loading}>

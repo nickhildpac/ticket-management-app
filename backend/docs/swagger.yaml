@@ -1,0 +1,1038 @@
+basePath: /api/v1
+definitions:
+  domain.UserRole:
+    enum:
+    - user
+    - agent
+    - admin
+    type: string
+    x-enum-varnames:
+    - RoleUser
+    - RoleAgent
+    - RoleAdmin
+  handlers.AssignmentUserResponse:
+    properties:
+      email:
+        example: john.doe@example.com
+        format: email
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/domain.UserRole'
+        example: agent
+    type: object
+  handlers.CommentResponse:
+    properties:
+      created_at:
+        example: "2025-01-22T12:00:00Z"
+        format: date-time
+        type: string
+      created_by:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      creator:
+        $ref: '#/definitions/handlers.UserInfo'
+      description:
+        example: I'm working on this issue
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      ticket_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+    type: object
+  handlers.TicketResponse:
+    properties:
+      assigned_to:
+        example:
+        - 550e8400-e29b-41d4-a716-446655440000
+        items:
+          type: string
+        type: array
+      created_at:
+        example: "2025-01-22T10:30:00Z"
+        format: date-time
+        type: string
+      created_by:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      creator:
+        $ref: '#/definitions/handlers.UserInfo'
+      description:
+        example: Users cannot login with SSO
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      priority:
+        example: high
+        type: string
+      skills:
+        example:
+        - golang
+        - postgresql
+        items:
+          type: string
+        type: array
+      state:
+        example: open
+        type: string
+      ticket_number:
+        example: 1001
+        type: integer
+      title:
+        example: Fix login bug
+        type: string
+      updated_at:
+        example: "2025-01-22T11:45:00Z"
+        format: date-time
+        type: string
+    type: object
+  handlers.TicketStats:
+    properties:
+      mine:
+        type: integer
+      open:
+        type: integer
+      pending:
+        type: integer
+      resolved:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handlers.TicketSummaryResponse:
+    properties:
+      created_at:
+        example: "2025-01-22T10:30:00Z"
+        format: date-time
+        type: string
+      created_by:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      creator:
+        $ref: '#/definitions/handlers.UserInfo'
+      description:
+        example: Users cannot login with SSO
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      priority:
+        example: high
+        type: string
+      state:
+        example: open
+        type: string
+      ticket_number:
+        example: 1001
+        type: integer
+      title:
+        example: Fix login bug
+        type: string
+      updated_at:
+        example: "2025-01-22T11:45:00Z"
+        format: date-time
+        type: string
+    type: object
+  handlers.UserInfo:
+    properties:
+      email:
+        example: john.doe@example.com
+        format: email
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      last_name:
+        example: Doe
+        type: string
+    type: object
+  handlers.UserResponse:
+    properties:
+      created_at:
+        example: "2025-01-22T10:30:00Z"
+        format: date-time
+        type: string
+      email:
+        example: john.doe@example.com
+        format: email
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/domain.UserRole'
+        example: agent
+      skills:
+        example:
+        - incident-management
+        - log-analysis
+        items:
+          type: string
+        type: array
+      updated_at:
+        example: "2025-01-22T11:45:00Z"
+        format: date-time
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Complete API documentation for the ticket management system
+  title: Ticket Management System API
+  version: "1.0"
+paths:
+  /admin/users/{id}:
+    delete:
+      description: Delete a user account (admin only)
+      parameters:
+      - description: User UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - Admin
+  /admin/users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      description: Update a user's role (admin only)
+      parameters:
+      - description: User UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New role (user, agent, admin)
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            role:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user role
+      tags:
+      - Admin
+  /comment:
+    post:
+      consumes:
+      - application/json
+      description: Add a new comment to a ticket
+      parameters:
+      - description: Comment details
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            description:
+              type: string
+            ticket_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handlers.CommentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create comment
+      tags:
+      - Comments
+  /comment/{id}:
+    get:
+      description: Retrieve a specific comment
+      parameters:
+      - description: Comment UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CommentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get comment by ID
+      tags:
+      - Comments
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              access_token:
+                type: string
+              user:
+                properties:
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  id:
+                    type: string
+                  last_name:
+                    type: string
+                  role:
+                    type: string
+                type: object
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login user
+      tags:
+      - Authentication
+  /logout:
+    get:
+      description: Clear refresh token cookie
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+      summary: Logout user
+      tags:
+      - Authentication
+  /me:
+    get:
+      description: Get profile of authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Users
+  /refresh:
+    get:
+      consumes:
+      - application/json
+      description: Get new access token using refresh token from cookie
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              access_token:
+                type: string
+              user:
+                properties:
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  id:
+                    type: string
+                  last_name:
+                    type: string
+                  role:
+                    type: string
+                type: object
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Refresh access token
+      tags:
+      - Authentication
+  /ticket:
+    post:
+      consumes:
+      - application/json
+      description: Create a new ticket (accessible to all authenticated users)
+      parameters:
+      - description: Ticket creation details
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            description:
+              type: string
+            skills:
+              items:
+                type: string
+              type: array
+            title:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handlers.TicketSummaryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create new ticket
+      tags:
+      - Tickets
+  /ticket/{id}:
+    delete:
+      description: Permanently delete a ticket (admin/agent only for tickets not created
+        by them)
+      parameters:
+      - description: Ticket UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete ticket
+      tags:
+      - Tickets
+    get:
+      description: Retrieve full details of a specific ticket
+      parameters:
+      - description: Ticket UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TicketResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get ticket by ID
+      tags:
+      - Tickets
+    patch:
+      consumes:
+      - application/json
+      description: 'Partially update ticket fields. Valid state transitions: open→pending/cancelled,
+        pending→open/resolved/cancelled, resolved→open/pending/closed/cancelled'
+      parameters:
+      - description: Ticket UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        schema:
+          properties:
+            assigned_to:
+              items:
+                type: string
+              type: array
+            description:
+              type: string
+            priority:
+              type: string
+            skills:
+              items:
+                type: string
+              type: array
+            state:
+              type: string
+            title:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TicketSummaryResponse'
+        "400":
+          description: Invalid state transition or invalid priority
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update ticket
+      tags:
+      - Tickets
+  /ticket/{id}/comments:
+    get:
+      description: Retrieve all comments for a specific ticket
+      parameters:
+      - description: Ticket UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.CommentResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get ticket comments
+      tags:
+      - Comments
+  /ticket/all:
+    get:
+      description: 'Retrieve a list of tickets. Without filter query parameters, listing
+        follows role rules (admin: all, agent: assigned, user: created). With any
+        of state, priority, created_by, assignee, assigned_to, or ticket_number, filters
+        are applied with the same role scoping (non-admins cannot widen scope via
+        query params).'
+      parameters:
+      - description: Page size (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by state (e.g. open, pending)
+        in: query
+        name: state
+        type: string
+      - description: Filter by priority (critical, high, medium, low)
+        in: query
+        name: priority
+        type: string
+      - description: Filter by creator user UUID (admin only; standard users are scoped
+          to self)
+        in: query
+        name: created_by
+        type: string
+      - description: Filter by assignee user UUID (admin or matching agent)
+        in: query
+        name: assignee
+        type: string
+      - description: Alias for assignee
+        in: query
+        name: assigned_to
+        type: string
+      - description: Filter by ticket number
+        in: query
+        name: ticket_number
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.TicketSummaryResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all tickets
+      tags:
+      - Tickets
+  /ticket/assigned:
+    get:
+      description: Retrieve tickets assigned to the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.TicketSummaryResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get assigned tickets
+      tags:
+      - Tickets
+  /ticket/number/{number}:
+    get:
+      description: Retrieve ticket by its ticket number
+      parameters:
+      - description: Ticket Number
+        in: path
+        name: number
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TicketResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get ticket by number
+      tags:
+      - Tickets
+  /ticket/stats:
+    get:
+      description: Get ticket statistics based on user role (admin/agent see all,
+        users see own)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TicketStats'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get ticket statistics
+      tags:
+      - Tickets
+  /user:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+            password:
+              type: string
+            skills:
+              items:
+                type: string
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create new user
+      tags:
+      - Authentication
+  /users:
+    get:
+      description: Get list of users with basic info for ticket assignment
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.AssignmentUserResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get users for assignment
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

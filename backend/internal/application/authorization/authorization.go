@@ -80,7 +80,12 @@ func CanUpdateTicketState(auth AuthContext, ticket *domain.Ticket) bool {
 	case domain.RoleAgent:
 		return isUserInList(auth.UserID, ticket.AssignedTo)
 	case domain.RoleUser:
-		return false
+		// Regular users can only close or cancel tickets they created.
+		// Domain transition rules still enforce which from->to transitions are valid.
+		if ticket.CreatedBy != auth.UserID {
+			return false
+		}
+		return ticket.State == domain.TicketStateClosed || ticket.State == domain.TicketStateCancelled
 	default:
 		return false
 	}

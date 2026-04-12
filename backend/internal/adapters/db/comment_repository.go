@@ -24,7 +24,7 @@ func (r *CommentRepository) ListByTicket(ctx context.Context, ticketID uuid.UUID
 		Limit:    limit,
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapComments(rows), nil
 }
@@ -32,7 +32,7 @@ func (r *CommentRepository) ListByTicket(ctx context.Context, ticketID uuid.UUID
 func (r *CommentRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Comment, error) {
 	comment, err := r.store.GetComment(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapComment(comment), nil
 }
@@ -45,7 +45,7 @@ func (r *CommentRepository) Create(ctx context.Context, comment domain.Comment) 
 		UpdatedAt:   comment.UpdatedAt,
 	})
 	if err != nil {
-		return nil, err
+		return nil, normalizeDBError(err)
 	}
 	return mapComment(created), nil
 }

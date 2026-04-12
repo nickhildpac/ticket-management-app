@@ -1,47 +1,62 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import type { ReactNode } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getAccessToken, getAuthUser, setAuthUser } from "@/app/auth";
+import type { UserInfo } from "@/app/user-types";
+import { useMe } from "@/features/users/queries";
 
-export interface UserInfo {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    role: string;
-    created_at: string;
-    updated_at?: string;
-}
+export type { UserInfo } from "@/app/user-types";
 
 interface UserContextType {
+    /** Current user: `GET /me` when available, otherwise JWT/bootstrap user while authenticated. */
     user: UserInfo | null;
-    setUser: (user: UserInfo | null) => void;
+    /** Seed the `me` query cache after login (auth module is already updated by `login()`). */
+    primeMeCache: (user: UserInfo) => void;
+    /** Clear profile cache and auth user (e.g. future use); prefer `logout()` for session teardown. */
     clearUser: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<UserInfo | null>(() => {
-        // Load user from localStorage on mount
-        const stored = localStorage.getItem("user");
-        return stored ? JSON.parse(stored) : null;
-    });
+    const qc = useQueryClient();
+    const { data: me } = useMe();
 
-    useEffect(() => {
-        // Save user to localStorage whenever it changes
-        if (user) {
-            localStorage.setItem("user", JSON.stringify(user));
-        } else {
-            localStorage.removeItem("user");
+    const hasToken = !!getAccessToken();
+    const user = useMemo(() => {
+        if (me) return me;
+        if (hasToken) {
+            const fromAuth = getAuthUser();
+            if (fromAuth) return fromAuth;
         }
+        return null;
+    }, [me, hasToken]);
+
+    useLayoutEffect(() => {
+        setAuthUser(user);
     }, [user]);
 
-    const clearUser = () => setUser(null);
-
-    return (
-        <UserContext.Provider value={{ user, setUser, clearUser }}>
-            {children}
-        </UserContext.Provider>
+    const primeMeCache = useCallback(
+        (info: UserInfo) => {
+            qc.setQueryData(["me"], info);
+        },
+        [qc]
     );
+
+    const clearUser = useCallback(() => {
+        qc.removeQueries({ queryKey: ["me"] });
+        setAuthUser(null);
+    }, [qc]);
+
+    const value = useMemo(
+        () => ({
+            user,
+            primeMeCache,
+            clearUser,
+        }),
+        [user, primeMeCache, clearUser]
+    );
+
+    return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
 export function useUser() {

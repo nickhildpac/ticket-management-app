@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -19,10 +20,11 @@ INSERT INTO users (
     first_name,
     last_name,
     email,
-    updated_at
+    updated_at,
+    skills
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING id, hashed_password, first_name, last_name, email, role, updated_at, created_at
+    $1, $2, $3, $4, $5, $6
+) RETURNING id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills
 `
 
 type CreateUserParams struct {
@@ -31,6 +33,7 @@ type CreateUserParams struct {
 	LastName       string    `json:"last_name"`
 	Email          string    `json:"email"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	Skills         []string  `json:"skills"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -40,6 +43,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.LastName,
 		arg.Email,
 		arg.UpdatedAt,
+		pq.Array(arg.Skills),
 	)
 	var i User
 	err := row.Scan(
@@ -51,6 +55,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Role,
 		&i.UpdatedAt,
 		&i.CreatedAt,
+		pq.Array(&i.Skills),
 	)
 	return i, err
 }
@@ -63,6 +68,45 @@ WHERE id = $1
 func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
+}
+
+const getAllAgents = `-- name: GetAllAgents :many
+SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills FROM users
+WHERE role = 'agent'
+ORDER BY created_at
+`
+
+func (q *Queries) GetAllAgents(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllAgents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.HashedPassword,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Role,
+			&i.UpdatedAt,
+			&i.CreatedAt,
+			pq.Array(&i.Skills),
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
@@ -106,7 +150,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at FROM users
+SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -122,12 +166,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Role,
 		&i.UpdatedAt,
 		&i.CreatedAt,
+		pq.Array(&i.Skills),
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at FROM users
+SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -143,12 +188,51 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Role,
 		&i.UpdatedAt,
 		&i.CreatedAt,
+		pq.Array(&i.Skills),
 	)
 	return i, err
 }
 
+const getUsersByIDs = `-- name: GetUsersByIDs :many
+SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills FROM users
+WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) GetUsersByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersByIDs, pq.Array(dollar_1))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.HashedPassword,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Role,
+			&i.UpdatedAt,
+			&i.CreatedAt,
+			pq.Array(&i.Skills),
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
-SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at FROM users
+SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills FROM users
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
 `
@@ -176,6 +260,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.Role,
 			&i.UpdatedAt,
 			&i.CreatedAt,
+			pq.Array(&i.Skills),
 		); err != nil {
 			return nil, err
 		}
@@ -192,9 +277,9 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
-SET email = $2, first_name = $3, last_name = $4, role = $5, updated_at = $6
+SET email = $2, first_name = $3, last_name = $4, role = $5, updated_at = $6, skills = $7
 WHERE id = $1
-RETURNING id, hashed_password, first_name, last_name, email, role, updated_at, created_at
+RETURNING id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills
 `
 
 type UpdateUserParams struct {
@@ -204,6 +289,7 @@ type UpdateUserParams struct {
 	LastName  string         `json:"last_name"`
 	Role      sql.NullString `json:"role"`
 	UpdatedAt time.Time      `json:"updated_at"`
+	Skills    []string       `json:"skills"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
@@ -214,6 +300,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.LastName,
 		arg.Role,
 		arg.UpdatedAt,
+		pq.Array(arg.Skills),
 	)
 	var i User
 	err := row.Scan(
@@ -225,6 +312,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Role,
 		&i.UpdatedAt,
 		&i.CreatedAt,
+		pq.Array(&i.Skills),
 	)
 	return i, err
 }

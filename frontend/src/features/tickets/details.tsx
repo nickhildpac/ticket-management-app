@@ -1,361 +1,204 @@
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/app/shell";
 import { useParams } from "@tanstack/react-router";
 import { useTicket, useUpdateTicket } from "./queries";
 import { useUsersForAssignment } from "@/features/admin/queries";
 import { useUser } from "@/app/user-context";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TicketDetailHeader } from "./components/ticket-detail-header";
+import { TicketActivityLedger } from "./components/ticket-activity-ledger";
+import { TicketCommentComposer } from "./components/ticket-comment-composer";
+import { TicketSidebarMetadata } from "./components/ticket-sidebar-metadata";
+import { TicketRequestorCard } from "./components/ticket-requestor-card";
+import { TicketOperationsHub } from "./components/ticket-operations-hub";
+import type { Ticket } from "@/lib/types";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { CommentsSection } from "./components/comments";
-import { useState, useEffect } from "react";
-import { Loader2, X } from "lucide-react";
+    filterStatesForEndUser,
+    getValidNextStates,
+    normalizeTicketState,
+    type ApiTicketState,
+} from "@/lib/ticket-transitions";
 
-export function TicketDetails() {
-    const params = useParams({ strict: false });
-    const id = params.id as string;
+function TicketDetailBody({ ticket }: { ticket: Ticket }) {
     const { user } = useUser();
-    const { data: ticket, isLoading } = useTicket(id);
     const { data: users } = useUsersForAssignment();
     const updateTicket = useUpdateTicket();
+    const composerRef = useRef<HTMLTextAreaElement>(null);
 
     const isAdmin = user?.role === "admin";
-    const isCreator = user?.id === ticket?.created_by;
-    const canCancel = isCreator && ticket?.state !== 'cancelled' && ticket?.state !== 'closed';
+    const isAgent = user?.role === "agent";
+    const isCreator = user?.id === ticket.created_by;
+    const isAssignee = !!(user?.id && ticket.assigned_to?.includes(user.id));
+    const normState = normalizeTicketState(ticket.state);
+    const canCancel = isCreator && normState !== "cancelled" && normState !== "closed";
 
-    // Local state for editable fields
-    const [description, setDescription] = useState("");
-    const [assignedTo, setAssignedTo] = useState<string[]>([]);
-    const [state, setState] = useState("");
-    const [priority, setPriority] = useState("");
-    const [hasChanges, setHasChanges] = useState(false);
+    const [assignedTo, setAssignedTo] = useState(() => ticket.assigned_to || []);
+    const [skills, setSkills] = useState(() => ticket.skills || []);
+    const [state, setState] = useState<string>(() => normalizeTicketState(ticket.state));
+    const [priority, setPriority] = useState(() => String(ticket.priority));
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
-    // Initialize local state when ticket data loads
-    useEffect(() => {
-        if (ticket) {
-            setDescription(ticket.description);
-            setAssignedTo(ticket.assigned_to || []);
-            setState(String(ticket.state));
-            setPriority(String(ticket.priority));
-        }
-    }, [ticket]);
-
-    // Track changes
-    useEffect(() => {
-        if (ticket) {
-            const descChanged = description !== ticket.description;
-            const assigneeChanged = JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || []);
-            const stateChanged = state !== ticket.state;
-            const priorityChanged = priority !== ticket.priority;
-            setHasChanges(descChanged || assigneeChanged || stateChanged || priorityChanged);
-        }
-    }, [description, assignedTo, state, priority, ticket]);
+    const hasChanges = useMemo(() => {
+        const assigneeChanged =
+            JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || []);
+        const stateChanged = state !== normalizeTicketState(ticket.state);
+        const priorityChanged = priority !== String(ticket.priority);
+        const skillsChanged = JSON.stringify(skills) !== JSON.stringify(ticket.skills || []);
+        return assigneeChanged || stateChanged || priorityChanged || skillsChanged;
+    }, [assignedTo, state, priority, skills, ticket]);
 
     const handleUpdate = () => {
-        if (!ticket || !hasChanges) return;
-
-        const patch: any = {};
-        if (description !== ticket.description) patch.description = description;
-        if (JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || [])) patch.assigned_to = assignedTo;
-        if (state !== ticket.state) patch.state = state;
-        if (priority !== ticket.priority) patch.priority = priority;
+        if (!hasChanges) return;
+        const patch: Partial<Ticket> = {};
+        if (JSON.stringify(assignedTo) !== JSON.stringify(ticket.assigned_to || [])) {
+            patch.assigned_to = assignedTo;
+        }
+        if (state !== String(ticket.state)) patch.state = state as Ticket["state"];
+        if (priority !== String(ticket.priority)) patch.priority = priority as Ticket["priority"];
+        if (JSON.stringify(skills) !== JSON.stringify(ticket.skills || [])) patch.skills = skills;
 
         updateTicket.mutate(
             { id: ticket.id, patch },
             {
                 onSuccess: () => {
-                    setHasChanges(false);
-                }
+                    /* key bump from updated_at resets local draft */
+                },
             }
         );
-    };
-
-    const handleAddAssignee = (userId: string) => {
-        if (!assignedTo.includes(userId)) {
-            setAssignedTo([...assignedTo, userId]);
-        }
-    };
-
-    const handleRemoveAssignee = (userId: string) => {
-        setAssignedTo(assignedTo.filter(id => id !== userId));
     };
 
     const handleCancelTicket = () => {
-        if (!ticket) return;
         updateTicket.mutate(
-            { id: ticket.id, patch: { state: 'cancelled' } },
+            { id: ticket.id, patch: { state: "cancelled" } },
             {
                 onSuccess: () => {
                     setCancelDialogOpen(false);
-                    setHasChanges(false);
-                }
+                },
             }
         );
     };
 
-    if (isLoading) return <AppShell><div className="space-y-4"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-[200px] w-full" /></div></AppShell>;
-    if (!ticket) return <AppShell><div>Ticket not found</div></AppShell>;
+    const nextStatesRaw = getValidNextStates(ticket.state);
+    const nextStates: ApiTicketState[] =
+        isAdmin || (isAgent && isAssignee)
+            ? nextStatesRaw
+            : user?.role === "user" && isCreator
+              ? filterStatesForEndUser(nextStatesRaw)
+              : [];
+
+    const requestTransition = useCallback(
+        (target: ApiTicketState) => {
+            if (target === "cancelled") {
+                setCancelDialogOpen(true);
+                return;
+            }
+            updateTicket.mutate({ id: ticket.id, patch: { state: target } });
+        },
+        [ticket.id, updateTicket]
+    );
+
+    const scrollToComposer = () => {
+        composerRef.current?.focus();
+        composerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
+    const scrollToTransfer = () => {
+        document.getElementById("ticket-assign-section")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
+    };
+
+    const saveError =
+        updateTicket.isError && updateTicket.error
+            ? (updateTicket.error as Error).message
+            : null;
+
+    return (
+        <div className="mx-auto max-w-7xl">
+            <TicketDetailHeader
+                ticket={ticket}
+                onReply={scrollToComposer}
+                onTransition={requestTransition}
+            />
+
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+                <div className="space-y-6 lg:col-span-8">
+                    <div className="rounded-xl border border-outline-variant/5 bg-surface-container-low p-6">
+                        <h3 className="mb-3 text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-outline">
+                            Description
+                        </h3>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-on-surface-variant">
+                            {ticket.description}
+                        </p>
+                    </div>
+                    <TicketActivityLedger ticket={ticket} />
+                    <TicketCommentComposer ref={composerRef} ticketId={ticket.id} />
+                </div>
+
+                <div className="space-y-6 lg:col-span-4">
+                    <TicketSidebarMetadata
+                        ticket={ticket}
+                        users={users}
+                        isAdmin={isAdmin}
+                        assignedTo={assignedTo}
+                        setAssignedTo={setAssignedTo}
+                        skills={skills}
+                        setSkills={setSkills}
+                        state={state}
+                        setState={setState}
+                        priority={priority}
+                        setPriority={setPriority}
+                        hasChanges={hasChanges}
+                        onSave={handleUpdate}
+                        savePending={updateTicket.isPending}
+                        saveError={saveError}
+                        canCancel={canCancel}
+                        cancelDialogOpen={cancelDialogOpen}
+                        setCancelDialogOpen={setCancelDialogOpen}
+                        onCancelTicket={handleCancelTicket}
+                    />
+                    <TicketRequestorCard ticket={ticket} />
+                    <TicketOperationsHub
+                        nextStates={nextStates}
+                        isAdmin={isAdmin}
+                        onSelectTransition={requestTransition}
+                        onScrollToTransfer={scrollToTransfer}
+                        updateError={saveError}
+                        updatePending={updateTicket.isPending}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function TicketDetails() {
+    const params = useParams({ strict: false });
+    const id = params.id as string;
+    const { data: ticket, isLoading } = useTicket(id);
+
+    if (isLoading) {
+        return (
+            <AppShell>
+                <div className="mx-auto max-w-7xl space-y-4">
+                    <Skeleton className="h-10 w-2/3 bg-surface-container-highest" />
+                    <Skeleton className="h-[240px] w-full bg-surface-container-highest" />
+                </div>
+            </AppShell>
+        );
+    }
+    if (!ticket) {
+        return (
+            <AppShell>
+                <p className="text-on-surface-variant">Ticket not found</p>
+            </AppShell>
+        );
+    }
 
     return (
         <AppShell>
-            <div className="flex flex-col gap-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <h1 className="text-2xl font-bold">{ticket.title}</h1>
-                            {isAdmin ? (
-                                <Badge variant={state === 'open' ? 'default' : 'secondary'}>{state}</Badge>
-                            ) : (
-                                <Badge variant={ticket.state === 'open' ? 'default' : 'secondary'}>{ticket.state}</Badge>
-                            )}
-                        </div>
-                        <div className="text-muted-foreground text-sm">
-                            Created by {ticket.creator ? `${ticket.creator.first_name} ${ticket.creator.last_name}` : ticket.created_by} on {new Date(ticket.created_at).toLocaleString()}
-                        </div>
-                    </div>
-                    {isAdmin && (
-                        <div className="flex items-center gap-3">
-                            <Select value={state} onValueChange={setState}>
-                                <SelectTrigger className="w-[140px]">
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="open">Open</SelectItem>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="resolved">Resolved</SelectItem>
-                                    <SelectItem value="closed">Closed</SelectItem>
-                                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select value={priority} onValueChange={setPriority}>
-                                <SelectTrigger className="w-[140px]">
-                                    <SelectValue placeholder="Priority" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="low">Low</SelectItem>
-                                    <SelectItem value="medium">Medium</SelectItem>
-                                    <SelectItem value="high">High</SelectItem>
-                                    <SelectItem value="critical">Critical</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                </div>
-
-                {/* Content */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2 space-y-6">
-                        <Card>
-                            <CardHeader><CardTitle>Description</CardTitle></CardHeader>
-                            <CardContent>
-                                <Textarea
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="min-h-[150px] font-mono text-sm"
-                                    placeholder="Enter description..."
-                                />
-                            </CardContent>
-                        </Card>
-
-                        <Tabs defaultValue="activity">
-                            <TabsList>
-                                <TabsTrigger value="activity">Activity</TabsTrigger>
-                                <TabsTrigger value="comments">Comments</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="activity">
-                                <div className="p-4 text-center text-muted-foreground border rounded-md">Activity Log functionality not implemented yet.</div>
-                            </TabsContent>
-                            <TabsContent value="comments">
-                                <CommentsSection ticketId={ticket.id} />
-                            </TabsContent>
-                        </Tabs>
-                    </div>
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
-                            <CardContent className="space-y-4 text-sm">
-                                <div className="space-y-2">
-                                    <label className="text-muted-foreground text-xs">Assigned To</label>
-                                    {isAdmin ? (
-                                        <>
-                                            {/* Selected users chips */}
-                                            {assignedTo.length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mb-2">
-                                                    {assignedTo.map((userId) => {
-                                                        const assignedUser = users?.find(u => u.id === userId);
-                                                        return (
-                                                            <Badge
-                                                                key={userId}
-                                                                variant="secondary"
-                                                                className="gap-1 pr-1"
-                                                            >
-                                                                <span>
-                                                                    {assignedUser
-                                                                        ? `${assignedUser.first_name} ${assignedUser.last_name}`
-                                                                        : "Unknown"}
-                                                                </span>
-                                                                <button
-                                                                    onClick={() => handleRemoveAssignee(userId)}
-                                                                    className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                                                                >
-                                                                    <X className="h-3 w-3" />
-                                                                </button>
-                                                            </Badge>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                            {/* Dropdown to add users */}
-                                            <Select onValueChange={handleAddAssignee}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Add assignee..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {users
-                                                        ?.filter(u => !assignedTo.includes(u.id))
-                                                        .map((user) => (
-                                                            <SelectItem key={user.id} value={user.id}>
-                                                                {user.first_name} {user.last_name} ({user.email}) - {user.role}
-                                                            </SelectItem>
-                                                        ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </>
-                                    ) : (
-                                        <div className="space-y-1">
-                                            {(ticket.assigned_to && ticket.assigned_to.length > 0) ? (
-                                                ticket.assigned_to.map((userId) => {
-                                                    const assignedUser = users?.find(u => u.id === userId);
-                                                    return (
-                                                        <Badge key={userId} variant="secondary">
-                                                            {assignedUser
-                                                                ? `${assignedUser.first_name} ${assignedUser.last_name}`
-                                                                : "Unknown"}
-                                                        </Badge>
-                                                    );
-                                                })
-                                            ) : (
-                                                <span className="text-muted-foreground">Unassigned</span>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <span className="text-muted-foreground">Priority</span>
-                                    {isAdmin ? (
-                                        <Select value={priority} onValueChange={setPriority}>
-                                            <SelectTrigger className="h-8">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="low">Low</SelectItem>
-                                                <SelectItem value="medium">Medium</SelectItem>
-                                                <SelectItem value="high">High</SelectItem>
-                                                <SelectItem value="critical">Critical</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <span className="font-medium text-right capitalize">{ticket.priority}</span>
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <span className="text-muted-foreground">State</span>
-                                    {isAdmin ? (
-                                        <Select value={state} onValueChange={setState}>
-                                            <SelectTrigger className="h-8">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="open">Open</SelectItem>
-                                                <SelectItem value="pending">Pending</SelectItem>
-                                                <SelectItem value="resolved">Resolved</SelectItem>
-                                                <SelectItem value="closed">Closed</SelectItem>
-                                                <SelectItem value="cancelled">Cancelled</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <span className="font-medium text-right capitalize">{ticket.state}</span>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader><CardTitle className="text-base">Actions</CardTitle></CardHeader>
-                            <CardContent className="space-y-3">
-                                <Button
-                                    onClick={handleUpdate}
-                                    disabled={!hasChanges || updateTicket.isPending}
-                                    className="w-full"
-                                >
-                                    {updateTicket.isPending ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Updating...
-                                        </>
-                                    ) : (
-                                        "Update Ticket"
-                                    )}
-                                </Button>
-
-                                {canCancel && (
-                                    <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="destructive" className="w-full">
-                                                Cancel Ticket
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Cancel Ticket</DialogTitle>
-                                                <DialogDescription>
-                                                    Are you sure you want to cancel this ticket? This action cannot be undone.
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <DialogFooter>
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() => setCancelDialogOpen(false)}
-                                                >
-                                                    No, go back
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    onClick={handleCancelTicket}
-                                                    disabled={updateTicket.isPending}
-                                                >
-                                                    {updateTicket.isPending ? (
-                                                        <>
-                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                            Cancelling...
-                                                        </>
-                                                    ) : (
-                                                        "Yes, cancel ticket"
-                                                    )}
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-            </div>
+            <TicketDetailBody key={`${ticket.id}-${ticket.updated_at}`} ticket={ticket} />
         </AppShell>
     );
 }

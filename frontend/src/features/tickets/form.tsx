@@ -15,11 +15,26 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { ValidSkillsList } from "@/lib/constants";
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { ChevronsUpDown, X } from "lucide-react";
+
+const priorityValues = ["low", "medium", "high", "critical"] as const;
 
 const ticketSchema = z.object({
     title: z.string().min(3, "Title must be at least 3 characters"),
     description: z.string().min(10, "Description must be at least 10 characters"),
+    skills: z.array(z.string()),
+    priority: z.enum(priorityValues),
 });
 
 type TicketFormValues = z.infer<typeof ticketSchema>;
@@ -33,6 +48,8 @@ export function TicketForm() {
         defaultValues: {
             title: "",
             description: "",
+            skills: [],
+            priority: "low",
         },
     });
 
@@ -85,7 +102,89 @@ export function TicketForm() {
                                     )}
                                 />
 
-                                <div className="flex justify-end gap-2">
+                                <FormField
+                                    control={form.control}
+                                    name="priority"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Priority</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select priority" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="low">Low</SelectItem>
+                                                    <SelectItem value="medium">Medium</SelectItem>
+                                                    <SelectItem value="high">High</SelectItem>
+                                                    <SelectItem value="critical">Critical</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="skills"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Required Skills</FormLabel>
+                                            <div className="space-y-2">
+                                                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 border rounded-md bg-muted/20">
+                                                    {field.value?.length > 0 ? (
+                                                        field.value.map((skill) => (
+                                                            <Badge key={skill} variant="secondary" className="gap-1 pr-1">
+                                                                {skill.replace(/-/g, ' ')}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        field.onChange(field.value.filter((s: string) => s !== skill));
+                                                                    }}
+                                                                    className="hover:bg-slate-200 rounded-full p-0.5"
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </button>
+                                                            </Badge>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground italic p-1">No skills selected</span>
+                                                    )}
+                                                </div>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="outline" type="button" className="w-full justify-between">
+                                                            Select skills...
+                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                                                        {ValidSkillsList.map((skill) => (
+                                                            <DropdownMenuCheckboxItem
+                                                                key={skill}
+                                                                checked={field.value?.includes(skill)}
+                                                                onCheckedChange={(checked) => {
+                                                                    if (checked) {
+                                                                        field.onChange([...(field.value || []), skill]);
+                                                                    } else {
+                                                                        field.onChange(field.value?.filter((s: string) => s !== skill));
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {skill.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                                            </DropdownMenuCheckboxItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <div className="flex justify-end gap-2 pt-4">
                                     <Button variant="outline" type="button" onClick={() => navigate({ to: '/tickets' })}>Cancel</Button>
                                     <Button type="submit" disabled={createTicket.isPending}>
                                         {createTicket.isPending ? "Creating..." : "Create Ticket"}

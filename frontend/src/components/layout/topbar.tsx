@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -7,15 +7,28 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Ticket } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { logout } from "@/app/auth";
 import { useUser } from "@/app/user-context";
+import { MaterialSymbol } from "@/components/material-symbol";
+import { MobileNavTrigger } from "@/components/layout/mobile-nav";
+import { cn } from "@/lib/utils";
+
+function tabClass(active: boolean) {
+    return cn(
+        "flex h-16 items-center border-b-2 pb-1 text-sm transition-all",
+        active
+            ? "border-primary font-semibold text-primary"
+            : "border-transparent font-medium text-on-surface-variant hover:text-on-surface"
+    );
+}
 
 export function Topbar() {
     const { user } = useUser();
+    const pathname = useRouterState({ select: (s) => s.location.pathname });
+    const isAdmin = user?.role === "admin";
+    const isAgent = user?.role === "agent";
 
-    // Get user initials (first letter of first name and last name)
     const getInitials = () => {
         if (!user) return "?";
         const firstInitial = user.first_name?.charAt(0).toUpperCase() || "";
@@ -23,43 +36,86 @@ export function Topbar() {
         return `${firstInitial}${lastInitial}` || "?";
     };
 
+    const ticketsActive =
+        pathname === "/tickets" || (pathname.startsWith("/tickets/") && !pathname.startsWith("/tickets/all") && !pathname.startsWith("/tickets/assigned") && !pathname.startsWith("/tickets/new"));
+    const assignedActive = pathname.startsWith("/tickets/assigned");
+
     return (
-        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-            <div className="flex h-14 items-center gap-4 px-6">
-                <Link to="/" className="flex items-center gap-2 font-semibold text-lg">
-                    <Ticket className="h-6 w-6" />
-                    <span>Ticket management system</span>
-                </Link>
-                <div className="ml-auto flex items-center gap-4">
-                    <div className="relative hidden md:block">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-outline-variant bg-surface-container-lowest/80 shadow-sm backdrop-blur-xl lg:left-64">
+            <div className="flex h-full w-full items-center justify-between gap-4 px-4 sm:px-8">
+                <div className="flex min-w-0 flex-1 items-center gap-4 lg:gap-8">
+                    <MobileNavTrigger />
+                    <div className="relative hidden min-w-0 flex-1 group md:block lg:max-w-md">
+                        <MaterialSymbol
+                            name="search"
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-on-surface-variant group-focus-within:text-primary"
+                        />
                         <Input
                             type="search"
-                            placeholder="Search..."
-                            className="w-64 pl-8"
+                            placeholder="Search tickets, users, or IDs..."
+                            className="h-9 w-full min-w-0 rounded-full border-0 bg-surface-container pl-10 pr-4 text-on-surface shadow-none placeholder:text-on-surface-variant/50 focus-visible:ring-2 focus-visible:ring-primary/20 md:w-80"
                         />
                     </div>
-                    <Button asChild size="sm">
-                        <Link to="/tickets/new">
-                            <Plus className="mr-2 h-4 w-4" /> New Ticket
+                    <nav className="hidden items-center gap-6 lg:flex">
+                        <Link to="/tickets" className={tabClass(ticketsActive)}>
+                            All tickets
                         </Link>
+                        {(isAgent || isAdmin) && (
+                            <Link to="/tickets/assigned" className={tabClass(assignedActive)}>
+                                Assigned
+                            </Link>
+                        )}
+                    </nav>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="hidden rounded-full text-on-surface-variant hover:bg-primary/10 hover:text-primary sm:inline-flex"
+                        aria-label="Notifications"
+                    >
+                        <MaterialSymbol name="notifications" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="hidden rounded-full text-on-surface-variant hover:bg-primary/10 hover:text-primary sm:inline-flex"
+                        aria-label="History"
+                    >
+                        <MaterialSymbol name="history" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="hidden rounded-full text-on-surface-variant hover:bg-primary/10 hover:text-primary md:inline-flex"
+                        aria-label="Help"
+                    >
+                        <MaterialSymbol name="help_outline" />
                     </Button>
                     <ThemeToggle />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90">
-                                <span className="text-sm font-semibold">{getInitials()}</span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="ml-1 h-8 w-8 shrink-0 rounded-full border border-outline-variant bg-surface-container p-0 hover:bg-surface-container-high"
+                            >
+                                <span className="text-xs font-semibold text-primary">{getInitials()}</span>
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-[200px]">
                             <DropdownMenuItem asChild>
                                 <Link to="/profile" className="cursor-pointer">
-                                    <Ticket className="mr-2 h-4 w-4" />
+                                    <MaterialSymbol name="person" className="mr-2 !text-lg" />
                                     View profile
                                 </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={logout} className="cursor-pointer">
-                                <Ticket className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={() => logout()} className="cursor-pointer">
+                                <MaterialSymbol name="logout" className="mr-2 !text-lg" />
                                 Logout
                             </DropdownMenuItem>
                         </DropdownMenuContent>

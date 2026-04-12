@@ -12,14 +12,18 @@ import (
 )
 
 type TicketService struct {
-	repo ports.TicketRepository
+	repo              ports.TicketRepository
+	autoAssignmentSvc *AutoAssignmentService
 }
 
-func NewTicketService(repo ports.TicketRepository) *TicketService {
-	return &TicketService{repo: repo}
+func NewTicketService(repo ports.TicketRepository, autoAssignmentSvc *AutoAssignmentService) *TicketService {
+	return &TicketService{
+		repo:              repo,
+		autoAssignmentSvc: autoAssignmentSvc,
+	}
 }
 
-func (s *TicketService) ListAll(ctx context.Context, limit, offset int32) ([]domain.Ticket, error) {
+func (s *TicketService) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
 	auth, err := authorization.GetAuthContext(ctx)
 	if err != nil {
 		return nil, err
@@ -27,20 +31,71 @@ func (s *TicketService) ListAll(ctx context.Context, limit, offset int32) ([]dom
 
 	// Admins can see all tickets
 	if auth.Role == domain.RoleAdmin {
-		return s.repo.ListAll(ctx, limit, offset)
+		return s.repo.ListAll(ctx, limit, offset, sortVal)
 	}
 
 	// Users can only see their own tickets
 	if auth.Role == domain.RoleUser {
-		return s.repo.ListByCreator(ctx, auth.UserID, limit, offset)
+		return s.repo.ListByCreator(ctx, auth.UserID, limit, offset, sortVal)
 	}
 
 	// Agents can only see assigned tickets
 	if auth.Role == domain.RoleAgent {
-		return s.repo.ListByAssignee(ctx, auth.UserID, limit, offset)
+		return s.repo.ListByAssignee(ctx, auth.UserID, limit, offset, sortVal)
 	}
 
 	return nil, authorization.ErrAccessDenied
+}
+
+// ListTicketsWithFilters lists tickets using SQL filters. Role rules:
+//   - Admin: all filter fields honored.
+//   - Agent: scoped to tickets assigned to the current user; rejects created_by or a different assignee filter.
+//   - User: scoped to tickets created by the current user; rejects assignee or a different created_by filter.
+func (s *TicketService) ListTicketsWithFilters(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	p := params
+
+	switch auth.Role {
+	case domain.RoleAdmin:
+		return s.repo.ListAllFiltered(ctx, p)
+	case domain.RoleAgent:
+		if p.FilterCreatedBy.Valid {
+			return nil, authorization.ErrAccessDenied
+		}
+		if p.FilterAssignee.Valid && p.FilterAssignee.UUID != auth.UserID {
+			return nil, authorization.ErrAccessDenied
+		}
+		p.FilterAssignee = uuid.NullUUID{UUID: auth.UserID, Valid: true}
+		return s.repo.ListAllFiltered(ctx, p)
+	case domain.RoleUser:
+		if p.FilterAssignee.Valid {
+			return nil, authorization.ErrAccessDenied
+		}
+		if p.FilterCreatedBy.Valid && p.FilterCreatedBy.UUID != auth.UserID {
+			return nil, authorization.ErrAccessDenied
+		}
+		p.FilterCreatedBy = uuid.NullUUID{UUID: auth.UserID, Valid: true}
+		return s.repo.ListAllFiltered(ctx, p)
+	default:
+		return nil, authorization.ErrAccessDenied
+	}
+}
+
+// ListAssignedToCurrentUser returns tickets where assigned_to contains the authenticated user,
+// with optional state/priority/ticket_number and pagination. Strips creator filter; overwrites assignee with the current user.
+func (s *TicketService) ListAssignedToCurrentUser(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p := params
+	p.FilterCreatedBy = uuid.NullUUID{}
+	p.FilterAssignee = uuid.NullUUID{UUID: auth.UserID, Valid: true}
+	return s.repo.ListAllFiltered(ctx, p)
 }
 
 func (s *TicketService) ListByCreator(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
@@ -54,7 +109,7 @@ func (s *TicketService) ListByCreator(ctx context.Context, id uuid.UUID, limit, 
 		return nil, authorization.ErrAccessDenied
 	}
 
-	return s.repo.ListByCreator(ctx, id, limit, offset)
+	return s.repo.ListByCreator(ctx, id, limit, offset, domain.TicketListSortCreatedDesc)
 }
 
 func (s *TicketService) ListByAssignee(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error) {
@@ -68,7 +123,7 @@ func (s *TicketService) ListByAssignee(ctx context.Context, id uuid.UUID, limit,
 		return nil, authorization.ErrAccessDenied
 	}
 
-	return s.repo.ListByAssignee(ctx, id, limit, offset)
+	return s.repo.ListByAssignee(ctx, id, limit, offset, domain.TicketListSortCreatedDesc)
 }
 
 func (s *TicketService) GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
@@ -89,11 +144,79 @@ func (s *TicketService) GetTicket(ctx context.Context, id uuid.UUID) (*domain.Ti
 	return ticket, nil
 }
 
+func (s *TicketService) GetTicketByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ticket, err := s.repo.GetByNumber(ctx, ticketNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	if !authorization.CanViewTicket(auth, ticket) {
+		return nil, authorization.ErrAccessDenied
+	}
+
+	return ticket, nil
+}
+
+// GetTicketStats returns aggregate counts scoped like ListAll (admin: all tickets, user: created by self, agent: assigned to self).
+func (s *TicketService) GetTicketStats(ctx context.Context) (domain.TicketListStats, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return domain.TicketListStats{}, err
+	}
+
+	switch auth.Role {
+	case domain.RoleAdmin:
+		return s.repo.CountTicketStatsAll(ctx, auth.UserID)
+	case domain.RoleUser:
+		return s.repo.CountTicketStatsByCreator(ctx, auth.UserID, auth.UserID)
+	case domain.RoleAgent:
+		return s.repo.CountTicketStatsByAssignee(ctx, auth.UserID, auth.UserID)
+	default:
+		return domain.TicketListStats{}, authorization.ErrAccessDenied
+	}
+}
+
 func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	ticket.State = domain.TicketStateOpen
-	ticket.Priority = domain.TicketPriorityLow
+	if ticket.Priority == 0 {
+		ticket.Priority = domain.TicketPriorityLow
+	}
 	ticket.UpdatedAt = time.Now()
-	return s.repo.Create(ctx, ticket)
+
+	// Create ticket first
+	createdTicket, err := s.repo.Create(ctx, ticket)
+	if err != nil {
+		return nil, err
+	}
+
+	// Auto-assign if ticket has skills
+	if len(createdTicket.Skills.ToSlice()) > 0 && s.autoAssignmentSvc != nil {
+		bestAgent, err := s.autoAssignmentSvc.FindBestAgentForTicket(ctx, createdTicket)
+		if err != nil {
+			log.Printf("Auto-assignment failed: %v", err)
+			// Continue with unassigned ticket
+		} else if bestAgent != nil {
+			// Persist assignment on a copy and only return it if the write succeeds.
+			assignedTicket := *createdTicket
+			assignedTicket.AssignedTo = []uuid.UUID{bestAgent.ID}
+			assignedTicket.State = domain.TicketStatePending
+			assignedTicket.UpdatedAt = time.Now()
+
+			updatedTicket, updateErr := s.repo.Update(ctx, assignedTicket)
+			if updateErr != nil {
+				log.Printf("Failed to update ticket with assignment: %v", updateErr)
+			} else {
+				createdTicket = updatedTicket
+			}
+		}
+	}
+
+	return createdTicket, nil
 }
 
 func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error) {
@@ -116,7 +239,9 @@ func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket, 
 	for _, field := range updatedFields {
 		switch field {
 		case "state":
-			if !authorization.CanUpdateTicketState(auth, prev) {
+			// Pass the updated/new ticket state so state-level authorization can
+			// enforce allowed target states (e.g., user may close/cancel).
+			if !authorization.CanUpdateTicketState(auth, &ticket) {
 				return nil, authorization.ErrAccessDenied
 			}
 		case "priority":

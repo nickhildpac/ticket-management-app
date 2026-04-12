@@ -18,14 +18,16 @@ export interface UserInfo {
 
 export interface Ticket {
     id: string;
+    ticket_number: number;
     title: string;
     description: string;
-    state: TicketStateValue | 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled';
+    state: TicketStateValue | 'open' | 'pending' | 'in progress' | 'resolved' | 'closed' | 'cancelled';
     priority: TicketPriorityValue | 'low' | 'medium' | 'high' | 'critical';
     assigned_to: string[];
     created_by: string;
     creator?: UserInfo;
     category?: string;
+    skills: string[];
     created_at: string;
     updated_at: string;
 }
@@ -54,16 +56,20 @@ export interface PaginatedResult<T> {
     pageSize: number;
 }
 
-// Backend returns state as integer: 1=open, 2=pending, 3=resolved, 4=closed, 5=cancelled
-export type TicketStateValue = 1 | 2 | 3 | 4 | 5;
+// Backend domain (internal/domain/ticket.go): 1=open, 2=pending, 3=in progress, 4=resolved, 5=closed, 6=cancelled
+export type TicketStateValue = 1 | 2 | 3 | 4 | 5 | 6;
 export type TicketPriorityValue = 1 | 2 | 3 | 4; // 1=critical, 2=high, 3=medium, 4=low
 
-export const ticketStateMap: Record<TicketStateValue, 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled'> = {
+export const ticketStateMap: Record<
+    TicketStateValue,
+    'open' | 'pending' | 'in progress' | 'resolved' | 'closed' | 'cancelled'
+> = {
     1: 'open',
     2: 'pending',
-    3: 'resolved',
-    4: 'closed',
-    5: 'cancelled',
+    3: 'in progress',
+    4: 'resolved',
+    5: 'closed',
+    6: 'cancelled',
 };
 
 export const ticketPriorityMap: Record<TicketPriorityValue, 'critical' | 'high' | 'medium' | 'low'> = {
@@ -73,7 +79,9 @@ export const ticketPriorityMap: Record<TicketPriorityValue, 'critical' | 'high' 
     4: 'low',
 };
 
-export function getTicketStateString(state: number): 'open' | 'pending' | 'resolved' | 'closed' | 'cancelled' {
+export function getTicketStateString(
+    state: number
+): 'open' | 'pending' | 'in progress' | 'resolved' | 'closed' | 'cancelled' {
     return ticketStateMap[state as TicketStateValue] || 'open';
 }
 

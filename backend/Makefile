@@ -14,10 +14,13 @@ migratedown1:
 	migrate -path migrations -database "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -verbose down 1
 sqlc:
 	sqlc generate
+swag:
+	@echo "Generating Swagger docs..."
+	@swag init -g cmd/api/main.go
 test:
 	go test -v -cover ./...
 server:
 	go run cmd/api/main.go
 seeddata:
 	psql "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -f migrations/000004_seed_data.up.sql
-.PHONY: postgres createdb dropdb migrateup migratedown sqlc test server seeddata
+.PHONY: postgres createdb dropdb migrateup migratedown sqlc swag test server seeddata

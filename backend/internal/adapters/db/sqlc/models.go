@@ -21,15 +21,17 @@ type Comment struct {
 }
 
 type Ticket struct {
-	ID          uuid.UUID   `json:"id"`
-	CreatedBy   uuid.UUID   `json:"created_by"`
-	AssignedTo  []uuid.UUID `json:"assigned_to"`
-	Title       string      `json:"title"`
-	Description string      `json:"description"`
-	State       int32       `json:"state"`
-	Priority    int32       `json:"priority"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	ID           uuid.UUID   `json:"id"`
+	CreatedBy    uuid.UUID   `json:"created_by"`
+	AssignedTo   []uuid.UUID `json:"assigned_to"`
+	Title        string      `json:"title"`
+	Description  string      `json:"description"`
+	State        int32       `json:"state"`
+	Priority     int32       `json:"priority"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+	TicketNumber int64       `json:"ticket_number"`
+	Skills       []string    `json:"skills"`
 }
 
 type User struct {
@@ -41,4 +43,5 @@ type User struct {
 	Role           sql.NullString `json:"role"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	CreatedAt      time.Time      `json:"created_at"`
+	Skills         []string       `json:"skills"`
 }

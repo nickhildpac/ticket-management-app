@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nickhildpac/ticket-management-app/internal/application/apperrors"
 	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/internal/ports"
@@ -28,6 +29,29 @@ func (s *UserService) GetUser(ctx context.Context, email string) (*domain.User, 
 
 func (s *UserService) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	return s.repo.GetUserByID(ctx, id)
+}
+
+func (s *UserService) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.User, error) {
+	return s.repo.GetUsersByIDs(ctx, ids)
+}
+
+// UpdateMySkills updates the authenticated user's skills (self-service profile).
+func (s *UserService) UpdateMySkills(ctx context.Context, skills []string) (*domain.User, error) {
+	auth, err := authorization.GetAuthContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sk, err := domain.NewSkills(skills)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", apperrors.ErrBadRequest, err)
+	}
+	user, err := s.repo.GetUserByID(ctx, auth.UserID)
+	if err != nil {
+		return nil, err
+	}
+	user.Skills = *sk
+	user.UpdatedAt = time.Now()
+	return s.repo.UpdateUser(ctx, user)
 }
 
 func (s *UserService) CreateUser(ctx context.Context, u domain.User) (*domain.User, error) {
@@ -92,7 +116,7 @@ func (s *UserService) DeleteUser(ctx context.Context, id uuid.UUID) error {
 
 	// Prevent self-deletion
 	if auth.UserID == id {
-		return errors.New("cannot delete your own account")
+		return fmt.Errorf("%w: cannot delete your own account", apperrors.ErrBadRequest)
 	}
 
 	return s.repo.DeleteUser(ctx, id)
