@@ -61,7 +61,7 @@ export function isAuthPublicPath(pathname: string): boolean {
 export async function tryRefresh(): Promise<boolean> {
     try {
         // We assume the refresh token is in an httpOnly cookie
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/refresh`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/refresh`, {
             method: "GET",
             credentials: "include",
         });
@@ -89,7 +89,7 @@ export async function tryRefresh(): Promise<boolean> {
 
 export async function login(email: string, password: string): Promise<{ success: boolean; user?: UserInfo }> {
     try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/login`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -114,7 +114,7 @@ export async function login(email: string, password: string): Promise<{ success:
 
 export async function logout() {
     try {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/v1/logout`, {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/logout`, {
             method: "GET",
             credentials: "include",
         });

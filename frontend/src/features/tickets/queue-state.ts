@@ -38,7 +38,7 @@ const validStates = new Set([
     "all",
     "open",
     "pending",
-    "in progress",
+    "in_progress",
     "resolved",
     "closed",
     "cancelled",

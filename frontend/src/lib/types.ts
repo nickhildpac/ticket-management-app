@@ -1,3 +1,8 @@
+import {
+    TICKET_STATE_NUMBER_TO_WIRE,
+    type ApiTicketState,
+} from "@/lib/ticket-state-contract.generated";
+
 export type Role = 'user' | 'agent' | 'admin';
 
 export interface User {
@@ -21,7 +26,7 @@ export interface Ticket {
     ticket_number: number;
     title: string;
     description: string;
-    state: TicketStateValue | 'open' | 'pending' | 'in progress' | 'resolved' | 'closed' | 'cancelled';
+    state: TicketStateValue | ApiTicketState;
     priority: TicketPriorityValue | 'low' | 'medium' | 'high' | 'critical';
     assigned_to: string[];
     created_by: string;
@@ -56,21 +61,14 @@ export interface PaginatedResult<T> {
     pageSize: number;
 }
 
-// Backend domain (internal/domain/ticket.go): 1=open, 2=pending, 3=in progress, 4=resolved, 5=closed, 6=cancelled
-export type TicketStateValue = 1 | 2 | 3 | 4 | 5 | 6;
+export type TicketStateValue = keyof typeof TICKET_STATE_NUMBER_TO_WIRE extends infer K
+    ? K extends `${infer N extends number}`
+        ? N
+        : never
+    : never;
 export type TicketPriorityValue = 1 | 2 | 3 | 4; // 1=critical, 2=high, 3=medium, 4=low
 
-export const ticketStateMap: Record<
-    TicketStateValue,
-    'open' | 'pending' | 'in progress' | 'resolved' | 'closed' | 'cancelled'
-> = {
-    1: 'open',
-    2: 'pending',
-    3: 'in progress',
-    4: 'resolved',
-    5: 'closed',
-    6: 'cancelled',
-};
+export const ticketStateMap = TICKET_STATE_NUMBER_TO_WIRE as unknown as Record<TicketStateValue, ApiTicketState>;
 
 export const ticketPriorityMap: Record<TicketPriorityValue, 'critical' | 'high' | 'medium' | 'low'> = {
     1: 'critical',
@@ -81,7 +79,7 @@ export const ticketPriorityMap: Record<TicketPriorityValue, 'critical' | 'high' 
 
 export function getTicketStateString(
     state: number
-): 'open' | 'pending' | 'in progress' | 'resolved' | 'closed' | 'cancelled' {
+): ApiTicketState {
     return ticketStateMap[state as TicketStateValue] || 'open';
 }
 

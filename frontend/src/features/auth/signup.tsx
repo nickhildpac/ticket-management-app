@@ -24,7 +24,7 @@ export function Signup() {
         }
         setLoading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/user`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/users`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -36,8 +36,18 @@ export function Signup() {
             });
 
             if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "Signup failed");
+                const errorText = await res.text();
+                if (!errorText) {
+                    throw new Error("Signup failed");
+                }
+                let errorMessage = errorText;
+                try {
+                    const errorData = JSON.parse(errorText) as { message?: string; error?: string };
+                    errorMessage = errorData.message || errorData.error || "Signup failed";
+                } catch {
+                    // Keep the raw response text when the server does not return JSON.
+                }
+                throw new Error(errorMessage);
             }
 
             navigate({ to: '/login' });

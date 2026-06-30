@@ -67,7 +67,7 @@ type QueueFilterBarProps = {
     onSearchChange: (v: string) => void;
     state: string;
     onStateChange: (v: string) => void;
-    /** When set with onPriorityChange, shows priority filter (GET /ticket/all only). */
+    /** When set with onPriorityChange, shows priority filter (GET /tickets only). */
     priority?: string;
     onPriorityChange?: (v: string) => void;
     metaRight?: string;
@@ -108,7 +108,7 @@ export function QueueFilterBar({
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="open">Open</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in progress">In progress</SelectItem>
+                    <SelectItem value="in_progress">In progress</SelectItem>
                     <SelectItem value="resolved">Resolved</SelectItem>
                     <SelectItem value="closed">Closed</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -164,7 +164,7 @@ function stateLeftBorder(stateStr: string) {
             return "border-l-primary";
         case "pending":
             return "border-l-amber-500";
-        case "in progress":
+        case "in_progress":
             return "border-l-sky-500";
         case "resolved":
             return "border-l-emerald-500/50";
@@ -179,7 +179,7 @@ function statusPillClass(stateStr: string) {
             return "border-primary/30 bg-primary/20 text-primary";
         case "pending":
             return "border-amber-500/30 bg-amber-500/20 text-amber-500";
-        case "in progress":
+        case "in_progress":
             return "border-sky-500/30 bg-sky-500/15 text-sky-600 dark:text-sky-400";
         case "resolved":
             return "border-emerald-500/20 bg-emerald-500/10 text-emerald-500/80";
@@ -267,12 +267,12 @@ export function TicketQueueRow({
                             "mr-2 h-1.5 w-1.5 shrink-0 rounded-full",
                             stateStr === "open" && "bg-primary",
                             stateStr === "pending" && "bg-amber-500",
-                            stateStr === "in progress" && "bg-sky-500",
+                            stateStr === "in_progress" && "bg-sky-500",
                             stateStr === "resolved" && "bg-emerald-500/50",
                             (stateStr === "closed" || stateStr === "cancelled") && "bg-on-surface-variant"
                         )}
                     />
-                    <span className="capitalize">{stateStr}</span>
+                    <span>{stateStr === "in_progress" ? "In progress" : stateStr}</span>
                 </span>
             </div>
             <div

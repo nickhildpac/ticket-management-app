@@ -14,7 +14,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # Build the application (VITE_API_URL can be passed as build arg)
-ARG VITE_API_URL=http://localhost:8080
+ARG VITE_API_URL=http://localhost:8081
 ENV VITE_API_URL=${VITE_API_URL}
 RUN bun run build
 

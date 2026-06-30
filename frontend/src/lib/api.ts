@@ -1,5 +1,25 @@
 import { getAccessToken, tryRefresh } from "@/app/auth";
 
+type ApiErrorEnvelope = {
+    code?: string;
+    message?: string;
+    details?: unknown;
+    error?: string;
+};
+
+async function errorMessageFromResponse(res: Response): Promise<string> {
+    const fallback = `API Error ${res.status}`;
+    const text = await res.text();
+    if (!text) return fallback;
+
+    try {
+        const body = JSON.parse(text) as ApiErrorEnvelope;
+        return body.message || body.error || fallback;
+    } catch {
+        return text;
+    }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = getAccessToken();
 
@@ -33,8 +53,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
 
     if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `API Error ${res.status}`);
+        throw new Error(await errorMessageFromResponse(res));
     }
 
     // Handle 204 No Content
