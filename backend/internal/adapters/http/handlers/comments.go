@@ -23,11 +23,11 @@ type CommentPayload struct {
 // @Security		BearerAuth
 // @Param			id		path		string				true	"Ticket UUID"	format(uuid)
 // @Success		200		{array}		CommentResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
-// @Router			/ticket/{id}/comments [get]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
+// @Router			/tickets/{id}/comments [get]
 func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -38,7 +38,7 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 
 	comments, err := h.commentService.ListByTicket(r.Context(), tid, 10, 0)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -47,7 +47,7 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 	for i, comment := range comments {
 		creator, err := h.userService.GetUserByID(r.Context(), comment.CreatedBy)
 		if err != nil {
-			writeHandlerError(w, err)
+			writeHandlerError(w, r, err)
 			return
 		}
 
@@ -71,10 +71,10 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			id		path		string				true	"Comment UUID"	format(uuid)
 // @Success		200		{object}	CommentResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		404		{object}	map[string]string
-// @Router			/comment/{id} [get]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		404		{object}	util.ErrorBody
+// @Router			/comments/{id} [get]
 func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -84,12 +84,12 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 	}
 	comment, err := h.commentService.GetComment(r.Context(), tid)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	_, err = h.ticketService.GetTicket(r.Context(), comment.TicketID)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusOK, comment)
@@ -103,11 +103,11 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			request	body		object{ticket_id=string,description=string}	true	"Comment details"
 // @Success		202		{object}	CommentResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
-// @Router			/comment [post]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
+// @Router			/comments [post]
 func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	var payload CommentPayload
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
@@ -134,7 +134,7 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:   userID,
 	})
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusAccepted, comment)

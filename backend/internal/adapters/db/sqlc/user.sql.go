@@ -149,6 +149,86 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 	return items, nil
 }
 
+const getAutoAssignmentCandidates = `-- name: GetAutoAssignmentCandidates :many
+WITH active_workload AS (
+    SELECT
+        assignee_id,
+        COUNT(*)::int4 AS active_ticket_count
+    FROM tickets
+    CROSS JOIN LATERAL unnest(COALESCE(assigned_to, ARRAY[]::uuid[])) AS assignee_id
+    WHERE state = ANY($2::int[])
+    GROUP BY assignee_id
+)
+SELECT
+    users.id,
+    users.hashed_password,
+    users.first_name,
+    users.last_name,
+    users.email,
+    users.role,
+    users.updated_at,
+    users.created_at,
+    users.skills,
+    COALESCE(active_workload.active_ticket_count, 0)::int4 AS active_ticket_count
+FROM users
+LEFT JOIN active_workload ON active_workload.assignee_id = users.id
+WHERE users.role = 'agent'
+  AND users.skills && $1::text[]
+ORDER BY active_ticket_count ASC, users.created_at ASC
+`
+
+type GetAutoAssignmentCandidatesParams struct {
+	RequiredSkills []string `json:"required_skills"`
+	ActiveStates   []int32  `json:"active_states"`
+}
+
+type GetAutoAssignmentCandidatesRow struct {
+	ID                uuid.UUID      `json:"id"`
+	HashedPassword    string         `json:"hashed_password"`
+	FirstName         string         `json:"first_name"`
+	LastName          string         `json:"last_name"`
+	Email             string         `json:"email"`
+	Role              sql.NullString `json:"role"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+	CreatedAt         time.Time      `json:"created_at"`
+	Skills            []string       `json:"skills"`
+	ActiveTicketCount int32          `json:"active_ticket_count"`
+}
+
+func (q *Queries) GetAutoAssignmentCandidates(ctx context.Context, arg GetAutoAssignmentCandidatesParams) ([]GetAutoAssignmentCandidatesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAutoAssignmentCandidates, pq.Array(arg.RequiredSkills), pq.Array(arg.ActiveStates))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAutoAssignmentCandidatesRow{}
+	for rows.Next() {
+		var i GetAutoAssignmentCandidatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HashedPassword,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Role,
+			&i.UpdatedAt,
+			&i.CreatedAt,
+			pq.Array(&i.Skills),
+			&i.ActiveTicketCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, hashed_password, first_name, last_name, email, role, updated_at, created_at, skills FROM users
 WHERE id = $1 LIMIT 1

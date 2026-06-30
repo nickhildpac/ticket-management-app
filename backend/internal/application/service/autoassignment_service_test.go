@@ -11,8 +11,9 @@ import (
 
 // mockUserRepository is a mock implementation of UserRepository
 type mockUserRepository struct {
-	agents []domain.User
-	err    error
+	agents     []domain.User
+	candidates []domain.AutoAssignmentCandidate
+	err        error
 }
 
 func (m *mockUserRepository) GetUser(ctx context.Context, email string) (*domain.User, error) {
@@ -40,6 +41,20 @@ func (m *mockUserRepository) GetAllAgents(ctx context.Context) ([]domain.User, e
 		return nil, m.err
 	}
 	return m.agents, nil
+}
+
+func (m *mockUserRepository) GetAutoAssignmentCandidates(ctx context.Context, requiredSkills []string, activeStates []domain.TicketState) ([]domain.AutoAssignmentCandidate, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.candidates != nil {
+		return m.candidates, nil
+	}
+	candidates := make([]domain.AutoAssignmentCandidate, len(m.agents))
+	for i, agent := range m.agents {
+		candidates[i] = domain.AutoAssignmentCandidate{Agent: agent}
+	}
+	return candidates, nil
 }
 
 func (m *mockUserRepository) UpdateUser(ctx context.Context, user *domain.User) (*domain.User, error) {
@@ -119,37 +134,33 @@ func TestFindBestAgentForTicket_Success(t *testing.T) {
 	ticketID := uuid.New()
 
 	userRepo := &mockUserRepository{
-		agents: []domain.User{
+		candidates: []domain.AutoAssignmentCandidate{
 			{
-				ID:        agentID1,
-				FirstName: "John",
-				LastName:  "Doe",
-				Email:     "john@example.com",
-				Role:      domain.RoleAgent,
-				Skills:    domain.NewSkillsFromSlice([]string{"incident-management", "log-analysis"}),
+				Agent: domain.User{
+					ID:        agentID1,
+					FirstName: "John",
+					LastName:  "Doe",
+					Email:     "john@example.com",
+					Role:      domain.RoleAgent,
+					Skills:    domain.NewSkillsFromSlice([]string{"incident-management", "log-analysis"}),
+				},
+				ActiveTicketCount: 0,
 			},
 			{
-				ID:        agentID2,
-				FirstName: "Jane",
-				LastName:  "Smith",
-				Email:     "jane@example.com",
-				Role:      domain.RoleAgent,
-				Skills:    domain.NewSkillsFromSlice([]string{"incident-management"}),
+				Agent: domain.User{
+					ID:        agentID2,
+					FirstName: "Jane",
+					LastName:  "Smith",
+					Email:     "jane@example.com",
+					Role:      domain.RoleAgent,
+					Skills:    domain.NewSkillsFromSlice([]string{"incident-management"}),
+				},
+				ActiveTicketCount: 1,
 			},
 		},
 	}
 
-	// Create an active ticket assigned to agentID2 to increase workload
-	activeTicketID := uuid.New()
-	ticketRepo := &mockTicketRepository{
-		activeTickets: []domain.Ticket{
-			{
-				ID:         activeTicketID,
-				AssignedTo: []uuid.UUID{agentID2},
-				State:      domain.TicketStateOpen,
-			},
-		},
-	}
+	ticketRepo := &mockTicketRepository{}
 
 	ticket := &domain.Ticket{
 		ID:          ticketID,

@@ -14,6 +14,11 @@ type AgentScore struct {
 	Total    float64 // Skills + Workload
 }
 
+type AutoAssignmentCandidate struct {
+	Agent             User
+	ActiveTicketCount int
+}
+
 // CalculateAgentScores calculates scores for all agents
 func CalculateAgentScores(ticket *Ticket, agents []*User, ticketCounts map[uuid.UUID]int) []*AgentScore {
 	var scores []*AgentScore

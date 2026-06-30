@@ -19,7 +19,7 @@ func TestGetComment_NotFoundReturns404(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/comment/"+commentID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/comments/"+commentID.String(), nil)
 	req = addRouteParam(req, "id", commentID.String())
 
 	rr := httptest.NewRecorder()

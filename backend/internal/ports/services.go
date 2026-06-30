@@ -30,7 +30,7 @@ type TicketService interface {
 	GetTicketByNumber(ctx context.Context, ticketNumber int64) (*domain.Ticket, error)
 	GetTicketStats(ctx context.Context) (domain.TicketListStats, error)
 	CreateTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
-	UpdateTicket(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error)
+	UpdateTicket(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error)
 	DeleteTicket(ctx context.Context, id uuid.UUID) error
 }
 

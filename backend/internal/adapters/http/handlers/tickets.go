@@ -39,12 +39,12 @@ type TicketPayload struct {
 // @Produce		json
 // @Security		BearerAuth
 // @Success		200	{object}	TicketStats
-// @Failure		401	{object}	map[string]string
-// @Router			/ticket/stats [get]
+// @Failure		401	{object}	util.ErrorBody
+// @Router			/tickets/stats [get]
 func (h *Handler) GetTicketStats(w http.ResponseWriter, r *http.Request) {
 	counts, err := h.ticketService.GetTicketStats(r.Context())
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -63,10 +63,42 @@ type UpdateTicketPayload struct {
 	Skills      *[]string    `json:"skills"`
 }
 
+func (p UpdateTicketPayload) ToDomainPatch() (domain.TicketPatch, error) {
+	patch := domain.TicketPatch{
+		Title:       p.Title,
+		Description: p.Description,
+		AssignedTo:  p.AssignedTo,
+	}
+
+	if p.State != nil {
+		state, err := domain.GetTicketState(*p.State)
+		if err != nil {
+			return domain.TicketPatch{}, err
+		}
+		patch.State = &state
+	}
+	if p.Priority != nil {
+		priority, err := domain.ParseTicketPriority(*p.Priority)
+		if err != nil {
+			return domain.TicketPatch{}, err
+		}
+		patch.Priority = &priority
+	}
+	if p.Skills != nil {
+		skills, err := domain.NewSkills(*p.Skills)
+		if err != nil {
+			return domain.TicketPatch{}, err
+		}
+		patch.Skills = skills
+	}
+
+	return patch, nil
+}
+
 func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 	tickets, err := h.ticketService.ListAll(r.Context(), 20, 0, domain.TicketListSortCreatedDesc)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -74,7 +106,7 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary		Get all tickets
-// @Description	Retrieve a list of tickets. Without filter query parameters, listing follows role rules (admin: all, agent: assigned, user: created). With any of state, priority, created_by, assignee, assigned_to, or ticket_number, filters are applied with the same role scoping (non-admins cannot widen scope via query params).
+// @Description	Retrieve a list of tickets. Without filter query parameters, listing follows role rules (admin: all, agent: assigned, user: created). With any of state, priority, created_by, assignee, assigned_to, or ticket_number, filters are applied with the same role scoping (non-admins cannot widen scope via query params). Use assigned_to=me to list tickets assigned to the caller.
 // @Tags			Tickets
 // @Produce		json
 // @Security		BearerAuth
@@ -84,17 +116,33 @@ func (h *Handler) GetAllTickets(w http.ResponseWriter, r *http.Request) {
 // @Param			priority		query		string	false	"Filter by priority (critical, high, medium, low)"
 // @Param			created_by		query		string	false	"Filter by creator user UUID (admin only; standard users are scoped to self)"
 // @Param			assignee		query		string	false	"Filter by assignee user UUID (admin or matching agent)"
-// @Param			assigned_to		query		string	false	"Alias for assignee"
+// @Param			assigned_to		query		string	false	"Alias for assignee, or me for the authenticated user"
 // @Param			ticket_number	query		int		false	"Filter by ticket number"
 // @Param			sort			query		string	false	"Sort field: ticket_number or created_at (default created_at)"
 // @Param			order			query		string	false	"asc or desc (default desc)"
 // @Success		200	{array}		TicketSummaryResponse
-// @Failure		400	{object}	map[string]string
-// @Failure		401	{object}	map[string]string
-// @Failure		403	{object}	map[string]string
-// @Failure		500	{object}	map[string]string
-// @Router			/ticket/all [get]
+// @Failure		400	{object}	util.ErrorBody
+// @Failure		401	{object}	util.ErrorBody
+// @Failure		403	{object}	util.ErrorBody
+// @Failure		500	{object}	util.ErrorBody
+// @Router			/tickets [get]
 func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("assigned_to")), "me") {
+		query := cloneQueryWithout(r.URL.Query(), "assigned_to", "assignee", "created_by")
+		filterParams, _, err := parseListTicketsQuery(query)
+		if err != nil {
+			util.ErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
+		tickets, err := h.ticketService.ListAssignedToCurrentUser(r.Context(), filterParams)
+		if err != nil {
+			writeHandlerError(w, r, err)
+			return
+		}
+		util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
+		return
+	}
+
 	filterParams, useFilters, err := parseListTicketsQuery(r.URL.Query())
 	if err != nil {
 		util.ErrorResponse(w, http.StatusBadRequest, err)
@@ -108,11 +156,22 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 		tickets, err = h.ticketService.ListAll(r.Context(), filterParams.LimitVal, filterParams.OffsetVal, filterParams.SortVal)
 	}
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
 	util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
+}
+
+func cloneQueryWithout(q url.Values, keys ...string) url.Values {
+	cloned := make(url.Values, len(q))
+	for key, values := range q {
+		cloned[key] = append([]string(nil), values...)
+	}
+	for _, key := range keys {
+		cloned.Del(key)
+	}
+	return cloned
 }
 
 const (
@@ -210,7 +269,7 @@ func assigneeFromQuery(q url.Values) (uuid.NullUUID, bool, error) {
 }
 
 // @Summary		Get assigned tickets
-// @Description	Retrieve tickets assigned to the current user. Supports the same filter query parameters as GET /ticket/all (limit, offset, state, priority, ticket_number); scope is always limited to tickets assigned to the caller.
+// @Description	Retrieve tickets assigned to the current user. Supports the same filter query parameters as GET /tickets (limit, offset, state, priority, ticket_number); scope is always limited to tickets assigned to the caller.
 // @Tags			Tickets
 // @Produce		json
 // @Security		BearerAuth
@@ -222,10 +281,9 @@ func assigneeFromQuery(q url.Values) (uuid.NullUUID, bool, error) {
 // @Param			sort			query		string	false	"Sort field: ticket_number or created_at (default created_at)"
 // @Param			order			query		string	false	"asc or desc (default desc)"
 // @Success		200	{array}		TicketSummaryResponse
-// @Failure		400	{object}	map[string]string
-// @Failure		401	{object}	map[string]string
-// @Failure		500	{object}	map[string]string
-// @Router			/ticket/assigned [get]
+// @Failure		400	{object}	util.ErrorBody
+// @Failure		401	{object}	util.ErrorBody
+// @Failure		500	{object}	util.ErrorBody
 func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
 	_, err := uuid.Parse(userIDStr)
@@ -244,7 +302,7 @@ func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 
 	tickets, err := h.ticketService.ListAssignedToCurrentUser(r.Context(), filterParams)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -258,11 +316,11 @@ func (h *Handler) GetAssignedTickets(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			id		path		string				true	"Ticket UUID"	format(uuid)
 // @Success		200		{object}	TicketResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		404		{object}	map[string]string
-// @Router			/ticket/{id} [get]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		404		{object}	util.ErrorBody
+// @Router			/tickets/{id} [get]
 func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -272,14 +330,14 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	}
 	ticket, err := h.ticketService.GetTicket(r.Context(), tid)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
 	// Fetch creator details
 	creator, err := h.userService.GetUserByID(r.Context(), ticket.CreatedBy)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -307,11 +365,11 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			number	path		int				true	"Ticket Number"
 // @Success		200		{object}	TicketResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		404		{object}	map[string]string
-// @Router			/ticket/number/{number} [get]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		404		{object}	util.ErrorBody
+// @Router			/tickets/number/{number} [get]
 func (h *Handler) GetTicketByNumber(w http.ResponseWriter, r *http.Request) {
 	numberParam := chi.URLParam(r, "number")
 	var ticketNumber int64
@@ -323,14 +381,14 @@ func (h *Handler) GetTicketByNumber(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.ticketService.GetTicketByNumber(r.Context(), ticketNumber)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
 	// Fetch creator details
 	creator, err := h.userService.GetUserByID(r.Context(), ticket.CreatedBy)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -359,10 +417,10 @@ func (h *Handler) GetTicketByNumber(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			request	body		object{title=string,description=string,skills=[]string}	true	"Ticket creation details"
 // @Success		202		{object}	TicketSummaryResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
-// @Router			/ticket [post]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
+// @Router			/tickets [post]
 func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	var payload TicketPayload
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
@@ -402,7 +460,7 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 		Priority:    priority,
 	})
 	if err != nil {
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeInternalError(w, r, err)
 		return
 	}
 
@@ -434,11 +492,11 @@ func (h *Handler) CreateTicket(w http.ResponseWriter, r *http.Request) {
 // @Param			id		path		string									true	"Ticket UUID"	format(uuid)
 // @Param			request	body		object{title=string,description=string,state=string,priority=string,assigned_to=[]string,skills=[]string}	false	"Fields to update"
 // @Success		200		{object}	TicketSummaryResponse
-// @Failure		400		{object}	map[string]string	"Invalid state transition or invalid priority"
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
-// @Router			/ticket/{id} [patch]
+// @Failure		400		{object}	util.ErrorBody	"Invalid state transition or invalid priority"
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
+// @Router			/tickets/{id} [patch]
 func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -453,68 +511,15 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ticket, err := h.ticketService.GetTicket(r.Context(), tid)
+	patch, err := payload.ToDomainPatch()
 	if err != nil {
-		writeHandlerError(w, err)
+		util.ErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	changed := false
-	updatedFields := []string{}
-	if payload.Title != nil {
-		ticket.Title = *payload.Title
-		changed = true
-		updatedFields = append(updatedFields, "title")
-	}
-	if payload.Description != nil {
-		ticket.Description = *payload.Description
-		changed = true
-		updatedFields = append(updatedFields, "description")
-	}
-	if payload.State != nil {
-		state, err := domain.GetTicketState(*payload.State)
-		if err != nil {
-			util.ErrorResponse(w, http.StatusBadRequest, err)
-			return
-		}
-		ticket.State = state
-		changed = true
-		updatedFields = append(updatedFields, "state")
-	}
-	if payload.Priority != nil {
-		priority, err := domain.ParseTicketPriority(*payload.Priority)
-		if err != nil {
-			util.ErrorResponse(w, http.StatusBadRequest, err)
-			return
-		}
-		ticket.Priority = priority
-		changed = true
-		updatedFields = append(updatedFields, "priority")
-	}
-	if payload.AssignedTo != nil {
-		ticket.AssignedTo = *payload.AssignedTo
-		changed = true
-		updatedFields = append(updatedFields, "assigned_to")
-	}
-	if payload.Skills != nil {
-		skills, err := domain.NewSkills(*payload.Skills)
-		if err != nil {
-			util.ErrorResponse(w, http.StatusBadRequest, err)
-			return
-		}
-		ticket.Skills = *skills
-		changed = true
-		updatedFields = append(updatedFields, "skills")
-	}
-
-	if !changed {
-		util.ErrorResponse(w, http.StatusBadRequest, errors.New("no fields provided to update"))
-		return
-	}
-
-	updated, err := h.ticketService.UpdateTicket(r.Context(), *ticket, updatedFields)
+	updated, err := h.ticketService.UpdateTicket(r.Context(), tid, patch)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -544,11 +549,11 @@ func (h *Handler) UpdateTicket(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			id		path		string				true	"Ticket UUID"	format(uuid)
 // @Success		204
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
-// @Router			/ticket/{id} [delete]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
+// @Router			/tickets/{id} [delete]
 func (h *Handler) DeleteTicket(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	tid, err := uuid.Parse(idParam)
@@ -559,7 +564,7 @@ func (h *Handler) DeleteTicket(w http.ResponseWriter, r *http.Request) {
 
 	err = h.ticketService.DeleteTicket(r.Context(), tid)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 

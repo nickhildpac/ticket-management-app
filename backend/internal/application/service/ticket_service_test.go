@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nickhildpac/ticket-management-app/internal/application/apperrors"
 	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 )
 
 type ticketRepoStub struct {
-	getFn               func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
-	getActiveTicketsFn  func(ctx context.Context) ([]domain.Ticket, error)
-	createFn            func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
-	updateFn            func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
-	listAllFilteredFn   func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
+	getFn              func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	getActiveTicketsFn func(ctx context.Context) ([]domain.Ticket, error)
+	createFn           func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	updateFn           func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	listAllFilteredFn  func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
 }
 
 func (s *ticketRepoStub) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
@@ -99,13 +100,8 @@ func TestUpdateTicket_AutoAssignValidatesTransitions(t *testing.T) {
 	}
 
 	svc := NewTicketService(stub, nil)
-	updated, err := svc.UpdateTicket(adminCtx(), domain.Ticket{
-		ID:          ticketID,
-		State:       domain.TicketStateOpen,
-		AssignedTo:  []uuid.UUID{assignee},
-		Title:       "t",
-		Description: "d",
-	}, []string{"assigned_to"})
+	assignedTo := []uuid.UUID{assignee}
+	updated, err := svc.UpdateTicket(adminCtx(), ticketID, domain.TicketPatch{AssignedTo: &assignedTo})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -127,18 +123,28 @@ func TestUpdateTicket_AutoAssignBlocksInvalidTransition(t *testing.T) {
 	}
 
 	svc := NewTicketService(stub, nil)
-	_, err := svc.UpdateTicket(adminCtx(), domain.Ticket{
-		ID:          ticketID,
-		State:       domain.TicketStateClosed,
-		AssignedTo:  []uuid.UUID{uuid.New()},
-		Title:       "t",
-		Description: "d",
-	}, []string{"assigned_to"})
+	assignedTo := []uuid.UUID{uuid.New()}
+	_, err := svc.UpdateTicket(adminCtx(), ticketID, domain.TicketPatch{AssignedTo: &assignedTo})
 	if err == nil {
 		t.Fatalf("expected error for invalid transition, got nil")
 	}
 	if err != domain.ErrInvalidStatusTransition {
 		t.Fatalf("expected ErrInvalidStatusTransition, got %v", err)
+	}
+}
+
+func TestUpdateTicket_EmptyPatchReturnsBadRequest(t *testing.T) {
+	stub := &ticketRepoStub{
+		getFn: func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
+			t.Fatalf("repo get should not be called for an empty patch")
+			return nil, nil
+		},
+	}
+
+	svc := NewTicketService(stub, nil)
+	_, err := svc.UpdateTicket(adminCtx(), uuid.New(), domain.TicketPatch{})
+	if !errors.Is(err, apperrors.ErrBadRequest) {
+		t.Fatalf("expected ErrBadRequest, got %v", err)
 	}
 }
 

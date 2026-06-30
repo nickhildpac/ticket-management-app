@@ -81,7 +81,7 @@ func TestCreateUser_DuplicateEmailReturns409(t *testing.T) {
 		},
 	}, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBufferString(`{
+	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewBufferString(`{
 		"first_name":"Jane",
 		"last_name":"Doe",
 		"email":"jane@example.com",
@@ -109,7 +109,7 @@ func TestCreateUser_ResponseOmitsHashedPassword(t *testing.T) {
 		},
 	}, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBufferString(`{
+	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewBufferString(`{
 		"first_name":"Jane",
 		"last_name":"Doe",
 		"email":"jane@example.com",

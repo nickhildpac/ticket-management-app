@@ -109,13 +109,14 @@
               "raw": "{\n  \"email\": \"alice@admin.com\",\n  \"password\": \"password123\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/login",
+              "raw": "{{baseUrl}}/api/v1/auth/login",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "auth",
                 "login"
               ]
             },
@@ -138,14 +139,14 @@
               "raw": "{\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Doe\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"password123\",\n  \"skills\": [\n    \"incident-management\"\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/user",
+              "raw": "{{baseUrl}}/api/v1/users",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "user"
+                "users"
               ]
             },
             "description": "Register a new user account."
@@ -174,13 +175,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/refresh",
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "auth",
                 "refresh"
               ]
             },
@@ -207,13 +209,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/logout",
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "auth",
                 "logout"
               ]
             },
@@ -262,14 +265,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/stats",
+              "raw": "{{baseUrl}}/api/v1/tickets/stats",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
+                "tickets",
                 "stats"
               ]
             }
@@ -287,15 +290,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/all",
+              "raw": "{{baseUrl}}/api/v1/tickets",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
-                "all"
+                "tickets"
               ]
             },
             "description": "Role-scoped ticket listing."
@@ -313,15 +315,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/assigned",
+              "raw": "{{baseUrl}}/api/v1/tickets?assigned_to=me",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
-                "assigned"
+                "tickets"
               ]
             }
           },
@@ -346,14 +347,14 @@
               "raw": "{\n  \"title\": \"Production alert\",\n  \"description\": \"Investigate checkout failures in production.\",\n  \"skills\": [\n    \"incident-management\",\n    \"log-analysis\"\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket",
+              "raw": "{{baseUrl}}/api/v1/tickets",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket"
+                "tickets"
               ]
             }
           },
@@ -370,14 +371,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/number/{{ticketNumber}}",
+              "raw": "{{baseUrl}}/api/v1/tickets/number/{{ticketNumber}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
+                "tickets",
                 "number",
                 "{{ticketNumber}}"
               ]
@@ -396,14 +397,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/{{ticketId}}",
+              "raw": "{{baseUrl}}/api/v1/tickets/{{ticketId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
+                "tickets",
                 "{{ticketId}}"
               ]
             }
@@ -429,14 +430,14 @@
               "raw": "{\n  \"description\": \"Investigating checkout failures.\",\n  \"state\": \"pending\",\n  \"priority\": \"high\",\n  \"assigned_to\": [\n    \"{{userId}}\"\n  ],\n  \"skills\": [\n    \"incident-management\"\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/{{ticketId}}",
+              "raw": "{{baseUrl}}/api/v1/tickets/{{ticketId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
+                "tickets",
                 "{{ticketId}}"
               ]
             }
@@ -454,14 +455,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/{{ticketId}}",
+              "raw": "{{baseUrl}}/api/v1/tickets/{{ticketId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
+                "tickets",
                 "{{ticketId}}"
               ]
             }
@@ -479,14 +480,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/ticket/{{ticketId}}/comments",
+              "raw": "{{baseUrl}}/api/v1/tickets/{{ticketId}}/comments",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "ticket",
+                "tickets",
                 "{{ticketId}}",
                 "comments"
               ]
@@ -518,14 +519,14 @@
               "raw": "{\n  \"ticket_id\": \"{{ticketId}}\",\n  \"description\": \"I am investigating this issue.\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/comment",
+              "raw": "{{baseUrl}}/api/v1/comments",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "comment"
+                "comments"
               ]
             }
           },
@@ -542,14 +543,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/comment/{{commentId}}",
+              "raw": "{{baseUrl}}/api/v1/comments/{{commentId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "comment",
+                "comments",
                 "{{commentId}}"
               ]
             }

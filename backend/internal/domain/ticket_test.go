@@ -23,6 +23,11 @@ func TestCanTransition(t *testing.T) {
 		{"Pending to Cancelled", TicketStatePending, TicketStateCancelled, true},
 		{"Pending to Closed", TicketStatePending, TicketStateClosed, false},
 
+		// In-progress ticket transitions
+		{"InProgress to Resolved", TicketStateInProgress, TicketStateResolved, true},
+		{"InProgress to Pending", TicketStateInProgress, TicketStatePending, false},
+		{"InProgress to Open", TicketStateInProgress, TicketStateOpen, false},
+
 		// Resolved ticket transitions
 		{"Resolved to Open", TicketStateResolved, TicketStateOpen, true},
 		{"Resolved to Pending", TicketStateResolved, TicketStatePending, true},
@@ -66,6 +71,12 @@ func TestGetValidTransitions(t *testing.T) {
 			from:           TicketStatePending,
 			expectedCount:  5, // Pending + Open + InProgress + Resolved + Cancelled
 			expectedStates: []TicketState{TicketStatePending, TicketStateOpen, TicketStateInProgress, TicketStateResolved, TicketStateCancelled},
+		},
+		{
+			name:           "InProgress states",
+			from:           TicketStateInProgress,
+			expectedCount:  2, // InProgress + Resolved
+			expectedStates: []TicketState{TicketStateInProgress, TicketStateResolved},
 		},
 		{
 			name:           "Closed states",
@@ -112,6 +123,7 @@ func TestTicketStateString(t *testing.T) {
 	}{
 		{"Open", TicketStateOpen, "open"},
 		{"Pending", TicketStatePending, "pending"},
+		{"InProgress", TicketStateInProgress, "in_progress"},
 		{"Resolved", TicketStateResolved, "resolved"},
 		{"Closed", TicketStateClosed, "closed"},
 		{"Cancelled", TicketStateCancelled, "cancelled"},
@@ -137,6 +149,8 @@ func TestGetTicketState(t *testing.T) {
 	}{
 		{"Open", "open", TicketStateOpen, false},
 		{"Pending", "pending", TicketStatePending, false},
+		{"InProgress", "in_progress", TicketStateInProgress, false},
+		{"InProgressLegacy", "in progress", TicketStateInProgress, false},
 		{"Resolved", "resolved", TicketStateResolved, false},
 		{"Closed", "closed", TicketStateClosed, false},
 		{"Cancelled", "cancelled", TicketStateCancelled, false},

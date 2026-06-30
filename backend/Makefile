@@ -17,10 +17,12 @@ sqlc:
 swag:
 	@echo "Generating Swagger docs..."
 	@swag init -g cmd/api/main.go
+ticket-state-contract:
+	cd .. && python3 scripts/generate_ticket_state_contract.py
 test:
 	go test -v -cover ./...
 server:
 	go run cmd/api/main.go
 seeddata:
 	psql "postgresql://postgres:postgres@localhost:5432/ticket_management?sslmode=disable" -f migrations/000004_seed_data.up.sql
-.PHONY: postgres createdb dropdb migrateup migratedown sqlc swag test server seeddata
+	.PHONY: postgres createdb dropdb migrateup migratedown sqlc swag ticket-state-contract test server seeddata

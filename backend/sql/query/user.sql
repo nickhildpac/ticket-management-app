@@ -45,3 +45,30 @@ WHERE id = $1;
 SELECT * FROM users
 WHERE role = 'agent'
 ORDER BY created_at;
+
+-- name: GetAutoAssignmentCandidates :many
+WITH active_workload AS (
+    SELECT
+        assignee_id,
+        COUNT(*)::int4 AS active_ticket_count
+    FROM tickets
+    CROSS JOIN LATERAL unnest(COALESCE(assigned_to, ARRAY[]::uuid[])) AS assignee_id
+    WHERE state = ANY(sqlc.arg('active_states')::int[])
+    GROUP BY assignee_id
+)
+SELECT
+    users.id,
+    users.hashed_password,
+    users.first_name,
+    users.last_name,
+    users.email,
+    users.role,
+    users.updated_at,
+    users.created_at,
+    users.skills,
+    COALESCE(active_workload.active_ticket_count, 0)::int4 AS active_ticket_count
+FROM users
+LEFT JOIN active_workload ON active_workload.assignee_id = users.id
+WHERE users.role = 'agent'
+  AND users.skills && sqlc.arg('required_skills')::text[]
+ORDER BY active_ticket_count ASC, users.created_at ASC;

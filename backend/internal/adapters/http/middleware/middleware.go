@@ -3,6 +3,7 @@ package middlewares
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
@@ -28,7 +29,7 @@ func AuthRequired(conf *configs.Config) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, err := util.GetTokenFromHeaderAndVerify(conf, w, r)
 			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
+				util.ErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
 				return
 			}
 			ctx := context.WithValue(r.Context(), configs.UserIDKey, claims.Subject)
@@ -43,11 +44,11 @@ func AdminRequired(conf *configs.Config) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, err := util.GetTokenFromHeaderAndVerify(conf, w, r)
 			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
+				util.ErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
 				return
 			}
 			if claims.Role != "admin" {
-				w.WriteHeader(http.StatusForbidden)
+				util.ErrorResponse(w, http.StatusForbidden, errors.New("access denied"))
 				return
 			}
 			ctx := context.WithValue(r.Context(), configs.UserIDKey, claims.Subject)

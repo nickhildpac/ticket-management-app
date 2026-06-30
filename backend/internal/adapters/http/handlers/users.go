@@ -29,8 +29,8 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // @Produce		json
 // @Param			request	body		object{email=string,password=string}	true	"Login credentials"
 // @Success		200		{object}	object{access_token=string,user=object{id=string,first_name=string,last_name=string,email=string,role=string}}
-// @Failure		401		{object}	map[string]string
-// @Router			/login [post]
+// @Failure		401		{object}	util.ErrorBody
+// @Router			/auth/login [post]
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var requestPayload struct {
 		Email    string `json:"email"`
@@ -61,7 +61,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Role:      user.Role,
 	})
 	if err != nil {
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeInternalError(w, r, err)
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // @Tags			Authentication
 // @Produce		json
 // @Success		202
-// @Router			/logout [get]
+// @Router			/auth/logout [get]
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, util.GetExpiredRefreshCookie(h.config))
 	w.WriteHeader(http.StatusAccepted)
@@ -96,7 +96,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	user, err := h.userService.GetUser(r.Context(), username)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusOK, newUserResponse(user))
@@ -111,7 +111,7 @@ func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusOK, newUserResponse(user))
@@ -120,7 +120,7 @@ func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.GetAllUsers(r.Context())
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{array}		AssignmentUserResponse
-//	@Failure		401	{object}	map[string]string
+//	@Failure		401	{object}	util.ErrorBody
 //	@Router			/users [get]
 //
 // GetBasicUsers returns a list of users with basic info (id, name, email) for ticket assignment
@@ -146,7 +146,7 @@ func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetBasicUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.GetAllUsersForAssignment(r.Context())
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -164,7 +164,7 @@ func (h *Handler) GetBasicUsers(w http.ResponseWriter, r *http.Request) {
 // @Produce		json
 // @Security		BearerAuth
 // @Success		200	{object}	UserResponse
-// @Failure		401	{object}	map[string]string
+// @Failure		401	{object}	util.ErrorBody
 // @Router			/me [get]
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.Context().Value(configs.UserIDKey).(string)
@@ -175,7 +175,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusOK, newUserResponse(user))
@@ -189,8 +189,8 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			request	body		object{skills=[]string}	true	"Skills list (validated against allowed values)"
 // @Success		200		{object}	UserResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
 // @Router			/me [patch]
 func (h *Handler) PatchMe(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -202,7 +202,7 @@ func (h *Handler) PatchMe(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userService.UpdateMySkills(r.Context(), body.Skills)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusOK, newUserResponse(user))
@@ -215,9 +215,9 @@ func (h *Handler) PatchMe(w http.ResponseWriter, r *http.Request) {
 // @Produce		json
 // @Param			request	body		object{first_name=string,last_name=string,email=string,password=string,skills=[]string}	true	"User registration details"
 // @Success		201		{object}	UserResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
-// @Router			/user [post]
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
+// @Router			/users [post]
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var requestPayload struct {
 		FirstName string   `json:"first_name"`
@@ -234,7 +234,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	hashedPassword, err := util.HashPassword(requestPayload.Password)
 	if err != nil {
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeInternalError(w, r, err)
 		return
 	}
 
@@ -254,7 +254,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Println("Error creating user:", err)
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 	util.WriteResponse(w, http.StatusCreated, newUserResponse(user))
@@ -266,8 +266,8 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 // @Accept			json
 // @Produce		json
 // @Success		200	{object}	object{access_token=string,user=object{id=string,first_name=string,last_name=string,email=string,role=string}}
-// @Failure		401	{object}	map[string]string
-// @Router			/refresh [get]
+// @Failure		401	{object}	util.ErrorBody
+// @Router			/auth/refresh [get]
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	refreshCookie, err := r.Cookie(h.config.CookieName)
 	if err != nil {
@@ -295,7 +295,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeInternalError(w, r, err)
 		return
 	}
 	tokens, err := util.GenerateTokenPair(h.config, &util.JWTUser{
@@ -306,7 +306,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		Role:      user.Role,
 	})
 	if err != nil {
-		util.ErrorResponse(w, http.StatusInternalServerError, err)
+		writeInternalError(w, r, err)
 		return
 	}
 
@@ -335,10 +335,10 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 // @Param			id		path		string									true	"User UUID"	format(uuid)
 // @Param			request	body		object{role=string}						true	"New role (user, agent, admin)"
 // @Success		200		{object}	UserResponse
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
 // @Router			/admin/users/{id}/role [put]
 func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
@@ -364,7 +364,7 @@ func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.UpdateUserRole(r.Context(), userID, role)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 
@@ -378,10 +378,10 @@ func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 // @Security		BearerAuth
 // @Param			id		path		string				true	"User UUID"	format(uuid)
 // @Success		204
-// @Failure		400		{object}	map[string]string
-// @Failure		401		{object}	map[string]string
-// @Failure		403		{object}	map[string]string
-// @Failure		500		{object}	map[string]string
+// @Failure		400		{object}	util.ErrorBody
+// @Failure		401		{object}	util.ErrorBody
+// @Failure		403		{object}	util.ErrorBody
+// @Failure		500		{object}	util.ErrorBody
 // @Router			/admin/users/{id} [delete]
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
@@ -393,7 +393,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	err = h.userService.DeleteUser(r.Context(), userID)
 	if err != nil {
-		writeHandlerError(w, err)
+		writeHandlerError(w, r, err)
 		return
 	}
 

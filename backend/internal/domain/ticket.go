@@ -17,16 +17,6 @@ type (
 )
 
 const (
-	// States
-	TicketStateOpen       TicketState = iota + 1 // 1
-	TicketStatePending                           // 2
-	TicketStateInProgress                        // 3
-	TicketStateResolved                          // 4
-	TicketStateClosed                            // 5
-	TicketStateCancelled                         // 6
-)
-
-const (
 	// Priorities
 	TicketPriorityCritical TicketPriority = iota + 1 // 1
 	TicketPriorityHigh                               // 2
@@ -35,22 +25,10 @@ const (
 )
 
 func (s TicketState) String() string {
-	switch s {
-	case TicketStateOpen:
-		return "open"
-	case TicketStatePending:
-		return "pending"
-	case TicketStateResolved:
-		return "resolved"
-	case TicketStateInProgress:
-		return "in progress"
-	case TicketStateClosed:
-		return "closed"
-	case TicketStateCancelled:
-		return "cancelled"
-	default:
-		return "unknown"
+	if wire, ok := ticketStateWireValues[s]; ok {
+		return wire
 	}
+	return "unknown"
 }
 
 func GetTicketPriority(s string) TicketPriority {
@@ -113,7 +91,27 @@ type Ticket struct {
 	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
 }
 
-// TicketListStats holds role-scoped ticket counts (dashboards / GET /ticket/stats).
+// TicketPatch represents a partial ticket update after transport-level decoding.
+// Nil fields are left unchanged; non-nil fields are intentionally updated.
+type TicketPatch struct {
+	Title       *string
+	Description *string
+	State       *TicketState
+	Priority    *TicketPriority
+	AssignedTo  *[]uuid.UUID
+	Skills      *Skills
+}
+
+func (p TicketPatch) IsEmpty() bool {
+	return p.Title == nil &&
+		p.Description == nil &&
+		p.State == nil &&
+		p.Priority == nil &&
+		p.AssignedTo == nil &&
+		p.Skills == nil
+}
+
+// TicketListStats holds role-scoped ticket counts (dashboards / GET /tickets/stats).
 type TicketListStats struct {
 	Total    int32
 	Open     int32
@@ -172,50 +170,12 @@ type ListAllTicketsByStatePriorityParams struct {
 	SortVal            int32
 }
 
-var allowedTransitions = map[TicketState]map[TicketState]struct{}{
-	// Open tickets can move to Pending, be Cancelled, or stay Open
-	TicketStateOpen: {
-		TicketStatePending:    {},
-		TicketStateCancelled:  {},
-		TicketStateInProgress: {},
-	},
-	// Pending tickets can move back to Open, be Resolved, or be Cancelled
-	TicketStatePending: {
-		TicketStateOpen:       {},
-		TicketStateInProgress: {},
-		TicketStateResolved:   {},
-		TicketStateCancelled:  {},
-	},
-	// Resolved tickets can move back to Open/Pending (reopened), be Closed, or be Cancelled
-	TicketStateResolved: {
-		TicketStateOpen:      {},
-		TicketStatePending:   {},
-		TicketStateClosed:    {},
-		TicketStateCancelled: {},
-	},
-	// Closed tickets are final - no transitions allowed
-	TicketStateClosed: {},
-	// Cancelled tickets are final - no transitions allowed
-	TicketStateCancelled: {},
-}
-
 func GetTicketState(s string) (TicketState, error) {
-	switch strings.ToLower(s) {
-	case "open":
-		return TicketStateOpen, nil
-	case "pending":
-		return TicketStatePending, nil
-	case "in progress":
-		return TicketStateInProgress, nil
-	case "resolved":
-		return TicketStateResolved, nil
-	case "closed":
-		return TicketStateClosed, nil
-	case "cancel", "cancelled":
-		return TicketStateCancelled, nil
-	default:
-		return 0, fmt.Errorf("invalid ticket state: %s", s)
+	normalized := strings.ToLower(strings.TrimSpace(s))
+	if state, ok := ticketStateByInput[normalized]; ok {
+		return state, nil
 	}
+	return 0, fmt.Errorf("invalid ticket state: %s", s)
 }
 
 func CanTransition(from TicketState, to TicketState) bool {
@@ -226,8 +186,12 @@ func CanTransition(from TicketState, to TicketState) bool {
 	if !ok {
 		return false
 	}
-	_, ok = next[to]
-	return ok
+	for _, state := range next {
+		if state == to {
+			return true
+		}
+	}
+	return false
 }
 
 // GetValidTransitions returns all valid states that can be transitioned to from the given state
@@ -237,13 +201,11 @@ func GetValidTransitions(from TicketState) []TicketState {
 	// Always include current state (no change)
 	validStates = append(validStates, from)
 
-	// Add allowed transition states
-	if transitions, ok := allowedTransitions[from]; ok {
-		for state := range transitions {
-			validStates = append(validStates, state)
-		}
+	transitions, ok := allowedTransitions[from]
+	if !ok {
+		return validStates
 	}
-
+	validStates = append(validStates, transitions...)
 	return validStates
 }
 

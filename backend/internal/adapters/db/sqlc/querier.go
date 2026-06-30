@@ -23,6 +23,7 @@ type Querier interface {
 	GetActiveTickets(ctx context.Context) ([]Ticket, error)
 	GetAllAgents(ctx context.Context) ([]User, error)
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
+	GetAutoAssignmentCandidates(ctx context.Context, arg GetAutoAssignmentCandidatesParams) ([]GetAutoAssignmentCandidatesRow, error)
 	GetComment(ctx context.Context, id uuid.UUID) (Comment, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (Ticket, error)
 	GetTicketByNumber(ctx context.Context, ticketNumber int64) (Ticket, error)

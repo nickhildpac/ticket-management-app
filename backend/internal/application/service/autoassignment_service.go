@@ -10,49 +10,42 @@ import (
 )
 
 type AutoAssignmentService struct {
-	userRepo   ports.UserRepository
-	ticketRepo ports.TicketRepository
+	userRepo ports.UserRepository
 }
 
-func NewAutoAssignmentService(userRepo ports.UserRepository, ticketRepo ports.TicketRepository) *AutoAssignmentService {
+func NewAutoAssignmentService(userRepo ports.UserRepository, _ ports.TicketRepository) *AutoAssignmentService {
 	return &AutoAssignmentService{
-		userRepo:   userRepo,
-		ticketRepo: ticketRepo,
+		userRepo: userRepo,
 	}
 }
 
 func (s *AutoAssignmentService) FindBestAgentForTicket(ctx context.Context, ticket *domain.Ticket) (*domain.User, error) {
-	// Get all agents
-	agents, err := s.userRepo.GetAllAgents(ctx)
-	if err != nil {
-		log.Printf("Error getting agents: %v", err)
-		return nil, err
-	}
-
-	if len(agents) == 0 {
-		log.Printf("No agents available")
+	requiredSkills := ticket.Skills.ToSlice()
+	if len(requiredSkills) == 0 {
+		log.Printf("No qualified agent found for skills: %v", requiredSkills)
 		return nil, nil
 	}
 
-	// Convert to pointers for domain function
-	agentPtrs := make([]*domain.User, len(agents))
-	for i := range agents {
-		agentPtrs[i] = &agents[i]
-	}
-
-	// Get active tickets for workload calculation
-	activeTickets, err := s.ticketRepo.GetActiveTickets(ctx)
+	candidates, err := s.userRepo.GetAutoAssignmentCandidates(ctx, requiredSkills, []domain.TicketState{
+		domain.TicketStateOpen,
+		domain.TicketStatePending,
+		domain.TicketStateInProgress,
+	})
 	if err != nil {
-		log.Printf("Error getting active tickets: %v", err)
+		log.Printf("Error getting auto-assignment candidates: %v", err)
 		return nil, err
 	}
 
-	// Calculate workload: count Open/Pending tickets per agent
-	ticketCounts := make(map[uuid.UUID]int)
-	for _, ticket := range activeTickets {
-		for _, assignee := range ticket.AssignedTo {
-			ticketCounts[assignee]++
-		}
+	if len(candidates) == 0 {
+		log.Printf("No qualified agent found for skills: %v", requiredSkills)
+		return nil, nil
+	}
+
+	agentPtrs := make([]*domain.User, len(candidates))
+	ticketCounts := make(map[uuid.UUID]int, len(candidates))
+	for i := range candidates {
+		agentPtrs[i] = &candidates[i].Agent
+		ticketCounts[candidates[i].Agent.ID] = candidates[i].ActiveTicketCount
 	}
 
 	// Find best agent using domain logic

@@ -115,3 +115,43 @@ func (r *UserRepository) GetAllAgents(ctx context.Context) ([]domain.User, error
 	}
 	return result, nil
 }
+
+func (r *UserRepository) GetAutoAssignmentCandidates(ctx context.Context, requiredSkills []string, activeStates []domain.TicketState) ([]domain.AutoAssignmentCandidate, error) {
+	if len(requiredSkills) == 0 {
+		return []domain.AutoAssignmentCandidate{}, nil
+	}
+
+	stateIDs := make([]int32, len(activeStates))
+	for i, state := range activeStates {
+		stateIDs[i] = int32(state)
+	}
+
+	rows, err := r.store.GetAutoAssignmentCandidates(ctx, sqlc.GetAutoAssignmentCandidatesParams{
+		RequiredSkills: requiredSkills,
+		ActiveStates:   stateIDs,
+	})
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+
+	candidates := make([]domain.AutoAssignmentCandidate, len(rows))
+	for i, row := range rows {
+		agent := mapUser(sqlc.User{
+			ID:             row.ID,
+			HashedPassword: row.HashedPassword,
+			FirstName:      row.FirstName,
+			LastName:       row.LastName,
+			Email:          row.Email,
+			Role:           row.Role,
+			UpdatedAt:      row.UpdatedAt,
+			CreatedAt:      row.CreatedAt,
+			Skills:         row.Skills,
+		})
+		candidates[i] = domain.AutoAssignmentCandidate{
+			Agent:             *agent,
+			ActiveTicketCount: int(row.ActiveTicketCount),
+		}
+	}
+
+	return candidates, nil
+}

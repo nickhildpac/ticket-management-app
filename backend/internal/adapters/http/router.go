@@ -36,18 +36,18 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public endpoints
 		r.Get("/health", h.HealthCheck)
-		r.Post("/login", h.Login)
-		r.Get("/logout", h.Logout)
-		r.Post("/user", h.CreateUser)
-		r.Get("/refresh", h.RefreshToken)
+		r.Route("/auth", func(mux chi.Router) {
+			mux.Post("/login", h.Login)
+			mux.Get("/logout", h.Logout)
+			mux.Get("/refresh", h.RefreshToken)
+		})
 		r.With(middlewares.AuthRequired(conf)).Get("/me", h.GetMe)
 
 		// Ticket routes (authenticated)
-		r.Route("/ticket", func(mux chi.Router) {
+		r.Route("/tickets", func(mux chi.Router) {
 			mux.Use(middlewares.AuthRequired(conf))
 			mux.Get("/stats", h.GetTicketStats)
-			mux.Get("/all", h.GetTickets)
-			mux.Get("/assigned", h.GetAssignedTickets)
+			mux.Get("/", h.GetTickets)
 			mux.Post("/", h.CreateTicket)
 			mux.Get("/number/{number}", h.GetTicketByNumber)
 			mux.Get("/{id}", h.GetTicket)
@@ -57,10 +57,11 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 		})
 
 		// Comment routes (authenticated)
-		r.With(middlewares.AuthRequired(conf)).Post("/comment", h.CreateComment)
-		r.With(middlewares.AuthRequired(conf)).Get("/comment/{id}", h.GetComment)
+		r.With(middlewares.AuthRequired(conf)).Post("/comments", h.CreateComment)
+		r.With(middlewares.AuthRequired(conf)).Get("/comments/{id}", h.GetComment)
 
 		// User routes (authenticated) - for getting user list for assignments
+		r.Post("/users", h.CreateUser)
 		r.With(middlewares.AuthRequired(conf)).Get("/users", h.GetBasicUsers)
 		r.With(middlewares.AuthRequired(conf)).Get("/me", h.GetMe)
 		r.With(middlewares.AuthRequired(conf)).Patch("/me", h.PatchMe)

@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nickhildpac/ticket-management-app/internal/application/apperrors"
 	"github.com/nickhildpac/ticket-management-app/internal/application/authorization"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/internal/ports"
@@ -219,13 +221,17 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 	return createdTicket, nil
 }
 
-func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error) {
+func (s *TicketService) UpdateTicket(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error) {
+	if patch.IsEmpty() {
+		return nil, fmt.Errorf("%w: no fields provided to update", apperrors.ErrBadRequest)
+	}
+
 	auth, err := authorization.GetAuthContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	prev, err := s.repo.Get(ctx, ticket.ID)
+	prev, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -235,24 +241,38 @@ func (s *TicketService) UpdateTicket(ctx context.Context, ticket domain.Ticket, 
 		return nil, authorization.ErrAccessDenied
 	}
 
-	// Field-level authorization
-	for _, field := range updatedFields {
-		switch field {
-		case "state":
-			// Pass the updated/new ticket state so state-level authorization can
-			// enforce allowed target states (e.g., user may close/cancel).
-			if !authorization.CanUpdateTicketState(auth, &ticket) {
-				return nil, authorization.ErrAccessDenied
-			}
-		case "priority":
-			if !authorization.CanUpdateTicketPriority(auth, prev) {
-				return nil, authorization.ErrAccessDenied
-			}
-		case "assigned_to":
-			if !authorization.CanAssignTicket(auth, prev) {
-				return nil, authorization.ErrAccessDenied
-			}
+	ticket := *prev
+	if patch.Title != nil {
+		ticket.Title = *patch.Title
+	}
+	if patch.Description != nil {
+		ticket.Description = *patch.Description
+	}
+	if patch.State != nil {
+		ticket.State = *patch.State
+	}
+	if patch.Priority != nil {
+		ticket.Priority = *patch.Priority
+	}
+	if patch.AssignedTo != nil {
+		ticket.AssignedTo = *patch.AssignedTo
+	}
+	if patch.Skills != nil {
+		ticket.Skills = *patch.Skills
+	}
+
+	if patch.State != nil {
+		// Pass the updated/new ticket state so state-level authorization can
+		// enforce allowed target states (e.g., user may close/cancel).
+		if !authorization.CanUpdateTicketState(auth, &ticket) {
+			return nil, authorization.ErrAccessDenied
 		}
+	}
+	if patch.Priority != nil && !authorization.CanUpdateTicketPriority(auth, prev) {
+		return nil, authorization.ErrAccessDenied
+	}
+	if patch.AssignedTo != nil && !authorization.CanAssignTicket(auth, prev) {
+		return nil, authorization.ErrAccessDenied
 	}
 
 	// Auto-transition to pending when assigned

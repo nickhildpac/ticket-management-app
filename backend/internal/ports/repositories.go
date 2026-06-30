@@ -15,6 +15,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user domain.User) (*domain.User, error)
 	GetAllUsers(ctx context.Context) ([]domain.User, error)
 	GetAllAgents(ctx context.Context) ([]domain.User, error)
+	GetAutoAssignmentCandidates(ctx context.Context, requiredSkills []string, activeStates []domain.TicketState) ([]domain.AutoAssignmentCandidate, error)
 	UpdateUser(ctx context.Context, user *domain.User) (*domain.User, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 }

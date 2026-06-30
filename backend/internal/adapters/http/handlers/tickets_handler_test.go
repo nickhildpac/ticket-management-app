@@ -16,17 +16,17 @@ import (
 )
 
 type ticketServiceMock struct {
-	listAllFn                    func(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error)
-	listTicketsWithFiltersFn   func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
+	listAllFn                   func(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error)
+	listTicketsWithFiltersFn    func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
 	listAssignedToCurrentUserFn func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error)
-	listByCreatorFn           func(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
-	listByAssigneeFn          func(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
-	getTicketFn      func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
-	getByNumberFn    func(ctx context.Context, ticketNumber int64) (*domain.Ticket, error)
-	createFn         func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
-	updateFn         func(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error)
-	deleteFn         func(ctx context.Context, id uuid.UUID) error
-	getTicketStatsFn func(ctx context.Context) (domain.TicketListStats, error)
+	listByCreatorFn             func(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
+	listByAssigneeFn            func(ctx context.Context, id uuid.UUID, limit, offset int32) ([]domain.Ticket, error)
+	getTicketFn                 func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	getByNumberFn               func(ctx context.Context, ticketNumber int64) (*domain.Ticket, error)
+	createFn                    func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	updateFn                    func(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error)
+	deleteFn                    func(ctx context.Context, id uuid.UUID) error
+	getTicketStatsFn            func(ctx context.Context) (domain.TicketListStats, error)
 }
 
 func (m *ticketServiceMock) ListAll(ctx context.Context, limit, offset, sortVal int32) ([]domain.Ticket, error) {
@@ -85,11 +85,11 @@ func (m *ticketServiceMock) CreateTicket(ctx context.Context, ticket domain.Tick
 	return &ticket, nil
 }
 
-func (m *ticketServiceMock) UpdateTicket(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error) {
+func (m *ticketServiceMock) UpdateTicket(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error) {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, ticket, updatedFields)
+		return m.updateFn(ctx, id, patch)
 	}
-	return &ticket, nil
+	return &domain.Ticket{ID: id}, nil
 }
 
 func (m *ticketServiceMock) DeleteTicket(ctx context.Context, id uuid.UUID) error {
@@ -244,14 +244,10 @@ func withAuthContext(req *http.Request, userID uuid.UUID, role domain.UserRole) 
 
 func TestUpdateTicket_InvalidPriority(t *testing.T) {
 	ticketID := uuid.New()
-	handler := newHandlerWithMocks(&ticketServiceMock{
-		getTicketFn: func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
-			return &domain.Ticket{ID: id}, nil
-		},
-	}, nil, nil)
+	handler := newHandlerWithMocks(&ticketServiceMock{}, nil, nil)
 
 	body := bytes.NewBufferString(`{"priority":"invalid"}`)
-	req := httptest.NewRequest(http.MethodPatch, "/ticket/"+ticketID.String(), body)
+	req := httptest.NewRequest(http.MethodPatch, "/tickets/"+ticketID.String(), body)
 	req = addRouteParam(req, "id", ticketID.String())
 
 	rr := httptest.NewRecorder()
@@ -265,12 +261,12 @@ func TestUpdateTicket_InvalidPriority(t *testing.T) {
 func TestUpdateTicket_NotFoundReturns404(t *testing.T) {
 	ticketID := uuid.New()
 	handler := newHandlerWithMocks(&ticketServiceMock{
-		getTicketFn: func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
+		updateFn: func(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error) {
 			return nil, apperrors.ErrNotFound
 		},
 	}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodPatch, "/ticket/"+ticketID.String(), bytes.NewBufferString(`{"title":"x"}`))
+	req := httptest.NewRequest(http.MethodPatch, "/tickets/"+ticketID.String(), bytes.NewBufferString(`{"title":"x"}`))
 	req = addRouteParam(req, "id", ticketID.String())
 
 	rr := httptest.NewRecorder()
@@ -284,15 +280,12 @@ func TestUpdateTicket_NotFoundReturns404(t *testing.T) {
 func TestUpdateTicket_InvalidTransitionReturnsBadRequest(t *testing.T) {
 	ticketID := uuid.New()
 	handler := newHandlerWithMocks(&ticketServiceMock{
-		getTicketFn: func(ctx context.Context, id uuid.UUID) (*domain.Ticket, error) {
-			return &domain.Ticket{ID: id, Title: "t", Description: "d"}, nil
-		},
-		updateFn: func(ctx context.Context, ticket domain.Ticket, updatedFields []string) (*domain.Ticket, error) {
+		updateFn: func(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error) {
 			return nil, domain.ErrInvalidStatusTransition
 		},
 	}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodPatch, "/ticket/"+ticketID.String(), bytes.NewBufferString(`{"state":"closed"}`))
+	req := httptest.NewRequest(http.MethodPatch, "/tickets/"+ticketID.String(), bytes.NewBufferString(`{"state":"closed"}`))
 	req = addRouteParam(req, "id", ticketID.String())
 
 	rr := httptest.NewRecorder()
@@ -311,7 +304,7 @@ func TestGetTicket_NotFoundReturns404(t *testing.T) {
 		},
 	}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/ticket/"+ticketID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/tickets/"+ticketID.String(), nil)
 	req = addRouteParam(req, "id", ticketID.String())
 
 	rr := httptest.NewRecorder()
@@ -324,7 +317,7 @@ func TestGetTicket_NotFoundReturns404(t *testing.T) {
 
 func TestGetTickets_InvalidPriorityReturns400(t *testing.T) {
 	handler := newHandlerWithMocks(&ticketServiceMock{}, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/ticket/all?priority=not-a-priority", nil)
+	req := httptest.NewRequest(http.MethodGet, "/tickets?priority=not-a-priority", nil)
 	req = withAuthContext(req, uuid.New(), domain.RoleAdmin)
 
 	rr := httptest.NewRecorder()
@@ -344,7 +337,7 @@ func TestGetTickets_WithFilterUsesListTicketsWithFilters(t *testing.T) {
 		},
 	}, &userServiceMock{}, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/ticket/all?state=open&limit=5&offset=2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/tickets?state=open&limit=5&offset=2", nil)
 	req = withAuthContext(req, uuid.New(), domain.RoleAdmin)
 
 	rr := httptest.NewRecorder()
@@ -370,7 +363,7 @@ func TestGetTickets_NoFilterUsesListAllWithPagination(t *testing.T) {
 		},
 	}, &userServiceMock{}, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/ticket/all?limit=10&offset=3", nil)
+	req := httptest.NewRequest(http.MethodGet, "/tickets?limit=10&offset=3", nil)
 	req = withAuthContext(req, uuid.New(), domain.RoleAdmin)
 
 	rr := httptest.NewRecorder()
@@ -387,6 +380,40 @@ func TestGetTickets_NoFilterUsesListAllWithPagination(t *testing.T) {
 	}
 }
 
+func TestGetTickets_AssignedToMeUsesAssignedList(t *testing.T) {
+	var called bool
+	var gotParams domain.ListAllTicketsByStatePriorityParams
+	handler := newHandlerWithMocks(&ticketServiceMock{
+		listAssignedToCurrentUserFn: func(ctx context.Context, params domain.ListAllTicketsByStatePriorityParams) ([]domain.Ticket, error) {
+			called = true
+			gotParams = params
+			return nil, nil
+		},
+	}, &userServiceMock{}, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/tickets?assigned_to=me&state=open&limit=7&offset=1", nil)
+	req = withAuthContext(req, uuid.New(), domain.RoleAgent)
+
+	rr := httptest.NewRecorder()
+	handler.GetTickets(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	if !called {
+		t.Fatal("expected assigned-ticket list to be called")
+	}
+	if !gotParams.FilterState.Valid || gotParams.FilterState.Int32 != int32(domain.TicketStateOpen) {
+		t.Fatalf("expected open state filter, got %+v", gotParams.FilterState)
+	}
+	if gotParams.LimitVal != 7 || gotParams.OffsetVal != 1 {
+		t.Fatalf("expected limit 7 offset 1, got limit=%d offset=%d", gotParams.LimitVal, gotParams.OffsetVal)
+	}
+	if gotParams.FilterAssignee.Valid {
+		t.Fatalf("expected assigned_to=me to be handled by service scope, got assignee filter %+v", gotParams.FilterAssignee)
+	}
+}
+
 func TestGetTicket_AccessDeniedReturns403(t *testing.T) {
 	ticketID := uuid.New()
 	handler := newHandlerWithMocks(&ticketServiceMock{
@@ -395,7 +422,7 @@ func TestGetTicket_AccessDeniedReturns403(t *testing.T) {
 		},
 	}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/ticket/"+ticketID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/tickets/"+ticketID.String(), nil)
 	req = addRouteParam(req, "id", ticketID.String())
 
 	rr := httptest.NewRecorder()

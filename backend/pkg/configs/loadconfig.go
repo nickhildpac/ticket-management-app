@@ -2,9 +2,11 @@
 package configs
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,6 +20,7 @@ const (
 type Config struct {
 	ADDR          int
 	DSN           string
+	AppEnv        string
 	JWTIssuer     string
 	JWTAudience   string
 	JWTSecret     string
@@ -33,7 +36,14 @@ func LoadConfig() (*Config, error) {
 	var config Config
 	config.ADDR = GetInt("PORT", 8080)
 	config.DSN = GetString("DB_ADDR", "postgres://postgres:postgres@localhost/ticket_management?sslmode=disable")
-	jwtSecret := GetString("JWT_SECRET", GetString("JWTSecret", "secret"))
+	config.AppEnv = strings.ToLower(GetString("APP_ENV", GetString("ENV", "local")))
+	jwtSecret := GetString("JWT_SECRET", GetString("JWTSecret", ""))
+	if jwtSecret == "" && isLocalOrTest(config.AppEnv) {
+		jwtSecret = "local-dev-only-secret"
+	}
+	if !isLocalOrTest(config.AppEnv) && isWeakJWTSecret(jwtSecret) {
+		return nil, errors.New("JWT_SECRET is required and must not use a known weak value outside local/test")
+	}
 	flag.StringVar(&config.JWTSecret, "jwt-secret", jwtSecret, "signing secret")
 	flag.StringVar(&config.JWTIssuer, "jwt-issuer", GetString("JWTIssuer", "example.com"), "signing issuer")
 	flag.StringVar(&config.JWTAudience, "jwt-audience", GetString("JWTAudience", "example.com"), "signing audience")
@@ -44,7 +54,28 @@ func LoadConfig() (*Config, error) {
 	config.CookiePath = GetString("CookiePath", "/")
 	config.TokenExpiry = time.Minute * time.Duration(GetInt("TokenExpiry", 15))
 	config.RefreshExpiry = time.Hour * time.Duration(GetInt("RefreshTokenExpiry", 24))
+	if !isLocalOrTest(config.AppEnv) && isWeakJWTSecret(config.JWTSecret) {
+		return nil, errors.New("JWT secret flag must not be empty or weak outside local/test")
+	}
 	return &config, nil
+}
+
+func isLocalOrTest(env string) bool {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "", "local", "test":
+		return true
+	default:
+		return false
+	}
+}
+
+func isWeakJWTSecret(secret string) bool {
+	switch strings.TrimSpace(secret) {
+	case "", "secret", "changeme", "change-me", "local-dev-only-secret":
+		return true
+	default:
+		return false
+	}
 }
 
 func GetString(key, fallback string) string {

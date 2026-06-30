@@ -206,6 +206,24 @@ definitions:
         format: date-time
         type: string
     type: object
+  util.ErrorBody:
+    properties:
+      code:
+        type: string
+      details:
+        items:
+          $ref: '#/definitions/util.ErrorDetail'
+        type: array
+      message:
+        type: string
+    type: object
+  util.ErrorDetail:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -231,27 +249,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Delete user
@@ -288,126 +298,25 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Update user role
       tags:
       - Admin
-  /comment:
-    post:
-      consumes:
-      - application/json
-      description: Add a new comment to a ticket
-      parameters:
-      - description: Comment details
-        in: body
-        name: request
-        required: true
-        schema:
-          properties:
-            description:
-              type: string
-            ticket_id:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            $ref: '#/definitions/handlers.CommentResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create comment
-      tags:
-      - Comments
-  /comment/{id}:
-    get:
-      description: Retrieve a specific comment
-      parameters:
-      - description: Comment UUID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.CommentResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get comment by ID
-      tags:
-      - Comments
-  /login:
+  /auth/login:
     post:
       consumes:
       - application/json
@@ -450,13 +359,11 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       summary: Login user
       tags:
       - Authentication
-  /logout:
+  /auth/logout:
     get:
       description: Clear refresh token cookie
       produces:
@@ -467,28 +374,7 @@ paths:
       summary: Logout user
       tags:
       - Authentication
-  /me:
-    get:
-      description: Get profile of authenticated user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.UserResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get current user
-      tags:
-      - Users
-  /refresh:
+  /auth/refresh:
     get:
       consumes:
       - application/json
@@ -519,13 +405,223 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       summary: Refresh access token
       tags:
       - Authentication
-  /ticket:
+  /comments:
+    post:
+      consumes:
+      - application/json
+      description: Add a new comment to a ticket
+      parameters:
+      - description: Comment details
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            description:
+              type: string
+            ticket_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handlers.CommentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+      security:
+      - BearerAuth: []
+      summary: Create comment
+      tags:
+      - Comments
+  /comments/{id}:
+    get:
+      description: Retrieve a specific comment
+      parameters:
+      - description: Comment UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CommentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+      security:
+      - BearerAuth: []
+      summary: Get comment by ID
+      tags:
+      - Comments
+  /me:
+    get:
+      description: Get profile of authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      description: Update the authenticated user's skills (partial profile update)
+      parameters:
+      - description: Skills list (validated against allowed values)
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            skills:
+              items:
+                type: string
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+      security:
+      - BearerAuth: []
+      summary: Update current user skills
+      tags:
+      - Users
+  /tickets:
+    get:
+      description: 'Retrieve a list of tickets. Without filter query parameters, listing
+        follows role rules (admin: all, agent: assigned, user: created). With any
+        of state, priority, created_by, assignee, assigned_to, or ticket_number, filters
+        are applied with the same role scoping (non-admins cannot widen scope via
+        query params). Use assigned_to=me to list tickets assigned to the caller.'
+      parameters:
+      - description: Page size (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by state (e.g. open, pending)
+        in: query
+        name: state
+        type: string
+      - description: Filter by priority (critical, high, medium, low)
+        in: query
+        name: priority
+        type: string
+      - description: Filter by creator user UUID (admin only; standard users are scoped
+          to self)
+        in: query
+        name: created_by
+        type: string
+      - description: Filter by assignee user UUID (admin or matching agent)
+        in: query
+        name: assignee
+        type: string
+      - description: Alias for assignee, or me for the authenticated user
+        in: query
+        name: assigned_to
+        type: string
+      - description: Filter by ticket number
+        in: query
+        name: ticket_number
+        type: integer
+      - description: 'Sort field: ticket_number or created_at (default created_at)'
+        in: query
+        name: sort
+        type: string
+      - description: asc or desc (default desc)
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.TicketSummaryResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+      security:
+      - BearerAuth: []
+      summary: Get all tickets
+      tags:
+      - Tickets
     post:
       consumes:
       - application/json
@@ -556,27 +652,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Create new ticket
       tags:
       - Tickets
-  /ticket/{id}:
+  /tickets/{id}:
     delete:
       description: Permanently delete a ticket (admin/agent only for tickets not created
         by them)
@@ -595,27 +685,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Delete ticket
@@ -640,27 +722,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Get ticket by ID
@@ -710,33 +784,25 @@ paths:
         "400":
           description: Invalid state transition or invalid priority
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Update ticket
       tags:
       - Tickets
-  /ticket/{id}/comments:
+  /tickets/{id}/comments:
     get:
       description: Retrieve all comments for a specific ticket
       parameters:
@@ -758,141 +824,25 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Get ticket comments
       tags:
       - Comments
-  /ticket/all:
-    get:
-      description: 'Retrieve a list of tickets. Without filter query parameters, listing
-        follows role rules (admin: all, agent: assigned, user: created). With any
-        of state, priority, created_by, assignee, assigned_to, or ticket_number, filters
-        are applied with the same role scoping (non-admins cannot widen scope via
-        query params).'
-      parameters:
-      - description: Page size (default 20, max 100)
-        in: query
-        name: limit
-        type: integer
-      - description: Offset (default 0)
-        in: query
-        name: offset
-        type: integer
-      - description: Filter by state (e.g. open, pending)
-        in: query
-        name: state
-        type: string
-      - description: Filter by priority (critical, high, medium, low)
-        in: query
-        name: priority
-        type: string
-      - description: Filter by creator user UUID (admin only; standard users are scoped
-          to self)
-        in: query
-        name: created_by
-        type: string
-      - description: Filter by assignee user UUID (admin or matching agent)
-        in: query
-        name: assignee
-        type: string
-      - description: Alias for assignee
-        in: query
-        name: assigned_to
-        type: string
-      - description: Filter by ticket number
-        in: query
-        name: ticket_number
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/handlers.TicketSummaryResponse'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get all tickets
-      tags:
-      - Tickets
-  /ticket/assigned:
-    get:
-      description: Retrieve tickets assigned to the current user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/handlers.TicketSummaryResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get assigned tickets
-      tags:
-      - Tickets
-  /ticket/number/{number}:
+  /tickets/number/{number}:
     get:
       description: Retrieve ticket by its ticket number
       parameters:
@@ -911,33 +861,25 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Get ticket by number
       tags:
       - Tickets
-  /ticket/stats:
+  /tickets/stats:
     get:
       description: Get ticket statistics based on user role (admin/agent see all,
         users see own)
@@ -951,15 +893,33 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       security:
       - BearerAuth: []
       summary: Get ticket statistics
       tags:
       - Tickets
-  /user:
+  /users:
+    get:
+      description: Get list of users with basic info for ticket assignment
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.AssignmentUserResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.ErrorBody'
+      security:
+      - BearerAuth: []
+      summary: Get users for assignment
+      tags:
+      - Users
     post:
       consumes:
       - application/json
@@ -994,41 +954,14 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/util.ErrorBody'
       summary: Create new user
       tags:
       - Authentication
-  /users:
-    get:
-      description: Get list of users with basic info for ticket assignment
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/handlers.AssignmentUserResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get users for assignment
-      tags:
-      - Users
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.
