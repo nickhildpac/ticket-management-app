@@ -1,0 +1,70 @@
+{
+  "states": [
+    {
+      "key": "open",
+      "goConst": "TicketStateOpen",
+      "pythonMember": "OPEN",
+      "numericValue": 1,
+      "wire": "open",
+      "label": "Open",
+      "actionLabel": "Reopen",
+      "aliases": ["open"],
+      "transitions": ["pending", "in_progress", "cancelled"]
+    },
+    {
+      "key": "pending",
+      "goConst": "TicketStatePending",
+      "pythonMember": "PENDING",
+      "numericValue": 2,
+      "wire": "pending",
+      "label": "Pending",
+      "actionLabel": "Mark pending",
+      "aliases": ["pending"],
+      "transitions": ["open", "in_progress", "resolved", "cancelled"]
+    },
+    {
+      "key": "in_progress",
+      "goConst": "TicketStateInProgress",
+      "pythonMember": "IN_PROGRESS",
+      "numericValue": 3,
+      "wire": "in_progress",
+      "label": "In progress",
+      "actionLabel": "Start work",
+      "aliases": ["in_progress", "in progress"],
+      "transitions": ["resolved"]
+    },
+    {
+      "key": "resolved",
+      "goConst": "TicketStateResolved",
+      "pythonMember": "RESOLVED",
+      "numericValue": 4,
+      "wire": "resolved",
+      "label": "Resolved",
+      "actionLabel": "Resolve ticket",
+      "aliases": ["resolved"],
+      "transitions": ["open", "pending", "closed", "cancelled"]
+    },
+    {
+      "key": "closed",
+      "goConst": "TicketStateClosed",
+      "pythonMember": "CLOSED",
+      "numericValue": 5,
+      "wire": "closed",
+      "label": "Closed",
+      "actionLabel": "Close ticket",
+      "aliases": ["closed"],
+      "transitions": []
+    },
+    {
+      "key": "cancelled",
+      "goConst": "TicketStateCancelled",
+      "pythonMember": "CANCELLED",
+      "numericValue": 6,
+      "wire": "cancelled",
+      "label": "Cancelled",
+      "actionLabel": "Cancel ticket",
+      "aliases": ["cancelled", "cancel"],
+      "transitions": []
+    }
+  ]
+}

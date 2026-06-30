@@ -4,7 +4,7 @@ A full-stack ticket management application with containerization, CI/CD, and mon
 
 ## Architecture
 
-- **Backend**: Go API with PostgreSQL database
+- **Backend**: FastAPI is the authoritative backend direction; the Go API remains temporarily during migration
 - **Frontend**: React SPA with TypeScript and Tailwind CSS
 - **Monitoring**: Prometheus and Grafana
 - **Containerization**: Multi-stage Dockerfiles
@@ -31,7 +31,7 @@ docker-compose up -d
 ```
 
 3. Access the applications:
-- Frontend: http://localhost:80
+- Frontend: http://localhost:3000
 - Backend API: http://localhost:8080
 - Grafana: http://localhost:3001 (admin/admin)
 - Prometheus: http://localhost:9090
@@ -42,6 +42,7 @@ Create a `.env` file in the root directory:
 
 ```env
 JWT_SECRET=your-jwt-secret-key
+APP_ENV=production
 GRAFANA_PASSWORD=your-grafana-password
 ```
 

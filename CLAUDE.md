@@ -70,11 +70,11 @@ To apply migrations manually, execute the `.up.sql` files in order. To rollback,
 - Database repositories in `internal/adapters/database/` abstract persistence
 - SQLC generates type-safe database code from SQL queries
 
-**Frontend (Redux + Component-based):**
-- Redux Toolkit manages global state (auth, tickets, comments, users)
-- Async thunks handle API calls with loading/error states
-- React Router v7 handles client-side routing with auth guards
-- Custom hooks encapsulate Redux logic and API interactions
+**Frontend (TanStack Query/Router + Component-based):**
+- TanStack Router handles client-side routing and route-level data flow
+- TanStack Query manages server state, caching, and mutation invalidation
+- Feature modules under `frontend/src/features/` contain route UI, query helpers, and local view state
+- Shared API and domain helpers live under `frontend/src/lib/`
 
 ## Domain Model
 
@@ -83,8 +83,9 @@ To apply migrations manually, execute the `.up.sql` files in order. To rollback,
 Tickets follow a finite state machine with enforced transition rules. State transitions are validated in the domain layer (`backend/internal/domain/ticket.go:91`):
 
 ```
-Open → Pending, Cancelled
-Pending → Open, Resolved, Cancelled
+Open → Pending, In Progress, Cancelled
+Pending → Open, In Progress, Resolved, Cancelled
+In Progress → Resolved
 Resolved → Open, Pending, Closed, Cancelled
 Closed → (final state, no transitions)
 Cancelled → (final state, no transitions)
@@ -127,13 +128,13 @@ Key functions:
 ## API Structure
 
 Main endpoints:
-- `GET /ticket/all` - List all tickets
-- `GET /ticket/assigned` - Get tickets assigned to current user
-- `GET /ticket/{id}` - Get ticket details
-- `POST /ticket` - Create ticket
-- `PUT /ticket/{id}` - Update ticket (validates state transitions)
-- `DELETE /ticket/{id}` - Delete ticket
-- Auth endpoints: `/login`, `/signup`, `/refresh`
+- `GET /tickets` - List scoped tickets
+- `GET /tickets?assigned_to=me` - Get tickets assigned to current user
+- `GET /tickets/{id}` - Get ticket details
+- `POST /tickets` - Create ticket
+- `PATCH /tickets/{id}` - Update ticket (validates state transitions)
+- `DELETE /tickets/{id}` - Delete ticket
+- Auth endpoints: `/auth/login`, `/auth/logout`, `/auth/refresh`
 
 ## Important Implementation Notes
 
