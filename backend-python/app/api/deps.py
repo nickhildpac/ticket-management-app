@@ -15,7 +15,7 @@ from app.enums.role import UserRole
 from app.models.user import User
 from app.repositories.user import UserRepository
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 def get_db() -> Session:

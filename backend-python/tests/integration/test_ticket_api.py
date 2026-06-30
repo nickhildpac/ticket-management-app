@@ -12,7 +12,7 @@ pytestmark = pytest.mark.integration
 
 
 def login(client: TestClient, email: str, password: str) -> str:
-    res = client.post("/api/v1/login", json={"email": email, "password": password})
+    res = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert res.status_code == 200
     return res.json()["access_token"]
 
@@ -44,9 +44,9 @@ def test_role_scoped_ticket_listing(client: TestClient, db_session: Session):
         "skills": ["incident-management"],
     }
 
-    assert client.post("/api/v1/user", json=requester).status_code == 201
-    assert client.post("/api/v1/user", json=agent).status_code == 201
-    assert client.post("/api/v1/user", json=admin).status_code == 201
+    assert client.post("/api/v1/users", json=requester).status_code == 201
+    assert client.post("/api/v1/users", json=agent).status_code == 201
+    assert client.post("/api/v1/users", json=admin).status_code == 201
 
     admin_user = db_session.scalar(select(User).where(User.email == "admin@example.com"))
     assert admin_user is not None
@@ -55,7 +55,7 @@ def test_role_scoped_ticket_listing(client: TestClient, db_session: Session):
 
     requester_token = login(client, requester["email"], requester["password"])
     create_res = client.post(
-        "/api/v1/ticket",
+        "/api/v1/tickets",
         json={"title": "Need help", "description": "Service down", "priority": "high", "skills": ["incident-management"]},
         headers=auth_headers(requester_token),
     )
@@ -66,17 +66,17 @@ def test_role_scoped_ticket_listing(client: TestClient, db_session: Session):
     agent_user = db_session.scalar(select(User).where(User.email == "agent@example.com"))
     assert agent_user is not None
     patch_res = client.patch(
-        f"/api/v1/ticket/{ticket_id}",
+        f"/api/v1/tickets/{ticket_id}",
         json={"assigned_to": [str(agent_user.id)]},
         headers=auth_headers(admin_token),
     )
     assert patch_res.status_code == 200
 
     agent_token = login(client, agent["email"], agent["password"])
-    assigned_res = client.get("/api/v1/ticket/assigned", headers=auth_headers(agent_token))
+    assigned_res = client.get("/api/v1/tickets?assigned_to=me", headers=auth_headers(agent_token))
     assert assigned_res.status_code == 200
     assert len(assigned_res.json()) == 1
 
-    requester_all = client.get("/api/v1/ticket/all", headers=auth_headers(requester_token))
+    requester_all = client.get("/api/v1/tickets", headers=auth_headers(requester_token))
     assert requester_all.status_code == 200
     assert len(requester_all.json()) == 1

@@ -15,20 +15,20 @@ def test_register_login_refresh_logout_flow(client: TestClient):
         "skills": ["incident-management"],
     }
 
-    register_res = client.post("/api/v1/user", json=register_payload)
+    register_res = client.post("/api/v1/users", json=register_payload)
     assert register_res.status_code == 201
 
     login_res = client.post(
-        "/api/v1/login",
+        "/api/v1/auth/login",
         json={"email": "jane@example.com", "password": "password123"},
     )
     assert login_res.status_code == 200
     assert "access_token" in login_res.json()
     assert "user" in login_res.json()
 
-    refresh_res = client.get("/api/v1/refresh")
+    refresh_res = client.get("/api/v1/auth/refresh")
     assert refresh_res.status_code == 200
     assert "access_token" in refresh_res.json()
 
-    logout_res = client.get("/api/v1/logout")
+    logout_res = client.get("/api/v1/auth/logout")
     assert logout_res.status_code == 202

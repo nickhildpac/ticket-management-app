@@ -6,7 +6,9 @@ from app.enums.role import UserRole
 
 
 class ErrorResponse(BaseModel):
-    error: str
+    code: str
+    message: str
+    details: list[dict[str, str]] | None = None
 
 
 class UserInfo(BaseModel):

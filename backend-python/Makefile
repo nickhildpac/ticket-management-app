@@ -1,4 +1,4 @@
-.PHONY: run test migrate-up migrate-down openapi
+.PHONY: run test migrate-up migrate-down openapi ticket-state-contract
 
 run:
 	uvicorn app.main:app --reload --port 8081
@@ -14,3 +14,6 @@ migrate-down:
 
 openapi:
 	python scripts/generate_openapi.py
+
+ticket-state-contract:
+	cd .. && python3 scripts/generate_ticket_state_contract.py

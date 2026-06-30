@@ -11,11 +11,12 @@ from app.schemas.auth import AuthResponse, LoginRequest
 from app.schemas.user import UserCreateRequest, UserResponse
 from app.services.auth import AuthService
 
-router = APIRouter(tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
+registration_router = APIRouter(tags=["Users"])
 settings = get_settings()
 
 
-@router.post("/user", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@registration_router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register_user(payload: UserCreateRequest, db: DbSession) -> UserResponse:
     user = AuthService(db).register_user(payload)
     return to_user_response(user)

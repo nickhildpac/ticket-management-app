@@ -1,6 +1,6 @@
 # FastAPI Backend (SPEC-1)
 
-This module implements the Python/FastAPI backend defined in SPEC-1 while keeping the existing Go backend untouched.
+This module implements the Python/FastAPI backend defined in SPEC-1. Per `docs/adr/0001-backend-direction.md`, this is the authoritative backend and intended replacement for the Go backend.
 
 ## Run locally
 

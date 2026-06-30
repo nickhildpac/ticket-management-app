@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
 
-    jwt_secret: str = Field(default="secret", alias="JWT_SECRET")
+    jwt_secret: str = Field(default="", alias="JWT_SECRET")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(default=15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     refresh_token_expire_hours: int = Field(default=24, alias="REFRESH_TOKEN_EXPIRE_HOURS")
@@ -42,6 +42,18 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [item.strip() for item in self.cors_origins_csv.split(",") if item.strip()]
+
+    @model_validator(mode="after")
+    def validate_jwt_secret(self) -> Settings:
+        env = self.app_env.strip().lower()
+        if env in {"", "local", "development", "test"}:
+            if not self.jwt_secret:
+                self.jwt_secret = "local-dev-only-secret"
+            return self
+
+        if self.jwt_secret.strip() in {"", "secret", "changeme", "change-me", "local-dev-only-secret"}:
+            raise ValueError("JWT_SECRET is required and must not use a known weak value outside local/development/test")
+        return self
 
 
 @lru_cache

@@ -17,7 +17,7 @@ from app.schemas.ticket import (
 )
 from app.services.ticket import TicketService
 
-router = APIRouter(prefix="/ticket", tags=["Tickets"])
+router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
 
 @router.get("/stats", response_model=TicketStatsResponse)
@@ -26,23 +26,19 @@ def get_ticket_stats(current_user: CurrentUser, db: DbSession) -> TicketStatsRes
     return TicketStatsResponse(**stats)
 
 
-@router.get("/all", response_model=list[TicketSummaryResponse])
+@router.get("", response_model=list[TicketSummaryResponse])
 def list_tickets(
     current_user: CurrentUser,
     db: DbSession,
     query: TicketListQuery = Depends(ticket_list_query_params),
 ) -> list[TicketSummaryResponse]:
+    if query.assigned_to == "me" and query.assignee in (None, "me"):
+        query.assigned_to = None
+        query.assignee = None
+        tickets = TicketService(db).list_assigned_tickets(current_user, query)
+        return [to_ticket_summary(ticket) for ticket in tickets]
+
     tickets = TicketService(db).list_tickets_for_actor(current_user, query)
-    return [to_ticket_summary(ticket) for ticket in tickets]
-
-
-@router.get("/assigned", response_model=list[TicketSummaryResponse])
-def list_assigned_tickets(
-    current_user: CurrentUser,
-    db: DbSession,
-    query: TicketListQuery = Depends(ticket_list_query_params),
-) -> list[TicketSummaryResponse]:
-    tickets = TicketService(db).list_assigned_tickets(current_user, query)
     return [to_ticket_summary(ticket) for ticket in tickets]
 
 
