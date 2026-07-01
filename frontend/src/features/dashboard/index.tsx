@@ -42,8 +42,8 @@ export function Dashboard() {
     const { data: assignedTickets, isLoading: assignedLoading } = useQuery({
         queryKey: ["tickets", "assigned", "dashboard"],
         queryFn: async () => {
-            const response = await api<Ticket[] | PaginatedResult<Ticket>>("/api/v1/tickets?assigned_to=me");
-            return Array.isArray(response) ? response : response.items;
+            const response = await api<PaginatedResult<Ticket>>("/api/v1/tickets?assigned_to=me");
+            return response.items;
         },
         enabled: user?.role === "agent",
     });

@@ -81,21 +81,10 @@ export const useTickets = (params: TicketListQueryInput = {}) =>
         queryKey: ticketListQueryKey('list', params),
         queryFn: async () => {
             const queryParams = buildTicketListQueryParams(params);
-            const limit = params.limit ?? TICKET_LIST_PAGE_SIZE;
-            const page = Math.max(1, params.page ?? 1);
-            const response = await api<Ticket[] | PaginatedResult<Ticket>>(
+            return api<PaginatedResult<Ticket>>(
                 `/api/v1/tickets?${queryParams.toString()}`,
                 { cache: 'no-store' }
             );
-            if (Array.isArray(response)) {
-                return {
-                    items: response,
-                    total: response.length,
-                    page,
-                    pageSize: limit,
-                };
-            }
-            return response;
         },
     });
 
@@ -105,21 +94,10 @@ export const useAssignedTickets = (params: TicketListQueryInput = {}) =>
         queryFn: async () => {
             const queryParams = buildTicketListQueryParams(params);
             queryParams.set('assigned_to', 'me');
-            const limit = params.limit ?? TICKET_LIST_PAGE_SIZE;
-            const page = Math.max(1, params.page ?? 1);
-            const response = await api<Ticket[] | PaginatedResult<Ticket>>(
+            return api<PaginatedResult<Ticket>>(
                 `/api/v1/tickets?${queryParams.toString()}`,
                 { cache: 'no-store' }
             );
-            if (Array.isArray(response)) {
-                return {
-                    items: response,
-                    total: response.length,
-                    page,
-                    pageSize: limit,
-                };
-            }
-            return response;
         },
     });
 
