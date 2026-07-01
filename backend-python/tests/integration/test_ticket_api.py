@@ -56,10 +56,15 @@ def test_role_scoped_ticket_listing(client: TestClient, db_session: Session):
     requester_token = login(client, requester["email"], requester["password"])
     create_res = client.post(
         "/api/v1/tickets",
-        json={"title": "Need help", "description": "Service down", "priority": "high", "skills": ["incident-management"]},
+        json={
+            "title": "Need help",
+            "description": "Service down",
+            "priority": "high",
+            "skills": ["incident-management"],
+        },
         headers=auth_headers(requester_token),
     )
-    assert create_res.status_code == 202
+    assert create_res.status_code == 201
     ticket_id = create_res.json()["id"]
 
     admin_token = login(client, admin["email"], admin["password"])
@@ -75,8 +80,12 @@ def test_role_scoped_ticket_listing(client: TestClient, db_session: Session):
     agent_token = login(client, agent["email"], agent["password"])
     assigned_res = client.get("/api/v1/tickets?assigned_to=me", headers=auth_headers(agent_token))
     assert assigned_res.status_code == 200
-    assert len(assigned_res.json()) == 1
+    assigned_body = assigned_res.json()
+    assert assigned_body["total"] == 1
+    assert len(assigned_body["items"]) == 1
 
     requester_all = client.get("/api/v1/tickets", headers=auth_headers(requester_token))
     assert requester_all.status_code == 200
-    assert len(requester_all.json()) == 1
+    requester_body = requester_all.json()
+    assert requester_body["total"] == 1
+    assert len(requester_body["items"]) == 1

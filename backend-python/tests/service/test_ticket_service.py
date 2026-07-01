@@ -23,6 +23,10 @@ class RepoStub:
         self.list_tickets_called = True
         return []
 
+    def count_tickets(self, **kwargs):  # noqa: ANN003
+        _ = kwargs
+        return 0
+
     def get_by_id(self, ticket_id):  # noqa: ANN001
         _ = ticket_id
         return self.ticket
@@ -39,7 +43,9 @@ class RepoStub:
         _ = (ticket, skills)
 
     def set_assignees(self, ticket, assignee_ids):  # noqa: ANN001
-        ticket.assignee_links = [TicketAssignee(ticket_id=ticket.id, user_id=user_id) for user_id in assignee_ids]
+        ticket.assignee_links = [
+            TicketAssignee(ticket_id=ticket.id, user_id=user_id) for user_id in assignee_ids
+        ]
 
 
 class UserRepoStub:

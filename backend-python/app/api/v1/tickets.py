@@ -9,6 +9,7 @@ from app.api.v1.serializers import to_ticket_response, to_ticket_summary
 from app.schemas.ticket import (
     CreateTicketRequest,
     TicketListQuery,
+    TicketListResponse,
     TicketResponse,
     TicketStatsResponse,
     TicketSummaryResponse,
@@ -26,24 +27,27 @@ def get_ticket_stats(current_user: CurrentUser, db: DbSession) -> TicketStatsRes
     return TicketStatsResponse(**stats)
 
 
-@router.get("", response_model=list[TicketSummaryResponse])
+@router.get("", response_model=TicketListResponse)
 def list_tickets(
     current_user: CurrentUser,
     db: DbSession,
     query: TicketListQuery = Depends(ticket_list_query_params),
-) -> list[TicketSummaryResponse]:
-    if query.assigned_to == "me" and query.assignee in (None, "me"):
-        query.assigned_to = None
-        query.assignee = None
-        tickets = TicketService(db).list_assigned_tickets(current_user, query)
-        return [to_ticket_summary(ticket) for ticket in tickets]
+) -> TicketListResponse:
+    tickets, total = TicketService(db).list_ticket_page_for_actor(current_user, query)
+    return TicketListResponse(
+        items=[to_ticket_summary(ticket) for ticket in tickets],
+        total=total,
+        page=(query.offset // query.limit) + 1,
+        pageSize=query.limit,
+    )
 
-    tickets = TicketService(db).list_tickets_for_actor(current_user, query)
-    return [to_ticket_summary(ticket) for ticket in tickets]
 
-
-@router.post("", response_model=TicketSummaryResponse, status_code=status.HTTP_202_ACCEPTED)
-def create_ticket(payload: CreateTicketRequest, current_user: CurrentUser, db: DbSession) -> TicketSummaryResponse:
+@router.post("", response_model=TicketSummaryResponse, status_code=status.HTTP_201_CREATED)
+def create_ticket(
+    payload: CreateTicketRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> TicketSummaryResponse:
     ticket = TicketService(db).create_ticket(current_user, payload)
     return to_ticket_summary(ticket)
 

@@ -60,6 +60,10 @@ class TicketRepository:
         )
         return list(self.session.scalars(stmt).unique().all())
 
+    def count_tickets(self, *, filters: list) -> int:
+        stmt = select(func.count(Ticket.id)).where(Ticket.deleted_at.is_(None), *filters)
+        return int(self.session.scalar(stmt) or 0)
+
     def delete(self, ticket: Ticket) -> None:
         self.session.delete(ticket)
 

@@ -66,6 +66,13 @@ class TicketResponse(TicketSummaryResponse):
     skills: list[str]
 
 
+class TicketListResponse(BaseModel):
+    items: list[TicketSummaryResponse]
+    total: int
+    page: int
+    pageSize: int
+
+
 class TicketStatsResponse(BaseModel):
     total: int
     open: int

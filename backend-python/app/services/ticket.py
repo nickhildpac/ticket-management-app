@@ -52,7 +52,11 @@ class TicketService:
         except ValueError as exc:
             raise BadRequestError(f"invalid {field}") from exc
 
-    def _apply_common_filters(self, query: TicketListQuery) -> tuple[list[Any], UUID | None]:
+    def _apply_common_filters(
+        self,
+        current_user: User,
+        query: TicketListQuery,
+    ) -> tuple[list[Any], UUID | None]:
         filters: list[Any] = []
         if query.state:
             filters.append(Ticket.state == query.state)
@@ -68,7 +72,11 @@ class TicketService:
         except ValueError as exc:
             raise BadRequestError(str(exc)) from exc
         if effective_assignee:
-            assignee_id = self._parse_uuid(effective_assignee, "assignee")
+            assignee_id = (
+                current_user.id
+                if effective_assignee == "me"
+                else self._parse_uuid(effective_assignee, "assignee")
+            )
             filters.append(
                 exists(
                     select(1).where(
@@ -84,67 +92,51 @@ class TicketService:
 
         return filters, assignee_id
 
-    def list_tickets_for_actor(self, current_user: User, query: TicketListQuery) -> list[Ticket]:
+    def _list_filters_for_actor(self, current_user: User, query: TicketListQuery) -> list[Any]:
         filters = self._scope_filters(current_user)
-
-        extra_filters, assignee_id = self._apply_common_filters(query)
+        extra_filters, assignee_id = self._apply_common_filters(current_user, query)
 
         if current_user.role == UserRole.AGENT:
             if query.created_by:
                 raise ForbiddenError("access denied")
             if assignee_id and assignee_id != current_user.id:
                 raise ForbiddenError("access denied")
-            if not assignee_id:
-                extra_filters.append(
-                    exists(
-                        select(1).where(
-                            TicketAssignee.ticket_id == Ticket.id,
-                            TicketAssignee.user_id == current_user.id,
-                        )
-                    )
-                )
 
         if current_user.role == UserRole.USER:
             if assignee_id:
                 raise ForbiddenError("access denied")
-            if query.created_by and self._parse_uuid(query.created_by, "created_by") != current_user.id:
+            if (
+                query.created_by
+                and self._parse_uuid(query.created_by, "created_by") != current_user.id
+            ):
                 raise ForbiddenError("access denied")
-            if not query.created_by:
-                extra_filters.append(Ticket.created_by == current_user.id)
 
         filters.extend(extra_filters)
-        return self.repo.list_tickets(
+        return filters
+
+    def list_ticket_page_for_actor(
+        self,
+        current_user: User,
+        query: TicketListQuery,
+    ) -> tuple[list[Ticket], int]:
+        filters = self._list_filters_for_actor(current_user, query)
+        tickets = self.repo.list_tickets(
             filters=filters,
             limit=query.limit,
             offset=query.offset,
             sort=query.sort,
             order=query.order,
         )
+        total = self.repo.count_tickets(filters=filters)
+        return tickets, total
+
+    def list_tickets_for_actor(self, current_user: User, query: TicketListQuery) -> list[Ticket]:
+        tickets, _ = self.list_ticket_page_for_actor(current_user, query)
+        return tickets
 
     def list_assigned_tickets(self, current_user: User, query: TicketListQuery) -> list[Ticket]:
-        filters = [
-            exists(
-                select(1).where(
-                    TicketAssignee.ticket_id == Ticket.id,
-                    TicketAssignee.user_id == current_user.id,
-                )
-            )
-        ]
-
-        if query.state:
-            filters.append(Ticket.state == query.state)
-        if query.priority:
-            filters.append(Ticket.priority == query.priority)
-        if query.ticket_number is not None:
-            filters.append(Ticket.ticket_number == query.ticket_number)
-
-        return self.repo.list_tickets(
-            filters=filters,
-            limit=query.limit,
-            offset=query.offset,
-            sort=query.sort,
-            order=query.order,
-        )
+        assigned_query = query.model_copy(update={"assigned_to": "me", "assignee": None})
+        return self.list_tickets_for_actor(current_user, assigned_query)
 
     def get_ticket_or_404(self, ticket_id: UUID) -> Ticket:
         ticket = self.repo.get_by_id(ticket_id)
@@ -154,7 +146,12 @@ class TicketService:
 
     def get_ticket(self, current_user: User, ticket_id: UUID) -> Ticket:
         ticket = self.get_ticket_or_404(ticket_id)
-        if not can_view_ticket(current_user.role, current_user.id, ticket.created_by, ticket.assignee_ids):
+        if not can_view_ticket(
+            current_user.role,
+            current_user.id,
+            ticket.created_by,
+            ticket.assignee_ids,
+        ):
             raise ForbiddenError("access denied")
         return ticket
 
@@ -162,7 +159,12 @@ class TicketService:
         ticket = self.repo.get_by_number(ticket_number)
         if not ticket:
             raise NotFoundError("ticket not found")
-        if not can_view_ticket(current_user.role, current_user.id, ticket.created_by, ticket.assignee_ids):
+        if not can_view_ticket(
+            current_user.role,
+            current_user.id,
+            ticket.created_by,
+            ticket.assignee_ids,
+        ):
             raise ForbiddenError("access denied")
         return ticket
 
@@ -179,10 +181,20 @@ class TicketService:
         self.session.refresh(ticket)
         return ticket
 
-    def update_ticket(self, current_user: User, ticket_id: UUID, payload: UpdateTicketRequest) -> Ticket:
+    def update_ticket(
+        self,
+        current_user: User,
+        ticket_id: UUID,
+        payload: UpdateTicketRequest,
+    ) -> Ticket:
         ticket = self.get_ticket_or_404(ticket_id)
 
-        if not can_update_ticket(current_user.role, current_user.id, ticket.created_by, ticket.assignee_ids):
+        if not can_update_ticket(
+            current_user.role,
+            current_user.id,
+            ticket.created_by,
+            ticket.assignee_ids,
+        ):
             raise ForbiddenError("access denied")
 
         changed = False
@@ -222,7 +234,9 @@ class TicketService:
         if payload.assigned_to is not None:
             if not can_assign_ticket(current_user.role):
                 raise ForbiddenError("access denied")
-            assignee_ids = [self._parse_uuid(user_id, "assigned_to") for user_id in payload.assigned_to]
+            assignee_ids = [
+                self._parse_uuid(user_id, "assigned_to") for user_id in payload.assigned_to
+            ]
             assignees = self.user_repo.get_by_ids(assignee_ids)
             if len(assignees) != len(set(assignee_ids)):
                 raise BadRequestError("one or more assignees do not exist")
