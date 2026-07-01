@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -42,23 +43,10 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch creator details for each comment
-	response := make([]CommentResponse, len(comments))
-	for i, comment := range comments {
-		creator, err := h.userService.GetUserByID(r.Context(), comment.CreatedBy)
-		if err != nil {
-			writeHandlerError(w, r, err)
-			return
-		}
-
-		response[i] = CommentResponse{
-			ID:          comment.ID,
-			TicketID:    comment.TicketID,
-			CreatedBy:   comment.CreatedBy,
-			Creator:     newUserInfo(creator),
-			Description: comment.Description,
-			CreatedAt:   comment.CreatedAt,
-		}
+	response, err := h.commentResponsesWithCreators(r.Context(), comments)
+	if err != nil {
+		writeHandlerError(w, r, err)
+		return
 	}
 
 	util.WriteResponse(w, http.StatusOK, response)
@@ -138,4 +126,44 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	util.WriteResponse(w, http.StatusAccepted, comment)
+}
+
+func (h *Handler) commentResponsesWithCreators(ctx context.Context, comments []domain.Comment) ([]CommentResponse, error) {
+	uniqueCreators := make(map[uuid.UUID]struct{})
+	for _, comment := range comments {
+		if comment.CreatedBy != uuid.Nil {
+			uniqueCreators[comment.CreatedBy] = struct{}{}
+		}
+	}
+
+	ids := make([]uuid.UUID, 0, len(uniqueCreators))
+	for id := range uniqueCreators {
+		ids = append(ids, id)
+	}
+
+	usersByID, err := h.userService.GetUsersByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	if usersByID == nil {
+		usersByID = make(map[uuid.UUID]*domain.User)
+	}
+
+	response := make([]CommentResponse, 0, len(comments))
+	for _, comment := range comments {
+		creator := UserInfo{ID: comment.CreatedBy}
+		if user, ok := usersByID[comment.CreatedBy]; ok && user != nil {
+			creator = newUserInfo(user)
+		}
+		response = append(response, CommentResponse{
+			ID:          comment.ID,
+			TicketID:    comment.TicketID,
+			CreatedBy:   comment.CreatedBy,
+			Creator:     creator,
+			Description: comment.Description,
+			CreatedAt:   comment.CreatedAt,
+		})
+	}
+
+	return response, nil
 }
