@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0002](0002-service-topology.md) (2026-07-02).
+
+The direction below (FastAPI authoritative, Go removed) has been reversed: Go is now the
+authoritative ticket-lifecycle service, and the FastAPI service is repurposed as an AI/RAG
+support-triage service. Retained for historical context only.
 
 ## Context
 

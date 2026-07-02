@@ -1,14 +1,24 @@
+# Compose topology (profiles):
+#   (default) core → postgres + ticket-service (Go, authoritative) + web (Vite/React)
+#   ai            → redis broker + ai-service (FastAPI RAG/triage worker)
+#   obs           → prometheus + grafana
+#
+# Run:
+#   docker compose up                         # core
+#   docker compose --profile ai up            # core + AI stack
+#   docker compose --profile ai --profile obs up
+# Paths are relative to this file (infra/compose/).
+
 services:
-  # Database
+  # ---- core -------------------------------------------------------------
   postgres:
-    image: postgres:15.8-alpine
+    # pgvector image so the AI service can store embeddings in the same DB
+    image: pgvector/pgvector:pg15
     container_name: ticket-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ticket_management}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    # NOTE: Port binding to 127.0.0.1:5432 may conflict if you have PostgreSQL
-    # running locally. Change the host port (e.g., "127.0.0.1:5433:5432") if needed.
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -30,32 +40,28 @@ services:
           cpus: '0.5'
           memory: 256M
 
-  # Backend API (FastAPI is the authoritative backend; see docs/adr/0001-backend-direction.md)
-  backend:
+  # Authoritative ticket-lifecycle service (Go). See docs/adr/0002-service-topology.md.
+  ticket-service:
     build:
-      context: ./backend-python
+      context: ../../apps/ticket-service
       dockerfile: Dockerfile
-    container_name: ticket-backend
+    container_name: ticket-service
     environment:
       APP_ENV: ${APP_ENV:-local}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}
+      PORT: 8080
+      DB_ADDR: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
-      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
+      CookieDomain: ${COOKIE_DOMAIN:-localhost}
+      # Outbox relay target (see Phase 2/4); harmless if unused.
+      REDIS_ADDR: redis:6379
     ports:
-      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - ticket-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8081/health', timeout=5)\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     deploy:
       resources:
         limits:
@@ -65,18 +71,18 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  # Frontend
-  frontend:
+  web:
     build:
-      context: ./frontend
+      context: ../../apps/web
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${FRONTEND_API_URL:-http://localhost:8081}
-    container_name: ticket-frontend
+        # Web talks to the Go ticket service (authoritative API).
+        VITE_API_URL: ${WEB_API_URL:-http://localhost:8080}
+    container_name: ticket-web
     ports:
       - "3000:8080"
     depends_on:
-      - backend
+      - ticket-service
     networks:
       - ticket-network
     restart: unless-stopped
@@ -95,10 +101,68 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  # Prometheus
+  # ---- ai profile -------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ticket-redis
+    profiles: ["ai"]
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ticket-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # AI/RAG support-triage service (FastAPI). Consumes ticket events, decides
+  # answer-safely vs escalate-to-human, and calls back into the ticket service.
+  ai-service:
+    build:
+      context: ../../apps/ai-service
+      dockerfile: Dockerfile
+    container_name: ticket-ai-service
+    profiles: ["ai"]
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}
+      REDIS_URL: redis://redis:6379/0
+      TICKET_SERVICE_URL: http://ticket-service:8080
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
+      AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ticket-service:
+        condition: service_started
+    networks:
+      - ticket-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ---- obs profile ------------------------------------------------------
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: ticket-prometheus
+    profiles: ["obs"]
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -109,24 +173,16 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../../infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     networks:
       - ticket-network
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
 
-  # Grafana
   grafana:
     image: grafana/grafana:11.3.1
     container_name: ticket-grafana
+    profiles: ["obs"]
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: false
@@ -134,23 +190,16 @@ services:
       - "3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ../../infra/monitoring/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - ticket-network
-    restart: unless-stopped
     depends_on:
       - prometheus
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:
   prometheus_data:
   grafana_data:
 

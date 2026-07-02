@@ -11,9 +11,37 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test-backend:
+  contracts-drift:
     runs-on: ubuntu-latest
-    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Set up Go
+      # Needed so the generator can run gofmt on the Go artifact.
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.5'
+
+    - name: Regenerate contract artifacts
+      run: python tools/generate_ticket_state_contract.py
+
+    - name: Fail on drift
+      run: |
+        if ! git diff --quiet; then
+          echo "Generated contract artifacts are out of date. Run 'make contracts' and commit."
+          git --no-pager diff
+          exit 1
+        fi
+
+  test-ticket-service:
+    runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:15
@@ -48,11 +76,11 @@ jobs:
           ${{ runner.os }}-go-
 
     - name: Install dependencies
-      working-directory: ./backend
+      working-directory: ./apps/ticket-service
       run: go mod download
 
     - name: Run tests
-      working-directory: ./backend
+      working-directory: ./apps/ticket-service
       run: go test -v -cover ./...
       env:
         DB_HOST: localhost
@@ -61,36 +89,67 @@ jobs:
         DB_PASSWORD: postgres
         DB_NAME: ticket_management_test
 
-  test-frontend:
+  test-ai-service:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Set up Python
+      run: uv python install 3.12
 
     - name: Install dependencies
-      working-directory: ./frontend
-      run: npm ci
-
-    - name: Run type check
-      working-directory: ./frontend
-      run: npm run build
+      working-directory: ./apps/ai-service
+      run: uv sync --extra dev
 
     - name: Run linting
-      working-directory: ./frontend
-      run: npm run lint
+      working-directory: ./apps/ai-service
+      run: uv run ruff check .
+
+    - name: Run tests
+      working-directory: ./apps/ai-service
+      run: uv run pytest
+
+  test-web:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Install dependencies
+      working-directory: ./apps/web
+      run: bun install --frozen-lockfile
+
+    - name: Run type check + build
+      working-directory: ./apps/web
+      run: bun run build
+
+    - name: Run linting
+      working-directory: ./apps/web
+      run: bun run lint
 
   build-and-push:
-    needs: [test-backend, test-frontend]
+    needs: [contracts-drift, test-ticket-service, test-ai-service, test-web]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+
+    strategy:
+      matrix:
+        include:
+          - name: ticket-service
+            context: ./apps/ticket-service
+          - name: ai-service
+            context: ./apps/ai-service
+          - name: web
+            context: ./apps/web
 
     steps:
     - name: Checkout code
@@ -106,45 +165,24 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata (backend)
-      id: meta-backend
+    - name: Extract metadata
+      id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.name }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build and push backend image
+    - name: Build and push ${{ matrix.name }} image
       uses: docker/build-push-action@v5
       with:
-        context: ./backend
+        context: ${{ matrix.context }}
         push: true
-        tags: ${{ steps.meta-backend.outputs.tags }}
-        labels: ${{ steps.meta-backend.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Extract metadata (frontend)
-      id: meta-frontend
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
-
-    - name: Build and push frontend image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./frontend
-        push: true
-        tags: ${{ steps.meta-frontend.outputs.tags }}
-        labels: ${{ steps.meta-frontend.outputs.labels }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -163,8 +201,8 @@ jobs:
         echo "Deploy to production server"
         echo "You would typically SSH into your server here"
         echo "Pull the latest images and restart services"
-        
+
         # Example commands you would run on your server:
-        # docker-compose pull
-        # docker-compose up -d
+        # docker compose -f infra/compose/docker-compose.yml pull
+        # docker compose -f infra/compose/docker-compose.yml up -d
         # docker system prune -f

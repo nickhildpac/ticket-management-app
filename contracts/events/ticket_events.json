@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ticket domain events",
+  "description": "Async events published by the Go ticket-service outbox and consumed by the AI/RAG service. The Redis stream envelope carries event_id/event_type/aggregate_id plus a JSON-encoded payload matching one of the definitions below.",
+  "stream": "ticket-events",
+  "envelope": {
+    "event_id": "string (uuid) — outbox row id; use as the idempotency key",
+    "event_type": "string — one of the event names below",
+    "aggregate_id": "string (uuid) — ticket id",
+    "payload": "string — JSON-encoded object matching #/definitions/<event>"
+  },
+  "events": {
+    "ticket.created": { "$ref": "#/definitions/TicketEventPayload" },
+    "ticket.updated": { "$ref": "#/definitions/TicketEventPayload" }
+  },
+  "definitions": {
+    "TicketEventPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ticket_id",
+        "ticket_number",
+        "title",
+        "description",
+        "state",
+        "priority",
+        "created_by",
+        "assigned_to"
+      ],
+      "properties": {
+        "ticket_id": { "type": "string", "format": "uuid" },
+        "ticket_number": { "type": "integer" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "state": {
+          "type": "string",
+          "description": "Wire value from contracts/ticket_state_machine.json (e.g. open, pending, in_progress, resolved, closed, cancelled)"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "created_by": { "type": "string", "format": "uuid" },
+        "assigned_to": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" }
+        }
+      }
+    },
+    "TriageCompletedPayload": {
+      "type": "object",
+      "description": "Result the AI worker reports back (currently applied directly via the ticket-service API rather than published as an event; schema reserved for a future triage.completed stream).",
+      "additionalProperties": false,
+      "required": ["ticket_id", "action", "confidence"],
+      "properties": {
+        "ticket_id": { "type": "string", "format": "uuid" },
+        "action": { "type": "string", "enum": ["auto_answer", "escalate"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "draft_reply": { "type": ["string", "null"] },
+        "escalation_reason": { "type": ["string", "null"] },
+        "safety_flags": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
