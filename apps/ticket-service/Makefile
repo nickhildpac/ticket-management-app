@@ -18,7 +18,7 @@ swag:
 	@echo "Generating Swagger docs..."
 	@swag init -g cmd/api/main.go
 ticket-state-contract:
-	cd .. && python3 scripts/generate_ticket_state_contract.py
+	cd ../.. && python3 tools/generate_ticket_state_contract.py
 test:
 	go test -v -cover ./...
 server:

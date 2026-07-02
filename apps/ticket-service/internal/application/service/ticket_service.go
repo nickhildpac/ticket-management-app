@@ -16,12 +16,31 @@ import (
 type TicketService struct {
 	repo              ports.TicketRepository
 	autoAssignmentSvc *AutoAssignmentService
+	publisher         ports.EventPublisher
 }
 
-func NewTicketService(repo ports.TicketRepository, autoAssignmentSvc *AutoAssignmentService) *TicketService {
-	return &TicketService{
+// NewTicketService constructs the service. An optional EventPublisher enables
+// emitting ticket.created / ticket.updated domain events to the outbox; when
+// omitted (e.g. in unit tests), event emission is a no-op.
+func NewTicketService(repo ports.TicketRepository, autoAssignmentSvc *AutoAssignmentService, publisher ...ports.EventPublisher) *TicketService {
+	s := &TicketService{
 		repo:              repo,
 		autoAssignmentSvc: autoAssignmentSvc,
+	}
+	if len(publisher) > 0 {
+		s.publisher = publisher[0]
+	}
+	return s
+}
+
+// emit publishes a domain event best-effort; publishing failures are logged and
+// never fail the caller's request (the outbox row, once written, is the durable path).
+func (s *TicketService) emit(ctx context.Context, eventType string, ticket *domain.Ticket) {
+	if s.publisher == nil || ticket == nil {
+		return
+	}
+	if err := s.publisher.Publish(ctx, domain.NewTicketEvent(eventType, ticket)); err != nil {
+		log.Printf("failed to publish %s for ticket %s: %v", eventType, ticket.ID, err)
 	}
 }
 
@@ -218,6 +237,9 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 		}
 	}
 
+	// Emit ticket.created so the AI/RAG service can triage the new ticket.
+	s.emit(ctx, domain.EventTicketCreated, createdTicket)
+
 	return createdTicket, nil
 }
 
@@ -290,7 +312,18 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id uuid.UUID, patch do
 
 	ticket.CreatedAt = prev.CreatedAt
 	ticket.UpdatedAt = time.Now()
-	return s.repo.Update(ctx, ticket)
+	updated, err := s.repo.Update(ctx, ticket)
+	if err != nil {
+		return nil, err
+	}
+
+	// Emit ticket.updated only when the lifecycle state actually changed, so the
+	// AI/RAG service re-triages on meaningful transitions (not on title edits).
+	if updated.State != prev.State {
+		s.emit(ctx, domain.EventTicketUpdated, updated)
+	}
+
+	return updated, nil
 }
 
 func (s *TicketService) DeleteTicket(ctx context.Context, id uuid.UUID) error {
