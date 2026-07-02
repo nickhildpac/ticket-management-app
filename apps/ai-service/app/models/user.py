@@ -39,24 +39,24 @@ class User(Base, TimestampMixin):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
 
-    skills: Mapped[list["UserSkill"]] = relationship(
+    skills: Mapped[list[UserSkill]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
 
-    created_tickets: Mapped[list["Ticket"]] = relationship(
+    created_tickets: Mapped[list[Ticket]] = relationship(
         "Ticket", back_populates="creator", foreign_keys="Ticket.created_by"
     )
-    assigned_ticket_links: Mapped[list["TicketAssignee"]] = relationship(
+    assigned_ticket_links: Mapped[list[TicketAssignee]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    assigned_tickets: Mapped[list["Ticket"]] = relationship(
+    assigned_tickets: Mapped[list[Ticket]] = relationship(
         "Ticket",
         secondary="ticket_assignees",
         back_populates="assignees",
         viewonly=True,
     )
-    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="creator")
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+    comments: Mapped[list[Comment]] = relationship("Comment", back_populates="creator")
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         "RefreshToken", back_populates="user", cascade="all, delete-orphan"
     )
 

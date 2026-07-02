@@ -5,7 +5,6 @@ from pathlib import Path
 
 from app.main import app
 
-
 if __name__ == "__main__":
     openapi = app.openapi()
     out_path = Path(__file__).resolve().parents[1] / "openapi.json"

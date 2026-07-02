@@ -53,22 +53,22 @@ class Ticket(Base, TimestampMixin):
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    creator: Mapped["User"] = relationship("User", back_populates="created_tickets", lazy="joined")
+    creator: Mapped[User] = relationship("User", back_populates="created_tickets", lazy="joined")
 
-    assignee_links: Mapped[list["TicketAssignee"]] = relationship(
+    assignee_links: Mapped[list[TicketAssignee]] = relationship(
         back_populates="ticket", cascade="all, delete-orphan", lazy="selectin"
     )
-    assignees: Mapped[list["User"]] = relationship(
+    assignees: Mapped[list[User]] = relationship(
         "User",
         secondary="ticket_assignees",
         back_populates="assigned_tickets",
         viewonly=True,
         lazy="selectin",
     )
-    skills: Mapped[list["TicketSkill"]] = relationship(
+    skills: Mapped[list[TicketSkill]] = relationship(
         back_populates="ticket", cascade="all, delete-orphan", lazy="selectin"
     )
-    comments: Mapped[list["Comment"]] = relationship(
+    comments: Mapped[list[Comment]] = relationship(
         back_populates="ticket", cascade="all, delete-orphan"
     )
 

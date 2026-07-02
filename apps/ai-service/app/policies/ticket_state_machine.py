@@ -3,7 +3,6 @@ from __future__ import annotations
 from app.enums.ticket_state import TicketState
 from app.generated.ticket_state_contract import ALLOWED_TRANSITION_VALUES
 
-
 ALLOWED_TRANSITIONS: dict[TicketState, set[TicketState]] = {
     TicketState(state): {TicketState(target) for target in targets}
     for state, targets in ALLOWED_TRANSITION_VALUES.items()

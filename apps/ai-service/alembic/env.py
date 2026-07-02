@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from alembic.script import ScriptDirectory
 from sqlalchemy import engine_from_config, inspect, pool, text
 
+from alembic import context
 from app.core.config import get_settings
-from app.models import Base  # noqa: F401
-from app.models import association, comment, refresh_token, ticket, user  # noqa: F401
+from app.models import (  # noqa: F401
+    Base,  # noqa: F401
+    association,
+    comment,
+    refresh_token,
+    ticket,
+    user,
+)
 
 config = context.config
 

@@ -9,8 +9,8 @@ from app.models.comment import Comment
 from app.models.user import User
 from app.policies.rbac import can_view_ticket
 from app.repositories.comment import CommentRepository
-from app.services.ticket import TicketService
 from app.schemas.comment import CreateCommentRequest
+from app.services.ticket import TicketService
 
 
 class CommentService:

@@ -39,6 +39,29 @@ class Settings(BaseSettings):
         alias="CORS_ORIGINS",
     )
 
+    # ---- AI / RAG / triage settings ------------------------------------
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    ticket_service_url: str = Field(default="http://localhost:8080", alias="TICKET_SERVICE_URL")
+    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
+    triage_model: str = Field(default="claude-opus-4-8", alias="TRIAGE_MODEL")
+    # Auto-answer only when the model is confident and raised no safety flags.
+    auto_answer_confidence_threshold: float = Field(
+        default=0.75, alias="AUTO_ANSWER_CONFIDENCE_THRESHOLD"
+    )
+    embedding_dim: int = Field(default=384, alias="EMBEDDING_DIM")
+    rag_top_k: int = Field(default=5, alias="RAG_TOP_K")
+    # Redis Streams consumer group for the ticket-events stream.
+    consumer_group: str = Field(default="ai-triage", alias="CONSUMER_GROUP")
+
+    # Service account the worker uses to call back into the Go ticket API. The
+    # minted JWT must satisfy the ticket-service auth middleware: an existing
+    # agent/admin user id as `sub`, matching issuer/audience, signed with the
+    # shared jwt_secret. See docs/adr/0002-service-topology.md.
+    service_account_id: str = Field(default="", alias="AI_SERVICE_ACCOUNT_ID")
+    service_account_role: str = Field(default="agent", alias="AI_SERVICE_ACCOUNT_ROLE")
+    jwt_issuer: str = Field(default="example.com", alias="JWT_ISSUER")
+    jwt_audience: str = Field(default="example.com", alias="JWT_AUDIENCE")
+
     @property
     def cors_origins(self) -> list[str]:
         return [item.strip() for item in self.cors_origins_csv.split(",") if item.strip()]

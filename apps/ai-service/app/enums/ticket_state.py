@@ -4,7 +4,6 @@ from enum import StrEnum
 
 from app.generated.ticket_state_contract import TICKET_STATE_ALIASES, TICKET_STATE_ENUM_MEMBERS
 
-
 TicketState = StrEnum("TicketState", TICKET_STATE_ENUM_MEMBERS)
 
 

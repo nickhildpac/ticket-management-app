@@ -16,4 +16,4 @@ openapi:
 	python scripts/generate_openapi.py
 
 ticket-state-contract:
-	cd .. && python3 scripts/generate_ticket_state_contract.py
+	cd ../.. && python3 tools/generate_ticket_state_contract.py

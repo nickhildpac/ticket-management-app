@@ -31,5 +31,5 @@ class Comment(Base, TimestampMixin):
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
-    ticket: Mapped["Ticket"] = relationship("Ticket", back_populates="comments")
-    creator: Mapped["User"] = relationship("User", back_populates="comments", lazy="joined")
+    ticket: Mapped[Ticket] = relationship("Ticket", back_populates="comments")
+    creator: Mapped[User] = relationship("User", back_populates="comments", lazy="joined")

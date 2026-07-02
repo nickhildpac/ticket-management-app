@@ -13,8 +13,8 @@ RUN bun install --frozen-lockfile
 # Copy the source code
 COPY . .
 
-# Build the application (VITE_API_URL can be passed as build arg)
-ARG VITE_API_URL=http://localhost:8081
+# Build the application (VITE_API_URL points at the Go ticket-service; see ADR 0002)
+ARG VITE_API_URL=http://localhost:8080
 ENV VITE_API_URL=${VITE_API_URL}
 RUN bun run build
 

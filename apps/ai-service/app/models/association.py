@@ -23,7 +23,7 @@ class UserSkill(Base):
     )
     skill: Mapped[str] = mapped_column(String(64), primary_key=True)
 
-    user: Mapped["User"] = relationship(back_populates="skills")
+    user: Mapped[User] = relationship(back_populates="skills")
 
 
 class TicketSkill(Base):
@@ -34,7 +34,7 @@ class TicketSkill(Base):
     )
     skill: Mapped[str] = mapped_column(String(64), primary_key=True)
 
-    ticket: Mapped["Ticket"] = relationship(back_populates="skills")
+    ticket: Mapped[Ticket] = relationship(back_populates="skills")
 
 
 class TicketAssignee(Base):
@@ -48,5 +48,5 @@ class TicketAssignee(Base):
     )
     assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
-    ticket: Mapped["Ticket"] = relationship(back_populates="assignee_links")
-    user: Mapped["User"] = relationship(back_populates="assigned_ticket_links")
+    ticket: Mapped[Ticket] = relationship(back_populates="assignee_links")
+    user: Mapped[User] = relationship(back_populates="assigned_ticket_links")
