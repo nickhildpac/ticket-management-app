@@ -9,6 +9,29 @@ import {
 
 export { TICKET_LIST_PAGE_SIZE } from './queue-state';
 
+/** Go ticket-service may return a bare array or { items, total, page, pageSize }. */
+export function normalizePaginatedTickets(
+    data: PaginatedResult<Ticket> | Ticket[] | undefined,
+): PaginatedResult<Ticket> {
+    if (!data) {
+        return { items: [], total: 0, page: 1, pageSize: TICKET_LIST_PAGE_SIZE };
+    }
+    if (Array.isArray(data)) {
+        return {
+            items: data,
+            total: data.length,
+            page: 1,
+            pageSize: data.length || TICKET_LIST_PAGE_SIZE,
+        };
+    }
+    return {
+        items: data.items ?? [],
+        total: data.total ?? data.items?.length ?? 0,
+        page: data.page ?? 1,
+        pageSize: data.pageSize ?? TICKET_LIST_PAGE_SIZE,
+    };
+}
+
 export type TicketListQueryInput = {
     state?: string;
     priority?: string;
@@ -81,10 +104,11 @@ export const useTickets = (params: TicketListQueryInput = {}) =>
         queryKey: ticketListQueryKey('list', params),
         queryFn: async () => {
             const queryParams = buildTicketListQueryParams(params);
-            return api<PaginatedResult<Ticket>>(
+            const data = await api<PaginatedResult<Ticket> | Ticket[]>(
                 `/api/v1/tickets?${queryParams.toString()}`,
                 { cache: 'no-store' }
             );
+            return normalizePaginatedTickets(data);
         },
     });
 
@@ -94,10 +118,11 @@ export const useAssignedTickets = (params: TicketListQueryInput = {}) =>
         queryFn: async () => {
             const queryParams = buildTicketListQueryParams(params);
             queryParams.set('assigned_to', 'me');
-            return api<PaginatedResult<Ticket>>(
+            const data = await api<PaginatedResult<Ticket> | Ticket[]>(
                 `/api/v1/tickets?${queryParams.toString()}`,
                 { cache: 'no-store' }
             );
+            return normalizePaginatedTickets(data);
         },
     });
 

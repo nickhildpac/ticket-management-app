@@ -1,6 +1,6 @@
 import { AppShell } from "@/app/shell";
 import { useUser } from "@/app/user-context";
-import { useTicketStats, useTickets } from "../tickets/queries";
+import { normalizePaginatedTickets, useTicketStats, useTickets } from "../tickets/queries";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,13 +42,13 @@ export function Dashboard() {
     const { data: assignedTickets, isLoading: assignedLoading } = useQuery({
         queryKey: ["tickets", "assigned", "dashboard"],
         queryFn: async () => {
-            const response = await api<PaginatedResult<Ticket>>("/api/v1/tickets?assigned_to=me");
-            return response.items;
+            const response = await api<PaginatedResult<Ticket> | Ticket[]>("/api/v1/tickets?assigned_to=me");
+            return normalizePaginatedTickets(response).items;
         },
         enabled: user?.role === "agent",
     });
 
-    const recent = recentTickets?.items.slice(0, 5) || [];
+    const recent = (recentTickets?.items ?? []).slice(0, 5);
 
     const adminStatCards = [
         { title: "Total Tickets", value: stats?.total, icon: TicketIcon, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
