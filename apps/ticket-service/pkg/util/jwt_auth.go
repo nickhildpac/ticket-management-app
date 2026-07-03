@@ -86,7 +86,7 @@ func GetExpiredRefreshCookie(conf *configs.Config) *http.Cookie {
 		SameSite: http.SameSiteStrictMode,
 		Domain:   conf.CookieDomain,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   conf.CookieSecure,
 	}
 }
 
@@ -100,7 +100,7 @@ func GetRefreshCookie(conf *configs.Config, refreshToken string) *http.Cookie {
 		SameSite: http.SameSiteStrictMode,
 		Domain:   conf.CookieDomain,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   conf.CookieSecure,
 	}
 }
 

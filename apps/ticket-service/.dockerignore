@@ -4,7 +4,8 @@
 
 # Documentation
 README.md
-docs/
+# NOTE: do not ignore docs/ — docs/docs.go is generated Swagger code imported by
+# internal/adapters/http/router.go, so it must be in the build context.
 
 # IDE
 .vscode/

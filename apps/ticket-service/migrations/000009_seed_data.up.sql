@@ -24,6 +24,13 @@ INSERT INTO tickets (id, ticket_number, created_by, assigned_to, title, descript
 ('06666666-6666-4666-8666-666666666666', 100006, 'f6666666-6666-4666-8666-666666666666', ARRAY['b2222222-2222-4222-8222-222222222222']::UUID[], 'Bug Report', 'Button not working', 3, 3, ARRAY[]::TEXT[], NOW() - INTERVAL '2 weeks', NOW() - INTERVAL '1 week')
 ON CONFLICT DO NOTHING;
 
+-- Keep ticket_number_seq ahead of seeded rows so CREATE uses non-colliding numbers.
+SELECT setval(
+    'ticket_number_seq',
+    GREATEST((SELECT COALESCE(MAX(ticket_number), 100000) FROM tickets), 100000),
+    true
+);
+
 -- Comments
 INSERT INTO comments (id, ticket_id, created_by, description, created_at, updated_at) VALUES
 ('00111111-1111-4111-8111-111111111111', '01111111-1111-4111-8111-111111111111', 'c3333333-3333-4333-8333-333333333333', 'This is urgent!', NOW() - INTERVAL '1 hour', NOW()),

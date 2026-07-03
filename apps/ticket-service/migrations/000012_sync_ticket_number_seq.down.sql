@@ -1,0 +1,1 @@
+-- No-op: sequence position cannot be safely reversed.

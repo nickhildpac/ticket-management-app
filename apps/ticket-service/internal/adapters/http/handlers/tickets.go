@@ -139,7 +139,8 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 			writeHandlerError(w, r, err)
 			return
 		}
-		util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
+		summaries := h.ticketSummariesWithCreators(r.Context(), tickets)
+		util.WriteResponse(w, http.StatusOK, ticketListResponse(summaries, filterParams.LimitVal, filterParams.OffsetVal))
 		return
 	}
 
@@ -160,7 +161,26 @@ func (h *Handler) GetTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.WriteResponse(w, http.StatusOK, h.ticketSummariesWithCreators(r.Context(), tickets))
+	summaries := h.ticketSummariesWithCreators(r.Context(), tickets)
+	util.WriteResponse(w, http.StatusOK, ticketListResponse(summaries, filterParams.LimitVal, filterParams.OffsetVal))
+}
+
+// ticketListResponse wraps a page of ticket summaries in the
+// {items,total,page,pageSize} envelope the web client expects
+// (PaginatedResult<Ticket>). total is the page length; a precise cross-page
+// count is a future enhancement.
+func ticketListResponse(items []TicketSummaryResponse, limit, offset int32) map[string]any {
+	pageSize := int(limit)
+	page := 1
+	if limit > 0 {
+		page = int(offset/limit) + 1
+	}
+	return map[string]any{
+		"items":    items,
+		"total":    len(items),
+		"page":     page,
+		"pageSize": pageSize,
+	}
 }
 
 func cloneQueryWithout(q url.Values, keys ...string) url.Values {

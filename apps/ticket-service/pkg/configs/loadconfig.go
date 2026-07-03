@@ -30,6 +30,7 @@ type Config struct {
 	CookieDomain  string
 	CookiePath    string
 	CookieName    string
+	CookieSecure  bool
 }
 
 func LoadConfig() (*Config, error) {
@@ -52,6 +53,9 @@ func LoadConfig() (*Config, error) {
 	flag.Parse()
 	config.CookieName = GetString("RefreshCookieName", "tapp-refresh_token")
 	config.CookiePath = GetString("CookiePath", "/")
+	// Secure cookies are dropped over plain http; default off in local/test so
+	// refresh works on http://localhost, on elsewhere.
+	config.CookieSecure = GetBool("RefreshCookieSecure", !isLocalOrTest(config.AppEnv))
 	config.TokenExpiry = time.Minute * time.Duration(GetInt("TokenExpiry", 15))
 	config.RefreshExpiry = time.Hour * time.Duration(GetInt("RefreshTokenExpiry", 24))
 	if !isLocalOrTest(config.AppEnv) && isWeakJWTSecret(config.JWTSecret) {
@@ -84,6 +88,18 @@ func GetString(key, fallback string) string {
 		return fallback
 	}
 	return val
+}
+
+func GetBool(key string, fallback bool) bool {
+	val, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(strings.TrimSpace(val))
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func GetInt(key string, fallback int) int {

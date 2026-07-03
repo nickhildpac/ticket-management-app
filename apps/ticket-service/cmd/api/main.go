@@ -48,6 +48,16 @@ func main() {
 	}
 	log.Println("DB connected successfully")
 
+	// Go owns the ticket schema (ADR 0002); apply migrations on startup unless
+	// disabled (e.g. when a DB is managed externally). Set AUTO_MIGRATE=false to skip.
+	if os.Getenv("AUTO_MIGRATE") != "false" {
+		migrationsPath := configs.GetString("MIGRATIONS_PATH", "migrations")
+		if err := adapterdb.RunMigrations(conn, migrationsPath); err != nil {
+			log.Fatalf("failed to run migrations: %v", err)
+		}
+		log.Println("migrations applied")
+	}
+
 	store := sqldb.NewStore(conn)
 	userRepo := adapterdb.NewUserRepository(store)
 	ticketRepo := adapterdb.NewTicketRepository(store)
