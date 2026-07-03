@@ -52,6 +52,10 @@ services:
       DB_ADDR: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
       CookieDomain: ${COOKIE_DOMAIN:-localhost}
+      # CORS origin = where the browser loads the web app from (host port 3000).
+      FRONTEND_URL: ${WEB_ORIGIN:-http://localhost:3000}
+      # Local dev is plain http, so don't mark the refresh cookie Secure.
+      RefreshCookieSecure: ${REFRESH_COOKIE_SECURE:-false}
       # Outbox relay target (see Phase 2/4); harmless if unused.
       REDIS_ADDR: redis:6379
     ports:

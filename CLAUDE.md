@@ -38,6 +38,36 @@ make ingest KB_PATH=knowledge   # ingest a knowledge base into the vector store
 make worker       # run the AI triage worker (Redis Streams consumer)
 ```
 
+### Running backend services locally (without Docker)
+
+Ports: **ticket-service 8080**, **ai-service 8081**, **postgres 5432**, **redis 6379**. Bring up the
+datastores with Compose, then run each service from its app directory. `.env` at the repo root holds
+shared values (`JWT_SECRET`, DB creds, `ANTHROPIC_API_KEY`, `AI_SERVICE_ACCOUNT_ID`).
+
+```bash
+# 1. Datastores (postgres always; redis only if you run the AI stack)
+docker compose -f infra/compose/docker-compose.yml up -d postgres
+docker compose -f infra/compose/docker-compose.yml --profile ai up -d redis
+make migrate                                   # apply ai-service (kb_chunks) migrations
+
+# 2. ticket-service (Go, authoritative API) — terminal 1
+cd apps/ticket-service
+DB_ADDR='postgres://postgres:postgres@localhost:5432/ticket_management?sslmode=disable' \
+JWT_SECRET='local-dev-only-secret' REDIS_ADDR='localhost:6379' PORT=8080 \
+  go run cmd/api/main.go                        # REDIS_ADDR enables the outbox relay
+
+# 3. ai-service API (FastAPI triage endpoint) — terminal 2
+cd apps/ai-service
+uv run uvicorn app.main:app --reload --port 8081
+
+# 4. ai-service worker (consumes ticket-events, applies triage) — terminal 3
+cd apps/ai-service
+uv run python -m app.ai.worker                  # needs ANTHROPIC_API_KEY + a seeded AI_SERVICE_ACCOUNT_ID
+```
+
+The full stack via Compose is simpler: `make up` (core) or `make up-ai` (core + AI). Run services
+directly (above) when you want live reload or a debugger attached.
+
 ### ticket-service (Go, authoritative) — `apps/ticket-service`
 ```bash
 go run cmd/api/main.go         # run the API server (PORT default 8080)
