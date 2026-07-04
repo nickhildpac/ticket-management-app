@@ -4,10 +4,13 @@ A full-stack ticket management application with containerization, CI/CD, and mon
 
 ## Architecture
 
-- **Backend**: FastAPI is the authoritative backend direction; the Go API remains temporarily during migration
-- **Frontend**: React SPA with TypeScript and Tailwind CSS
-- **Monitoring**: Prometheus and Grafana
-- **Containerization**: Multi-stage Dockerfiles
+See `docs/adr/0002-service-topology.md` for the authoritative description. In short:
+
+- **ticket-service** (`apps/ticket-service`, Go): authoritative ticket API, port 8080
+- **ai-service** (`apps/ai-service`, FastAPI): RAG/triage worker + endpoint, port 8081 (compose profile `ai`)
+- **web** (`apps/web`, React/Vite): SPA pointed at the Go API
+- **Monitoring**: Prometheus and Grafana (compose profile `obs`)
+- **Orchestration**: Docker Compose profiles + root `Makefile`; images built per app
 - **CI/CD**: GitHub Actions
 
 ## Quick Start
@@ -91,15 +94,20 @@ GitHub Actions workflow includes:
 
 ## Database Migrations
 
-Run migrations manually:
+The Go **ticket-service applies its own migrations on startup** (owns the
+ticket/user/comment schema); set `AUTO_MIGRATE=false` to disable. The
+**ai-service applies its Alembic migrations** (AI-owned tables like `kb_chunks`)
+on container start, or run them manually:
+
 ```bash
-docker-compose exec backend make migrateup
+make migrate                          # AI-service Alembic (from repo root)
+# or against a running stack:
+docker compose -f infra/compose/docker-compose.yml exec ai-service uv run alembic upgrade head
 ```
 
-Rollback migrations:
-```bash
-docker-compose exec backend make migratedown
-```
+To disable the Go service's auto-migration (e.g. externally managed DB), set
+`AUTO_MIGRATE=false` and apply `apps/ticket-service/migrations/` with the
+golang-migrate CLI.
 
 ## Production Deployment
 

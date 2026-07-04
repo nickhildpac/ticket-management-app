@@ -69,8 +69,11 @@ contracts: ## Regenerate all generated contract artifacts from contracts/
 	python3 tools/generate_ticket_state_contract.py
 
 # ---- database -----------------------------------------------------------
+# The Go ticket-service owns the ticket/user/comment schema and applies its own
+# migrations automatically on startup (AUTO_MIGRATE). This target applies the
+# AI-service's Alembic migrations (kb_chunks and other AI-owned tables).
 .PHONY: migrate
-migrate: ## Apply migrations (Go ticket schema + AI-service alembic)
+migrate: ## Apply AI-service Alembic migrations (Go schema auto-migrates on startup)
 	$(COMPOSE) up -d postgres
 	cd $(AI) && uv run alembic upgrade head
 

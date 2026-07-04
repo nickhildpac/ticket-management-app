@@ -51,3 +51,17 @@ class TicketServiceClient:
             headers=self._headers(),
         )
         resp.raise_for_status()
+
+    def verify_access(self) -> None:
+        """Probe the ticket API with the service token; raises on failure.
+
+        Surfaces misconfiguration (unset/invalid AI_SERVICE_ACCOUNT_ID, wrong role,
+        iss/aud mismatch, or an unreachable API) loudly at worker startup instead
+        of silently 403-ing on every consumed event.
+        """
+        resp = self.client.get(
+            f"{self.base_url}/tickets",
+            params={"limit": 1, "offset": 0},
+            headers=self._headers(),
+        )
+        resp.raise_for_status()

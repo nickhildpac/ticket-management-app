@@ -206,8 +206,11 @@ solely to the model: auto-answer only when the model chose it, confidence ≥ th
 flags, and a non-empty draft. Refusals/errors escalate.
 
 ### AI → ticket-service callback auth
-`app/ai/ticket_client.py` mints a short-lived JWT for the AI service account. It requires a seeded
-agent/admin user id (`AI_SERVICE_ACCOUNT_ID`) and iss/aud matching the ticket-service middleware.
+`app/ai/ticket_client.py` mints a short-lived JWT for the AI service account. A dedicated **admin**
+service account is seeded by ticket-service migration `000013` (`AI_SERVICE_ACCOUNT_ID` defaults to
+it); admin is required because only admins may comment on tickets they aren't assigned to. iss/aud
+must match the ticket-service middleware. The worker calls `verify_access()` at startup and logs
+loudly if the callback path is misconfigured.
 
 ### Type Safety
 Go and TypeScript are statically typed; FastAPI/Pydantic + SQLAlchemy define the ai-service contracts.

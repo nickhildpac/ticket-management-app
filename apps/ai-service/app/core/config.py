@@ -50,15 +50,22 @@ class Settings(BaseSettings):
     )
     embedding_dim: int = Field(default=384, alias="EMBEDDING_DIM")
     rag_top_k: int = Field(default=5, alias="RAG_TOP_K")
-    # Redis Streams consumer group for the ticket-events stream.
+    # Redis Streams consumer group + this replica's consumer name (set per replica
+    # when scaling horizontally so pending-entry recovery can tell them apart).
     consumer_group: str = Field(default="ai-triage", alias="CONSUMER_GROUP")
+    consumer_name: str = Field(default="worker-1", alias="CONSUMER_NAME")
 
     # Service account the worker uses to call back into the Go ticket API. The
     # minted JWT must satisfy the ticket-service auth middleware: an existing
     # agent/admin user id as `sub`, matching issuer/audience, signed with the
     # shared jwt_secret. See docs/adr/0002-service-topology.md.
-    service_account_id: str = Field(default="", alias="AI_SERVICE_ACCOUNT_ID")
-    service_account_role: str = Field(default="agent", alias="AI_SERVICE_ACCOUNT_ROLE")
+    # Defaults match the seeded AI service account (migration 000013). It is an
+    # admin because CanCommentOnTicket only lets admins comment on tickets they
+    # aren't assigned to, and the worker comments on arbitrary tickets.
+    service_account_id: str = Field(
+        default="00000000-0000-4000-8000-0000000000a1", alias="AI_SERVICE_ACCOUNT_ID"
+    )
+    service_account_role: str = Field(default="admin", alias="AI_SERVICE_ACCOUNT_ROLE")
     jwt_issuer: str = Field(default="example.com", alias="JWT_ISSUER")
     jwt_audience: str = Field(default="example.com", alias="JWT_AUDIENCE")
 

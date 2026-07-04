@@ -33,8 +33,50 @@ func NewTicketService(repo ports.TicketRepository, autoAssignmentSvc *AutoAssign
 	return s
 }
 
-// emit publishes a domain event best-effort; publishing failures are logged and
-// never fail the caller's request (the outbox row, once written, is the durable path).
+// eventfulTicketRepo is implemented by repositories that can write the domain
+// event in the same transaction as the ticket write (a true transactional
+// outbox). The production repo implements it; test fakes don't, so they fall
+// back to the non-transactional emit path below.
+type eventfulTicketRepo interface {
+	CreateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error)
+	UpdateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error)
+}
+
+// createTicket persists a ticket and (when events are enabled) its ticket.created
+// event atomically. Falls back to a plain create + best-effort emit when the repo
+// isn't transaction-aware.
+func (s *TicketService) createTicket(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
+	if er, ok := s.repo.(eventfulTicketRepo); ok && s.publisher != nil {
+		return er.CreateWithEvent(ctx, ticket, domain.EventTicketCreated)
+	}
+	created, err := s.repo.Create(ctx, ticket)
+	if err != nil {
+		return nil, err
+	}
+	s.emit(ctx, domain.EventTicketCreated, created)
+	return created, nil
+}
+
+// updateTicket persists a ticket update and, when withEvent is set, its
+// ticket.updated event atomically (or via best-effort emit as a fallback).
+func (s *TicketService) updateTicket(ctx context.Context, ticket domain.Ticket, withEvent bool) (*domain.Ticket, error) {
+	if er, ok := s.repo.(eventfulTicketRepo); ok && s.publisher != nil && withEvent {
+		return er.UpdateWithEvent(ctx, ticket, domain.EventTicketUpdated)
+	}
+	updated, err := s.repo.Update(ctx, ticket)
+	if err != nil {
+		return nil, err
+	}
+	if withEvent {
+		s.emit(ctx, domain.EventTicketUpdated, updated)
+	}
+	return updated, nil
+}
+
+// emit publishes a domain event via the non-transactional fallback path (used
+// only when the repository can't write the event in the ticket's transaction,
+// e.g. in unit tests). Failures are logged; they can't fail an already-committed
+// request. The production path is the transactional outbox in eventfulTicketRepo.
 func (s *TicketService) emit(ctx context.Context, eventType string, ticket *domain.Ticket) {
 	if s.publisher == nil || ticket == nil {
 		return
@@ -209,8 +251,8 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 	}
 	ticket.UpdatedAt = time.Now()
 
-	// Create ticket first
-	createdTicket, err := s.repo.Create(ctx, ticket)
+	// Create ticket first (with ticket.created event, atomically when enabled).
+	createdTicket, err := s.createTicket(ctx, ticket)
 	if err != nil {
 		return nil, err
 	}
@@ -236,9 +278,6 @@ func (s *TicketService) CreateTicket(ctx context.Context, ticket domain.Ticket) 
 			}
 		}
 	}
-
-	// Emit ticket.created so the AI/RAG service can triage the new ticket.
-	s.emit(ctx, domain.EventTicketCreated, createdTicket)
 
 	return createdTicket, nil
 }
@@ -312,18 +351,10 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id uuid.UUID, patch do
 
 	ticket.CreatedAt = prev.CreatedAt
 	ticket.UpdatedAt = time.Now()
-	updated, err := s.repo.Update(ctx, ticket)
-	if err != nil {
-		return nil, err
-	}
 
 	// Emit ticket.updated only when the lifecycle state actually changed, so the
 	// AI/RAG service re-triages on meaningful transitions (not on title edits).
-	if updated.State != prev.State {
-		s.emit(ctx, domain.EventTicketUpdated, updated)
-	}
-
-	return updated, nil
+	return s.updateTicket(ctx, ticket, ticket.State != prev.State)
 }
 
 func (s *TicketService) DeleteTicket(ctx context.Context, id uuid.UUID) error {

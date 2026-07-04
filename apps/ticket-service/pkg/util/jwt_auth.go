@@ -127,7 +127,7 @@ func GetTokenFromHeaderAndVerify(conf *configs.Config, w http.ResponseWriter, r 
 			return nil, fmt.Errorf("unexpected signing method %v", token.Header["alg"])
 		}
 		return []byte(conf.JWTSecret), nil
-	})
+	}, jwt.WithAudience(conf.JWTAudience))
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "token is expired by") {
 			return nil, errors.New("expired token")

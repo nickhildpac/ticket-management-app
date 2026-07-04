@@ -12,7 +12,7 @@ import (
 )
 
 func TestAuthRequiredUnauthorizedUsesErrorEnvelope(t *testing.T) {
-	conf := &configs.Config{JWTSecret: "test-secret", JWTIssuer: "test-issuer"}
+	conf := &configs.Config{JWTSecret: "test-secret", JWTIssuer: "test-issuer", JWTAudience: "test-audience"}
 	handler := AuthRequired(conf)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("next handler should not be called")
 	}))
@@ -24,7 +24,7 @@ func TestAuthRequiredUnauthorizedUsesErrorEnvelope(t *testing.T) {
 }
 
 func TestAdminRequiredForbiddenUsesErrorEnvelope(t *testing.T) {
-	conf := &configs.Config{JWTSecret: "test-secret", JWTIssuer: "test-issuer"}
+	conf := &configs.Config{JWTSecret: "test-secret", JWTIssuer: "test-issuer", JWTAudience: "test-audience"}
 	handler := AdminRequired(conf)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("next handler should not be called")
 	}))
@@ -65,8 +65,9 @@ func signedAccessToken(t *testing.T, conf *configs.Config, role string) string {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &util.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: "00000000-0000-0000-0000-000000000001",
-			Issuer:  conf.JWTIssuer,
+			Subject:  "00000000-0000-0000-0000-000000000001",
+			Issuer:   conf.JWTIssuer,
+			Audience: jwt.ClaimStrings{conf.JWTAudience},
 		},
 		Role: role,
 	})

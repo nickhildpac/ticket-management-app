@@ -40,7 +40,9 @@ Cross-cutting decisions:
 ## Consequences
 
 - The Go service is now primary and actively developed; ADR 0001's plan to remove it is cancelled.
-- Auth work that ADR 0001 targeted at FastAPI (hashed refresh-token rotation) is ported into Go.
+- Auth work that ADR 0001 targeted at FastAPI (hashed refresh-token rotation) is planned for the Go
+  service but **not yet implemented** — the Go service still uses stateless refresh JWTs. Tracked as
+  a follow-up.
 - Go owns the tickets schema; the AI service owns only its own tables (e.g. the vector store).
 - The FastAPI service no longer serves ticket CRUD; any lingering ticket-domain code there is debt
   to be removed as it is repurposed.
