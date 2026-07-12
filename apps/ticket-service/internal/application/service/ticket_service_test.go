@@ -57,6 +57,15 @@ func (s *ticketRepoStub) Create(ctx context.Context, ticket domain.Ticket) (*dom
 func (s *ticketRepoStub) Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 	return s.updateFn(ctx, ticket)
 }
+
+// The WithEvent variants delegate to the plain stubs; unit tests don't assert
+// on outbox rows (that's covered by the repository integration tests).
+func (s *ticketRepoStub) CreateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error) {
+	return s.Create(ctx, ticket)
+}
+func (s *ticketRepoStub) UpdateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error) {
+	return s.Update(ctx, ticket)
+}
 func (s *ticketRepoStub) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
@@ -156,27 +165,23 @@ func TestCreateTicket_ReturnsPersistedAssignedTicketOnAutoAssignSuccess(t *testi
 		getActiveTicketsFn: func(ctx context.Context) ([]domain.Ticket, error) {
 			return nil, nil
 		},
+		// Auto-assignment resolves before the insert, so the create call must
+		// already carry the assignment and pending state (one atomic write).
 		createFn: func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
-			return &domain.Ticket{
-				ID:          createdID,
-				CreatedBy:   ticket.CreatedBy,
-				Title:       ticket.Title,
-				Description: ticket.Description,
-				Skills:      ticket.Skills,
-				State:       domain.TicketStateOpen,
-				Priority:    domain.TicketPriorityLow,
-				CreatedAt:   now,
-				UpdatedAt:   ticket.UpdatedAt,
-			}, nil
-		},
-		updateFn: func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
 			if len(ticket.AssignedTo) != 1 || ticket.AssignedTo[0] != agentID {
-				t.Fatalf("expected assigned agent %s, got %v", agentID, ticket.AssignedTo)
+				t.Fatalf("expected assigned agent %s at create time, got %v", agentID, ticket.AssignedTo)
 			}
 			if ticket.State != domain.TicketStatePending {
-				t.Fatalf("expected pending state, got %v", ticket.State)
+				t.Fatalf("expected pending state at create time, got %v", ticket.State)
 			}
-			return &ticket, nil
+			created := ticket
+			created.ID = createdID
+			created.CreatedAt = now
+			return &created, nil
+		},
+		updateFn: func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
+			t.Fatal("no post-create update expected; assignment persists with the insert")
+			return nil, nil
 		},
 	}
 
@@ -208,7 +213,7 @@ func TestCreateTicket_ReturnsPersistedAssignedTicketOnAutoAssignSuccess(t *testi
 	}
 }
 
-func TestCreateTicket_ReturnsOriginalTicketWhenAutoAssignUpdateFails(t *testing.T) {
+func TestCreateTicket_ProceedsUnassignedWhenAutoAssignLookupFails(t *testing.T) {
 	now := time.Now()
 	createdID := uuid.New()
 	stub := &ticketRepoStub{
@@ -216,31 +221,17 @@ func TestCreateTicket_ReturnsOriginalTicketWhenAutoAssignUpdateFails(t *testing.
 			return nil, nil
 		},
 		createFn: func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
-			return &domain.Ticket{
-				ID:          createdID,
-				CreatedBy:   ticket.CreatedBy,
-				Title:       ticket.Title,
-				Description: ticket.Description,
-				Skills:      ticket.Skills,
-				State:       domain.TicketStateOpen,
-				Priority:    domain.TicketPriorityLow,
-				CreatedAt:   now,
-				UpdatedAt:   ticket.UpdatedAt,
-			}, nil
-		},
-		updateFn: func(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error) {
-			return nil, errors.New("update failed")
+			created := ticket
+			created.ID = createdID
+			created.CreatedAt = now
+			return &created, nil
 		},
 	}
 
+	// Candidate lookup errors must not fail creation: the ticket is created
+	// unassigned in the open state.
 	autoAssignmentSvc := NewAutoAssignmentService(&mockUserRepository{
-		agents: []domain.User{
-			{
-				ID:     uuid.New(),
-				Role:   domain.RoleAgent,
-				Skills: domain.NewSkillsFromSlice([]string{"incident-management"}),
-			},
-		},
+		err: errors.New("database error"),
 	}, stub)
 
 	svc := NewTicketService(stub, autoAssignmentSvc)
@@ -254,10 +245,10 @@ func TestCreateTicket_ReturnsOriginalTicketWhenAutoAssignUpdateFails(t *testing.
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if created.State != domain.TicketStateOpen {
-		t.Fatalf("expected original open state, got %v", created.State)
+		t.Fatalf("expected open state, got %v", created.State)
 	}
 	if len(created.AssignedTo) != 0 {
-		t.Fatalf("expected original ticket to remain unassigned, got %v", created.AssignedTo)
+		t.Fatalf("expected ticket to remain unassigned, got %v", created.AssignedTo)
 	}
 }
 

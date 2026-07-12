@@ -1,3 +1,6 @@
+// Package events provides the relay that drains the transactional outbox —
+// rows written by the ticket repository in the same transaction as the ticket
+// write — to the message broker. See docs/adr/0002-service-topology.md.
 package events
 
 import (

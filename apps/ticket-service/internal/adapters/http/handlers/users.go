@@ -282,9 +282,15 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			return nil, errors.New("unexpected signing method")
 		}
 		return []byte(h.config.JWTSecret), nil
-	})
+	}, jwt.WithIssuer(h.config.JWTIssuer))
 	if err != nil {
 		util.ErrorResponse(w, http.StatusUnauthorized, err)
+		return
+	}
+	// Only tokens minted as refresh tokens may mint new pairs; an access token
+	// presented here (same secret, also parseable) must be rejected.
+	if claims.TokenType != util.RefreshTokenType {
+		util.ErrorResponse(w, http.StatusUnauthorized, errors.New("not a refresh token"))
 		return
 	}
 

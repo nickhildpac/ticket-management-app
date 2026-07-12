@@ -27,7 +27,6 @@ import (
 	httpadapter "github.com/nickhildpac/ticket-management-app/internal/adapters/http"
 	httphandlers "github.com/nickhildpac/ticket-management-app/internal/adapters/http/handlers"
 	"github.com/nickhildpac/ticket-management-app/internal/application/service"
-	"github.com/nickhildpac/ticket-management-app/internal/ports"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
@@ -63,9 +62,10 @@ func main() {
 	ticketRepo := adapterdb.NewTicketRepository(store)
 	commentRepo := adapterdb.NewCommentRepository(store)
 
-	// Domain-event publisher (transactional outbox). If a broker is configured,
-	// start the relay that drains the outbox to Redis for the AI/RAG service.
-	var publisher ports.EventPublisher = events.NewOutboxPublisher(conn)
+	// Domain events are written to the event_outbox table inside the ticket
+	// repository's transactions (transactional outbox). If a broker is
+	// configured, start the relay that drains the outbox to Redis for the
+	// AI/RAG service.
 	if redisAddr := os.Getenv("REDIS_ADDR"); redisAddr != "" {
 		rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
 		relay := events.NewRelay(conn, rdb)
@@ -75,7 +75,7 @@ func main() {
 
 	userSvc := service.NewUserService(userRepo)
 	autoAssignmentSvc := service.NewAutoAssignmentService(userRepo, ticketRepo)
-	ticketSvc := service.NewTicketService(ticketRepo, autoAssignmentSvc, publisher)
+	ticketSvc := service.NewTicketService(ticketRepo, autoAssignmentSvc)
 	commentSvc := service.NewCommentService(commentRepo, ticketRepo)
 
 	handler := httphandlers.NewHandler(conf, userSvc, ticketSvc, commentSvc)

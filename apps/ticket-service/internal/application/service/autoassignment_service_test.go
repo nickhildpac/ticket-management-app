@@ -110,6 +110,14 @@ func (m *mockTicketRepository) Update(ctx context.Context, ticket domain.Ticket)
 	return nil, nil
 }
 
+func (m *mockTicketRepository) CreateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error) {
+	return nil, nil
+}
+
+func (m *mockTicketRepository) UpdateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error) {
+	return nil, nil
+}
+
 func (m *mockTicketRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }

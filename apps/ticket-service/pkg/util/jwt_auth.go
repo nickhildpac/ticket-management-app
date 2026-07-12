@@ -19,8 +19,14 @@ type Claims struct {
 	Role string `json:"role"`
 }
 
+// RefreshTokenType is the `typ` claim minted into refresh tokens. Access
+// tokens don't carry it, so an access token can never be replayed against the
+// refresh endpoint (both are signed with the same secret).
+const RefreshTokenType = "refresh"
+
 type RefreshClaims struct {
 	jwt.RegisteredClaims
+	TokenType string `json:"typ,omitempty"`
 }
 
 type JWTUser struct {
@@ -59,8 +65,11 @@ func GenerateTokenPair(conf *configs.Config, user *JWTUser) (TokenPairs, error) 
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &RefreshClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.ID.String(),
+			Issuer:    conf.JWTIssuer,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(conf.RefreshExpiry)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
+		TokenType: RefreshTokenType,
 	})
 	// create signed refresh token
 	signedRefreshToken, err := refreshToken.SignedString([]byte(conf.JWTSecret))

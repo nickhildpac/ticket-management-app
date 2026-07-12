@@ -25,19 +25,22 @@ See `docs/adr/0002-service-topology.md` for the authoritative description. In sh
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd ticket-management-app
+cd ticket-management-system
 ```
 
-2. Start all services:
+2. Start the stack (root Makefile wraps `infra/compose/docker-compose.yml`):
 ```bash
-docker-compose up -d
+make up        # core: postgres + ticket-service + web
+make up-ai     # + redis + ai-service (triage)
+make up-obs    # + prometheus + grafana
 ```
 
 3. Access the applications:
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8080
-- Grafana: http://localhost:3001 (admin/admin)
-- Prometheus: http://localhost:9090
+- Ticket API (Go): http://localhost:8080
+- AI service (FastAPI): http://localhost:8081 (profile `ai`)
+- Grafana: http://localhost:3001 (admin/admin, profile `obs`)
+- Prometheus: http://localhost:9090 (profile `obs`)
 
 ### Environment Variables
 
@@ -120,20 +123,23 @@ golang-migrate CLI.
 
 ### Docker Compose Production
 
-Use the production-optimized docker-compose.yml:
 ```bash
-docker-compose -f docker-compose.yml up -d
+docker compose -f infra/compose/docker-compose.yml --profile ai up -d --build
 ```
 
 ### Scaling
 
 ```bash
-# Scale backend
-docker-compose up -d --scale backend=3
+# Scale the ticket API (each replica runs its own outbox relay; delivery is
+# at-least-once and the AI worker dedupes on event_id)
+docker compose -f infra/compose/docker-compose.yml up -d --scale ticket-service=3
 
-# Scale frontend (with load balancer)
-docker-compose up -d --scale frontend=2
+# Scale the web tier (behind a load balancer)
+docker compose -f infra/compose/docker-compose.yml up -d --scale web=2
 ```
+
+When scaling the AI worker, give each replica a distinct `CONSUMER_NAME` so
+Redis Streams pending-entry recovery can tell them apart.
 
 ## Security Considerations
 
@@ -156,9 +162,8 @@ docker-compose up -d --scale frontend=2
 
 Check service health:
 ```bash
-docker-compose ps
-docker-compose logs backend
-docker-compose logs frontend
+docker compose -f infra/compose/docker-compose.yml ps
+make logs      # tails all services
 ```
 
 ### Metrics Endpoint
@@ -172,25 +177,35 @@ curl http://localhost:8080/metrics
 
 Check database connectivity:
 ```bash
-docker-compose exec postgres psql -U postgres -d ticket_management
+docker compose -f infra/compose/docker-compose.yml exec postgres psql -U postgres -d ticket_management
 ```
 
 ## Development Commands
 
-### Backend
+See `CLAUDE.md` for the full per-app workflow. In short:
+
+### ticket-service (Go)
 ```bash
-cd backend
+cd apps/ticket-service
 go run cmd/api/main.go
-go test -v ./...
+go test ./...
 make sqlc  # Generate SQLC code
 ```
 
-### Frontend
+### ai-service (Python)
 ```bash
-cd frontend
-npm run dev
-npm run build
-npm run lint
+cd apps/ai-service
+uv run uvicorn app.main:app --reload --port 8081
+uv run python -m app.ai.worker
+uv run pytest
+```
+
+### web (React + Vite)
+```bash
+cd apps/web
+bun run dev
+bun run build
+bun run lint
 ```
 
 ## Contributing

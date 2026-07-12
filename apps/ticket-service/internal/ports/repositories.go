@@ -30,6 +30,11 @@ type TicketRepository interface {
 	GetActiveTickets(ctx context.Context) ([]domain.Ticket, error)
 	Create(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
 	Update(ctx context.Context, ticket domain.Ticket) (*domain.Ticket, error)
+	// CreateWithEvent / UpdateWithEvent persist the ticket and its domain event
+	// in one transaction (transactional outbox): the event row commits with the
+	// write or not at all.
+	CreateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error)
+	UpdateWithEvent(ctx context.Context, ticket domain.Ticket, eventType string) (*domain.Ticket, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	CountTicketStatsAll(ctx context.Context, currentUserID uuid.UUID) (domain.TicketListStats, error)

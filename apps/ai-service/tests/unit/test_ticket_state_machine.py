@@ -1,21 +1,44 @@
-from app.enums.ticket_state import TicketState
-from app.policies.ticket_state_machine import can_transition, get_valid_transitions
+"""Exercises the generated state-machine contract (contracts/ticket_state_machine.json
+via `make contracts`) so a drifted artifact fails fast in this service too, not just
+in the Go/TS consumers."""
+
+from app.generated.ticket_state_contract import (
+    ALLOWED_TRANSITION_VALUES,
+    TICKET_STATE_ALIASES,
+    TICKET_STATE_ENUM_MEMBERS,
+)
+
+
+def can_transition(from_state: str, to_state: str) -> bool:
+    if from_state == to_state:
+        return True
+    return to_state in ALLOWED_TRANSITION_VALUES.get(from_state, [])
 
 
 def test_in_progress_only_transitions_to_resolved():
-    assert can_transition(TicketState.IN_PROGRESS, TicketState.RESOLVED)
-    assert not can_transition(TicketState.IN_PROGRESS, TicketState.PENDING)
-    assert not can_transition(TicketState.IN_PROGRESS, TicketState.OPEN)
+    assert can_transition("in_progress", "resolved")
+    assert not can_transition("in_progress", "pending")
+    assert not can_transition("in_progress", "open")
 
 
 def test_open_transitions():
-    assert can_transition(TicketState.OPEN, TicketState.PENDING)
-    assert can_transition(TicketState.OPEN, TicketState.IN_PROGRESS)
-    assert can_transition(TicketState.OPEN, TicketState.CANCELLED)
-    assert not can_transition(TicketState.OPEN, TicketState.CLOSED)
+    assert can_transition("open", "pending")
+    assert can_transition("open", "in_progress")
+    assert can_transition("open", "cancelled")
+    assert not can_transition("open", "resolved")
+    assert not can_transition("open", "closed")
 
 
-def test_get_valid_transitions_includes_current_state():
-    valid = get_valid_transitions(TicketState.RESOLVED)
-    assert TicketState.RESOLVED in valid
-    assert TicketState.CLOSED in valid
+def test_terminal_states_have_no_transitions():
+    assert not ALLOWED_TRANSITION_VALUES.get("closed")
+    assert not ALLOWED_TRANSITION_VALUES.get("cancelled")
+
+
+def test_same_state_is_always_allowed():
+    for wire in TICKET_STATE_ENUM_MEMBERS.values():
+        assert can_transition(wire, wire)
+
+
+def test_aliases_resolve_every_wire_value():
+    for wire in TICKET_STATE_ENUM_MEMBERS.values():
+        assert TICKET_STATE_ALIASES[wire] == wire
