@@ -76,6 +76,9 @@ func Router(conf *configs.Config, h *handlers.Handler) http.Handler {
 
 		// Legacy admin endpoint (can be deprecated)
 		r.With(middlewares.AdminRequired(conf)).Get("/admin/tickets", h.GetAllTickets)
+
+		// Admin-only KB document ingestion (proxies multipart upload to ai-service).
+		r.With(middlewares.AdminRequired(conf)).Post("/admin/documents", h.IngestDocuments)
 	})
 	return r
 }

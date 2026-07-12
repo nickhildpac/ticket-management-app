@@ -27,7 +27,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);
     }
-    if (!headers.has("Content-Type")) {
+    // For FormData the browser must set `Content-Type` itself (with the multipart
+    // boundary); forcing JSON here would corrupt the request. Only default to JSON.
+    if (!headers.has("Content-Type") && !(init.body instanceof FormData)) {
         headers.set("Content-Type", "application/json");
     }
 

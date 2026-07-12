@@ -32,16 +32,40 @@ def _chunk(text: str, max_chars: int = 1200) -> list[str]:
     return chunks
 
 
+def _looks_binary(data: bytes) -> bool:
+    """Treat a file as binary if it contains a NUL byte in its opening bytes —
+    a cheap, reliable heuristic that keeps images/archives/etc. out of the store."""
+    return b"\x00" in data[:4096]
+
+
+def ingest_document(store: VectorStore, source: str, raw: bytes) -> tuple[int, str | None]:
+    """Chunk and store one document's bytes. Returns (chunks_added, skip_reason);
+    skip_reason is None on success, or "binary"/"empty" when nothing was stored.
+    Shared by the CLI directory walk and the HTTP upload endpoint."""
+    if _looks_binary(raw):
+        return 0, "binary"
+    text = raw.decode("utf-8", errors="ignore")
+    if not text.strip():
+        return 0, "empty"
+    count = 0
+    for chunk in _chunk(text):
+        store.add(source=source, content=chunk)
+        count += 1
+    return count, None
+
+
 def ingest_path(store: VectorStore, root: Path) -> int:
-    """Ingest every markdown/text file under root into the vector store."""
+    """Ingest every readable text file under root — both files sitting directly in
+    root and files in any nested subfolder — into the vector store. Binary files
+    (images, archives, ...) are skipped so they don't pollute retrieval."""
     count = 0
     for path in sorted(root.rglob("*")):
-        if path.suffix.lower() not in {".md", ".txt"} or not path.is_file():
+        if not path.is_file():
             continue
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        for chunk in _chunk(text):
-            store.add(source=str(path), content=chunk)
-            count += 1
+        added, reason = ingest_document(store, str(path), path.read_bytes())
+        if reason:
+            logger.debug("skipping %s file: %s", reason, path)
+        count += added
     return count
 
 
@@ -52,7 +76,7 @@ def main() -> None:
         "path",
         nargs="?",
         default="knowledge",
-        help="Directory of .md/.txt files to ingest (default: ./knowledge).",
+        help="Directory of text files to ingest, recursively (default: ./knowledge).",
     )
     args = parser.parse_args()
 

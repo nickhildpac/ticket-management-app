@@ -31,6 +31,7 @@ type Config struct {
 	CookiePath    string
 	CookieName    string
 	CookieSecure  bool
+	AIServiceURL  string
 }
 
 func LoadConfig() (*Config, error) {
@@ -58,6 +59,9 @@ func LoadConfig() (*Config, error) {
 	config.CookieSecure = GetBool("RefreshCookieSecure", !isLocalOrTest(config.AppEnv))
 	config.TokenExpiry = time.Minute * time.Duration(GetInt("TokenExpiry", 15))
 	config.RefreshExpiry = time.Hour * time.Duration(GetInt("RefreshTokenExpiry", 24))
+	// Base URL of the ai-service, which the admin document-upload endpoint proxies
+	// to. Service-name DNS in compose; localhost for direct local runs.
+	config.AIServiceURL = GetString("AI_SERVICE_URL", "http://localhost:8081")
 	if !isLocalOrTest(config.AppEnv) && isWeakJWTSecret(config.JWTSecret) {
 		return nil, errors.New("JWT secret flag must not be empty or weak outside local/test")
 	}

@@ -33,7 +33,8 @@ export function SidebarNavLinks({ onNavigate }: SidebarNavProps) {
     const dashboardActive = pathname === "/";
     const ticketsQueueActive = isTicketsQueueNavActive(pathname);
     const assignedActive = pathname.startsWith("/tickets/assigned");
-    const adminActive = pathname.startsWith("/admin");
+    const adminActive = pathname === "/admin";
+    const documentsActive = pathname.startsWith("/admin/documents");
 
     return (
         <>
@@ -73,6 +74,16 @@ export function SidebarNavLinks({ onNavigate }: SidebarNavProps) {
                 >
                     <MaterialSymbol name="settings" />
                     Admin
+                </Link>
+            )}
+            {isAdmin && (
+                <Link
+                    to="/admin/documents"
+                    onClick={onNavigate}
+                    className={cn(navLinkClass, documentsActive && activeNavClass)}
+                >
+                    <MaterialSymbol name="upload_file" />
+                    Documents
                 </Link>
             )}
         </>

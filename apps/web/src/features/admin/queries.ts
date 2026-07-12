@@ -41,3 +41,32 @@ export const useDeleteUser = () => {
         },
     });
 };
+
+// Mirrors the ai-service IngestResponse (proxied via the Go /api/v1/admin/documents endpoint).
+export type IngestedFile = {
+    source: string;
+    chunks: number;
+    skipped: boolean;
+    reason: string | null;
+};
+
+export type IngestResponse = {
+    files: IngestedFile[];
+    total_chunks: number;
+};
+
+// Upload documents to the knowledge base. Sends multipart FormData (field "files"),
+// which the api() helper forwards without a JSON Content-Type override.
+export const useIngestDocuments = () =>
+    useMutation({
+        mutationFn: (files: File[]) => {
+            const form = new FormData();
+            for (const file of files) {
+                form.append('files', file);
+            }
+            return api<IngestResponse>('/api/v1/admin/documents', {
+                method: 'POST',
+                body: form,
+            });
+        },
+    });

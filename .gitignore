@@ -8,3 +8,4 @@ AGENTS.md
 .env
 __pycache__/
 *.pyc
+knowledge/

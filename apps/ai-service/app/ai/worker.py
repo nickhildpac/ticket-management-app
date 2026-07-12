@@ -148,7 +148,10 @@ def _reclaim_stale(rdb, settings: Settings, agent, ticket_client) -> None:
 
 def run(settings: Settings | None = None) -> None:
     settings = settings or get_settings()
-    rdb = redis.Redis.from_url(settings.redis_url, decode_responses=True)
+    # socket_timeout must exceed the xreadgroup block window below (5s), or the
+    # client-side socket read can time out right as the server's BLOCK is about
+    # to return with no new messages — redis-py's default socket_timeout is 5s.
+    rdb = redis.Redis.from_url(settings.redis_url, decode_responses=True, socket_timeout=10)
     agent = build_agent(settings)
     ticket_client = TicketServiceClient(settings)
 

@@ -58,6 +58,8 @@ services:
       RefreshCookieSecure: ${REFRESH_COOKIE_SECURE:-false}
       # Outbox relay target (see Phase 2/4); harmless if unused.
       REDIS_ADDR: redis:6379
+      # ai-service base URL for the admin document-ingest proxy (profile "ai").
+      AI_SERVICE_URL: http://ai-service:8081
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -161,6 +163,45 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+
+  # AI triage worker: consumes the `ticket-events` Redis stream and applies
+  # triage decisions via callback into ticket-service. Same image/env as
+  # ai-service, just a different entrypoint — the FastAPI process does not
+  # consume events on its own.
+  worker:
+    build:
+      context: ../../apps/ai-service
+      dockerfile: Dockerfile
+    container_name: ticket-ai-worker
+    profiles: ["ai"]
+    command: ["uv", "run", "python", "-m", "app.ai.worker"]
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}
+      REDIS_URL: redis://redis:6379/0
+      TICKET_SERVICE_URL: http://ticket-service:8080
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
+      AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ticket-service:
+        condition: service_started
+    networks:
+      - ticket-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
 
   # ---- obs profile ------------------------------------------------------
   prometheus:

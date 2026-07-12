@@ -9,6 +9,7 @@ import { AssignedTicketsList } from "@/features/tickets/assigned-tickets";
 import { TicketDetails } from "@/features/tickets/details";
 import { TicketForm } from "@/features/tickets/form";
 import { AdminPanel } from "@/features/admin";
+import { DocumentUpload } from "@/features/admin/document-upload";
 import { Profile } from "@/features/profile/profile";
 import { getAuthUser, isAuthenticated } from "@/app/auth";
 import type { Role } from "@/lib/types";
@@ -133,6 +134,13 @@ const adminRoute = createRoute({
     beforeLoad: requireAdmin
 });
 
+const adminDocumentsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/documents',
+    component: DocumentUpload,
+    beforeLoad: requireAdmin
+});
+
 const profileRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/profile',
@@ -150,6 +158,7 @@ const routeTree = rootRoute.addChildren([
     ticketCreateRoute,
     ticketDetailsRoute,
     adminRoute,
+    adminDocumentsRoute,
     profileRoute,
 ]);
 
