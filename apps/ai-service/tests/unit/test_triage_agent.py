@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from app.ai.agent import TriageAgent
 from app.ai.schemas import KBChunk, TicketContext, TriageDecision
 
@@ -101,3 +103,15 @@ def test_model_exception_fails_safe_to_escalate():
     result = _agent(RuntimeError("boom")).triage(TICKET)
     assert result.action == "escalate"
     assert "model_error" in result.safety_flags
+
+
+def test_retrieved_chunks_are_logged(caplog):
+    decision = TriageDecision(action="escalate", confidence=0.4)
+
+    with caplog.at_level(logging.INFO, logger="app.ai.agent"):
+        _agent(StubResponse(decision)).triage(TICKET)
+
+    assert "retrieved 1 knowledge-base chunk(s)" in caplog.text
+    assert "source=kb/faq.md" in caplog.text
+    assert "distance=0.1000" in caplog.text
+    assert "Use the reset link on the login page." in caplog.text

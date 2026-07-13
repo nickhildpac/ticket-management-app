@@ -53,6 +53,20 @@ class TriageAgent:
 
     def triage(self, ticket: TicketContext) -> TriageResult:
         chunks = self.retriever.retrieve(ticket, self.rag_top_k)
+        logger.info(
+            "retrieved %d knowledge-base chunk(s) for ticket %s",
+            len(chunks),
+            ticket.ticket_id,
+        )
+        # for index, chunk in enumerate(chunks, start=1):
+        #     logger.info(
+        #         "retrieved chunk ticket=%s rank=%d source=%s distance=%.4f content=%r",
+        #         ticket.ticket_id,
+        #         index,
+        #         chunk.source,
+        #         chunk.distance,
+        #         chunk.content,
+        #     )
         context = format_context(chunks)
         user_content = (
             f"Ticket #{ticket.ticket_number or ''} "
@@ -61,6 +75,7 @@ class TriageAgent:
             f"Description: {ticket.description}\n\n"
             f"Knowledge-base context:\n{context}"
         )
+        logger.info(user_content)
 
         try:
             response = self.client.messages.parse(

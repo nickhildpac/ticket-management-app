@@ -6,7 +6,7 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 
-from app.ai.embeddings import HashingEmbedder
+from app.ai.embeddings import build_embedder
 from app.ai.vectorstore import VectorStore
 from app.core.config import get_settings
 
@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 def _chunk(text: str, max_chars: int = 1200) -> list[str]:
-    """Naive paragraph-based chunking. Swap for a smarter splitter as needed."""
+    """Naive paragraph-based chunking. Swap for a smarter splitter as needed.
+
+    A paragraph longer than max_chars on its own (e.g. an unbroken block or a
+    run of markdown image-link URLs) is hard-sliced rather than kept whole —
+    otherwise it can exceed the embedding model's input token limit."""
     chunks: list[str] = []
     buf: list[str] = []
     size = 0
@@ -25,6 +29,10 @@ def _chunk(text: str, max_chars: int = 1200) -> list[str]:
         if size + len(para) > max_chars and buf:
             chunks.append("\n\n".join(buf))
             buf, size = [], 0
+        if len(para) > max_chars:
+            for i in range(0, len(para), max_chars):
+                chunks.append(para[i : i + max_chars])
+            continue
         buf.append(para)
         size += len(para)
     if buf:
@@ -82,7 +90,7 @@ def main() -> None:
 
     settings = get_settings()
     engine = create_engine(settings.database_url, pool_pre_ping=True)
-    store = VectorStore(engine, HashingEmbedder(dim=settings.embedding_dim))
+    store = VectorStore(engine, build_embedder(settings))
 
     root = Path(args.path)
     if not root.exists():

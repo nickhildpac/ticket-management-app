@@ -4,7 +4,9 @@ import json
 
 import pytest
 
-from app.ai.schemas import TriageResult
+from app.ai.agent import TriageAgent
+from app.ai.retrieval import VectorRetriever
+from app.ai.schemas import KBChunk, TriageDecision, TriageResult
 from app.ai.worker import _PROCESSED_PREFIX, _handle, apply_result, process_message
 
 
@@ -31,6 +33,7 @@ class StubAgent:
             raise self._result
         self.triaged.append(ticket.ticket_id)
         return self._result
+
 
 class StubTicketClient:
     def __init__(self, fail: bool = False) -> None:
@@ -128,3 +131,67 @@ def test_apply_result_posts_ai_reply_for_auto_answer():
     )
     assert client.comments[0][0] == "t-1"
     assert "AI-suggested reply" in client.comments[0][1]
+
+
+def test_created_ticket_retrieves_chunks_and_adds_them_to_model_context():
+    class RecordingStore:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def search(self, query, k):
+            self.calls.append((query, k))
+            return [
+                KBChunk(
+                    source="kb/password-reset.md",
+                    content="Use the reset link on the login page.",
+                    distance=0.08,
+                )
+            ]
+
+    class RecordingMessages:
+        def __init__(self) -> None:
+            self.parse_kwargs = None
+
+        def parse(self, **kwargs):
+            self.parse_kwargs = kwargs
+            return type(
+                "Response",
+                (),
+                {
+                    "stop_reason": "end_turn",
+                    "parsed_output": TriageDecision(
+                        action="auto_answer",
+                        confidence=0.95,
+                        draft_reply="Use the reset link.",
+                    ),
+                },
+            )()
+
+    class RecordingClient:
+        def __init__(self) -> None:
+            self.messages = RecordingMessages()
+
+    store = RecordingStore()
+    retriever = VectorRetriever(store)
+    model_client = RecordingClient()
+    agent = TriageAgent(
+        model_client,
+        retriever,
+        model="test-model",
+        confidence_threshold=0.75,
+        rag_top_k=3,
+    )
+    ticket_client = StubTicketClient()
+
+    process_message(agent, ticket_client, _fields())
+
+    assert len(store.calls) == 1
+    retrieval_query, top_k = store.calls[0]
+    assert retrieval_query == "Password reset\n\nI forgot my password."
+    assert top_k == 3
+
+    prompt = model_client.messages.parse_kwargs["messages"][0]["content"]
+    assert "source=kb/password-reset.md" in prompt
+    assert "Use the reset link on the login page." in prompt
+    assert len(ticket_client.comments) == 1
+    assert "AI-suggested reply" in ticket_client.comments[0][1]

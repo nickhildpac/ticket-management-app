@@ -49,6 +49,10 @@ class Settings(BaseSettings):
         default=0.75, alias="AUTO_ANSWER_CONFIDENCE_THRESHOLD"
     )
     embedding_dim: int = Field(default=384, alias="EMBEDDING_DIM")
+    # Semantic embeddings via OpenAI when set; otherwise falls back to the
+    # offline HashingEmbedder (see app/ai/embeddings.py:build_embedder).
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
     rag_top_k: int = Field(default=5, alias="RAG_TOP_K")
     # Redis Streams consumer group + this replica's consumer name (set per replica
     # when scaling horizontally so pending-entry recovery can tell them apart).

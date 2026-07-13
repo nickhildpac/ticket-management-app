@@ -142,6 +142,8 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
       AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
     ports:
       - "127.0.0.1:8081:8081"
@@ -183,6 +185,8 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
       AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
     depends_on:
       postgres:

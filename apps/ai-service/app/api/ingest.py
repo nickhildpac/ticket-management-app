@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import create_engine
 
-from app.ai.embeddings import HashingEmbedder
+from app.ai.embeddings import build_embedder
 from app.ai.ingest import ingest_document
 from app.ai.vectorstore import VectorStore
 from app.api.triage import require_auth
@@ -17,10 +17,10 @@ from app.core.config import get_settings
 def _store() -> VectorStore:
     """Process-singleton store. Constructing it opens a SQLAlchemy engine (which
     owns a connection pool), so it must not be rebuilt per request. Uses the same
-    HashingEmbedder as the triage retriever so ingested vectors are searchable."""
+    embedder as the triage retriever so ingested vectors are searchable."""
     settings = get_settings()
     engine = create_engine(settings.database_url, pool_pre_ping=True)
-    return VectorStore(engine, HashingEmbedder(dim=settings.embedding_dim))
+    return VectorStore(engine, build_embedder(settings))
 
 
 class IngestedFile(BaseModel):

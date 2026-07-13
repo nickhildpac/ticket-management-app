@@ -8,7 +8,7 @@ import redis
 from sqlalchemy import create_engine
 
 from app.ai.agent import TriageAgent
-from app.ai.embeddings import HashingEmbedder
+from app.ai.embeddings import build_embedder
 from app.ai.retrieval import VectorRetriever
 from app.ai.schemas import TicketContext, TriageResult
 from app.ai.ticket_client import TicketServiceClient
@@ -38,7 +38,7 @@ _MAX_DELIVERIES = 5
 
 def build_agent(settings: Settings) -> TriageAgent:
     engine = create_engine(settings.database_url, pool_pre_ping=True)
-    embedder = HashingEmbedder(dim=settings.embedding_dim)
+    embedder = build_embedder(settings)
     store = VectorStore(engine, embedder)
     retriever = VectorRetriever(store)
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
