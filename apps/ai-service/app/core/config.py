@@ -53,7 +53,20 @@ class Settings(BaseSettings):
     # offline HashingEmbedder (see app/ai/embeddings.py:build_embedder).
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
-    rag_top_k: int = Field(default=5, alias="RAG_TOP_K")
+    # Final passages after hybrid RRF + cross-encoder re-rank.
+    rag_top_k: int = Field(default=3, alias="RAG_TOP_K")
+    # Candidates fetched from each retrieval lane (semantic / keyword) before RRF.
+    rag_candidate_k: int = Field(default=20, alias="RAG_CANDIDATE_K")
+    # Fused candidates scored by the cross-encoder before cutting to rag_top_k.
+    rag_rerank_pool: int = Field(default=10, alias="RAG_RERANK_POOL")
+    # RRF constant (standard value is 60).
+    rrf_k: int = Field(default=60, alias="RRF_K")
+    # OpenRouter key for Cohere re-rank (POST /api/v1/rerank).
+    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    cross_encoder_model: str = Field(
+        default="cohere/rerank-v3.5",
+        alias="CROSS_ENCODER_MODEL",
+    )
     # Redis Streams consumer group + this replica's consumer name (set per replica
     # when scaling horizontally so pending-entry recovery can tell them apart).
     consumer_group: str = Field(default="ai-triage", alias="CONSUMER_GROUP")

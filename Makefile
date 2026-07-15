@@ -1,10 +1,13 @@
 # Single entrypoint for the monorepo. Every workflow is a `make <verb>` that
 # fans out to the per-app toolchains. See docs/adr/0002-service-topology.md.
 
-COMPOSE := docker compose -f infra/compose/docker-compose.yml
+# --env-file .env: compose resolves project dir from the -f path (infra/compose/),
+# so without this the repo-root .env is ignored (ANTHROPIC/OPENAI keys stay empty).
+COMPOSE := docker compose --env-file .env -f infra/compose/docker-compose.yml
 TICKET  := apps/ticket-service
 AI      := apps/ai-service
 WEB     := apps/web
+KB_PATH ?= knowledge
 
 .DEFAULT_GOAL := help
 
@@ -78,9 +81,13 @@ migrate: ## Apply AI-service Alembic migrations (Go schema auto-migrates on star
 	cd $(AI) && uv run alembic upgrade head
 
 # ---- knowledge base -----------------------------------------------------
+# knowledge/ is in .dockerignore, so compose ingest bind-mounts the host tree.
 .PHONY: ingest
-ingest: ## Ingest the AI knowledge base (docs/txt) into the vector store
-	cd $(AI) && uv run python -m app.ai.ingest $(KB_PATH)
+ingest: ## Ingest KB into pgvector via ai-service container (KB_PATH=knowledge)
+	$(COMPOSE) --profile ai run --rm --no-deps \
+		-v "$(CURDIR)/$(AI)/$(KB_PATH):/app/knowledge:ro" \
+		ai-service \
+		uv run python -m app.ai.ingest /app/knowledge
 
 .PHONY: worker
 worker: ## Run the AI triage worker (Redis Streams consumer)

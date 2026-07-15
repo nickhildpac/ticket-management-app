@@ -17,11 +17,17 @@ class TicketContext(BaseModel):
 
 
 class KBChunk(BaseModel):
-    """A retrieved knowledge-base passage with its similarity distance."""
+    """A retrieved knowledge-base passage with its similarity distance.
+
+    ``id`` identifies the row for hybrid fusion (RRF); optional so stubs/tests
+    can omit it. ``distance`` is a lower-is-better score (cosine distance or a
+    monotone transform of the re-ranker score).
+    """
 
     content: str
     source: str
     distance: float
+    id: int | None = None
 
 
 class TriageDecision(BaseModel):

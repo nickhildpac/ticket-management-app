@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, Table, Text, select
+from sqlalchemy import Column, Integer, String, Table, Text, select, text
 from sqlalchemy.engine import Engine
 
 from app.ai.embeddings import Embedder
@@ -16,7 +16,7 @@ class VectorStore:
     """pgvector-backed knowledge-base store living in the shared Postgres.
 
     The table is created by an Alembic migration (kb_chunks). This class only
-    reads/writes rows and runs cosine-distance similarity search.
+    reads/writes rows and runs semantic (cosine) and keyword (FTS) search.
     """
 
     def __init__(self, engine: Engine, embedder: Embedder) -> None:
@@ -42,17 +42,67 @@ class VectorStore:
             )
 
     def search(self, query: str, k: int) -> list[KBChunk]:
+        """Backward-compatible alias for semantic search."""
+        return self.search_semantic(query, k)
+
+    def search_semantic(self, query: str, k: int) -> list[KBChunk]:
         embedding = self.embedder.embed(query)
         distance = self.table.c.embedding.cosine_distance(embedding)
         stmt = (
-            select(self.table.c.content, self.table.c.source, distance.label("distance"))
+            select(
+                self.table.c.id,
+                self.table.c.content,
+                self.table.c.source,
+                distance.label("distance"),
+            )
             .order_by(distance)
             .limit(k)
         )
         with self.engine.connect() as conn:
             rows = conn.execute(stmt).all()
         return [
-            KBChunk(content=r.content, source=r.source, distance=float(r.distance))
+            KBChunk(
+                id=int(r.id),
+                content=r.content,
+                source=r.source,
+                distance=float(r.distance),
+            )
+            for r in rows
+        ]
+
+    def search_keyword(self, query: str, k: int) -> list[KBChunk]:
+        """Postgres full-text search ranked by ``ts_rank_cd``.
+
+        Returns an empty list when the query has no useful terms (so
+        ``plainto_tsquery`` would match nothing useful / raise noise).
+        Distance is set to ``1 - rank`` (clipped) so lower-is-better still holds.
+        """
+        q = (query or "").strip()
+        if not q:
+            return []
+
+        # Use a single SQL statement so the GIN expression index can be used.
+        # Rank is higher-is-better; we invert for KBChunk.distance consistency.
+        sql = text(
+            """
+            SELECT id, content, source,
+                   ts_rank_cd(to_tsvector('english', content), query) AS rank
+            FROM kb_chunks,
+                 plainto_tsquery('english', :q) AS query
+            WHERE to_tsvector('english', content) @@ query
+            ORDER BY rank DESC
+            LIMIT :k
+            """
+        )
+        with self.engine.connect() as conn:
+            rows = conn.execute(sql, {"q": q, "k": k}).all()
+        return [
+            KBChunk(
+                id=int(r.id),
+                content=r.content,
+                source=r.source,
+                distance=max(0.0, 1.0 - float(r.rank)),
+            )
             for r in rows
         ]
 

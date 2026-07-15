@@ -134,6 +134,10 @@ services:
       dockerfile: Dockerfile
     container_name: ticket-ai-service
     profiles: ["ai"]
+    # Loads OPENAI_API_KEY / EMBEDDING_MODEL from the app .env. Explicit
+    # environment: entries below override host-local values (e.g. DATABASE_URL).
+    env_file:
+      - ../../apps/ai-service/.env
     environment:
       APP_ENV: ${APP_ENV:-local}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}
@@ -142,9 +146,13 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
       AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      RAG_TOP_K: ${RAG_TOP_K:-3}
+      RAG_CANDIDATE_K: ${RAG_CANDIDATE_K:-20}
+      RAG_RERANK_POOL: ${RAG_RERANK_POOL:-10}
+      RRF_K: ${RRF_K:-60}
+      CROSS_ENCODER_MODEL: ${CROSS_ENCODER_MODEL:-cohere/rerank-v3.5}
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
@@ -177,6 +185,8 @@ services:
     container_name: ticket-ai-worker
     profiles: ["ai"]
     command: ["uv", "run", "python", "-m", "app.ai.worker"]
+    env_file:
+      - ../../apps/ai-service/.env
     environment:
       APP_ENV: ${APP_ENV:-local}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}
@@ -185,9 +195,13 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
       AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      RAG_TOP_K: ${RAG_TOP_K:-3}
+      RAG_CANDIDATE_K: ${RAG_CANDIDATE_K:-20}
+      RAG_RERANK_POOL: ${RAG_RERANK_POOL:-10}
+      RRF_K: ${RRF_K:-60}
+      CROSS_ENCODER_MODEL: ${CROSS_ENCODER_MODEL:-cohere/rerank-v3.5}
     depends_on:
       postgres:
         condition: service_healthy
@@ -201,11 +215,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '1.0'
+          memory: 768M
         reservations:
-          cpus: '0.1'
-          memory: 128M
+          cpus: '0.25'
+          memory: 256M
 
   # ---- obs profile ------------------------------------------------------
   prometheus:

@@ -58,15 +58,15 @@ class TriageAgent:
             len(chunks),
             ticket.ticket_id,
         )
-        # for index, chunk in enumerate(chunks, start=1):
-        #     logger.info(
-        #         "retrieved chunk ticket=%s rank=%d source=%s distance=%.4f content=%r",
-        #         ticket.ticket_id,
-        #         index,
-        #         chunk.source,
-        #         chunk.distance,
-        #         chunk.content,
-        #     )
+        for index, chunk in enumerate(chunks, start=1):
+            logger.info(
+                "retrieved chunk ticket=%s rank=%d source=%s distance=%.4f content=%r",
+                ticket.ticket_id,
+                index,
+                chunk.source,
+                chunk.distance,
+                chunk.content,
+            )
         context = format_context(chunks)
         user_content = (
             f"Ticket #{ticket.ticket_number or ''} "

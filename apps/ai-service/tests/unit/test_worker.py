@@ -5,7 +5,6 @@ import json
 import pytest
 
 from app.ai.agent import TriageAgent
-from app.ai.retrieval import VectorRetriever
 from app.ai.schemas import KBChunk, TriageDecision, TriageResult
 from app.ai.worker import _PROCESSED_PREFIX, _handle, apply_result, process_message
 
@@ -136,17 +135,34 @@ def test_apply_result_posts_ai_reply_for_auto_answer():
 def test_created_ticket_retrieves_chunks_and_adds_them_to_model_context():
     class RecordingStore:
         def __init__(self) -> None:
-            self.calls = []
+            self.semantic_calls = []
+            self.keyword_calls = []
 
-        def search(self, query, k):
-            self.calls.append((query, k))
+        def search_semantic(self, query, k):
+            self.semantic_calls.append((query, k))
             return [
                 KBChunk(
+                    id=1,
                     source="kb/password-reset.md",
                     content="Use the reset link on the login page.",
                     distance=0.08,
                 )
             ]
+
+        def search_keyword(self, query, k):
+            self.keyword_calls.append((query, k))
+            return [
+                KBChunk(
+                    id=1,
+                    source="kb/password-reset.md",
+                    content="Use the reset link on the login page.",
+                    distance=0.05,
+                )
+            ]
+
+    class StubReranker:
+        def score(self, query, passages):
+            return [1.0] * len(passages)
 
     class RecordingMessages:
         def __init__(self) -> None:
@@ -172,7 +188,9 @@ def test_created_ticket_retrieves_chunks_and_adds_them_to_model_context():
             self.messages = RecordingMessages()
 
     store = RecordingStore()
-    retriever = VectorRetriever(store)
+    from app.ai.retrieval import HybridRetriever
+
+    retriever = HybridRetriever(store, StubReranker(), candidate_k=3, rerank_pool=3, rrf_k=60)
     model_client = RecordingClient()
     agent = TriageAgent(
         model_client,
@@ -185,8 +203,9 @@ def test_created_ticket_retrieves_chunks_and_adds_them_to_model_context():
 
     process_message(agent, ticket_client, _fields())
 
-    assert len(store.calls) == 1
-    retrieval_query, top_k = store.calls[0]
+    assert len(store.semantic_calls) == 1
+    assert len(store.keyword_calls) == 1
+    retrieval_query, top_k = store.semantic_calls[0]
     assert retrieval_query == "Password reset\n\nI forgot my password."
     assert top_k == 3
 
