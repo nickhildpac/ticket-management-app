@@ -67,7 +67,7 @@ class OpenAIEmbedder:
         return response.data[0].embedding
 
 
-def build_embedder(settings: "Settings") -> Embedder:
+def build_embedder(settings: Settings) -> Embedder:
     """Pick the configured embedder: OpenAI when an API key is set, otherwise
     fall back to the offline hashing embedder (tests / no-key local runs)."""
     if settings.openai_api_key:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -13,30 +14,55 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+_HEADING_RE = re.compile(r"^#{1,6}\s+\S")
+
+
+def _split_sections(text: str) -> list[str]:
+    """Split markdown into sections at heading lines (any level).
+
+    Length-based packing alone glued section bodies onto the tail of unrelated
+    content (e.g. an "Updating certificates" answer buried after a wall of
+    endpoint URLs), which sank them in both embedding and re-rank scoring.
+    Content before the first heading (frontmatter, preamble) is its own section.
+    """
+    sections: list[str] = []
+    buf: list[str] = []
+    for line in text.splitlines():
+        if _HEADING_RE.match(line) and buf:
+            sections.append("\n".join(buf))
+            buf = []
+        buf.append(line)
+    if buf:
+        sections.append("\n".join(buf))
+    return sections
+
+
 def _chunk(text: str, max_chars: int = 1200) -> list[str]:
-    """Naive paragraph-based chunking. Swap for a smarter splitter as needed.
+    """Heading-aware chunking: split into markdown sections, then pack each
+    section's paragraphs up to max_chars. Chunks never span a heading boundary.
 
     A paragraph longer than max_chars on its own (e.g. an unbroken block or a
     run of markdown image-link URLs) is hard-sliced rather than kept whole —
     otherwise it can exceed the embedding model's input token limit."""
     chunks: list[str] = []
-    buf: list[str] = []
-    size = 0
-    for para in text.split("\n\n"):
-        para = para.strip()
-        if not para:
-            continue
-        if size + len(para) > max_chars and buf:
+    for section in _split_sections(text):
+        buf: list[str] = []
+        size = 0
+        for para in section.split("\n\n"):
+            para = para.strip()
+            if not para:
+                continue
+            if size + len(para) > max_chars and buf:
+                chunks.append("\n\n".join(buf))
+                buf, size = [], 0
+            if len(para) > max_chars:
+                for i in range(0, len(para), max_chars):
+                    chunks.append(para[i : i + max_chars])
+                continue
+            buf.append(para)
+            size += len(para)
+        if buf:
             chunks.append("\n\n".join(buf))
-            buf, size = [], 0
-        if len(para) > max_chars:
-            for i in range(0, len(para), max_chars):
-                chunks.append(para[i : i + max_chars])
-            continue
-        buf.append(para)
-        size += len(para)
-    if buf:
-        chunks.append("\n\n".join(buf))
     return chunks
 
 

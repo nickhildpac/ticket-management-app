@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
     # Final passages after hybrid RRF + cross-encoder re-rank.
-    rag_top_k: int = Field(default=3, alias="RAG_TOP_K")
+    rag_top_k: int = Field(default=5, alias="RAG_TOP_K")
     # Candidates fetched from each retrieval lane (semantic / keyword) before RRF.
     rag_candidate_k: int = Field(default=20, alias="RAG_CANDIDATE_K")
     # Fused candidates scored by the cross-encoder before cutting to rag_top_k.

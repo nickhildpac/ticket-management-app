@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import Column, Integer, String, Table, Text, select, text
 from sqlalchemy.engine import Engine
 
@@ -73,12 +75,16 @@ class VectorStore:
     def search_keyword(self, query: str, k: int) -> list[KBChunk]:
         """Postgres full-text search ranked by ``ts_rank_cd``.
 
-        Returns an empty list when the query has no useful terms (so
-        ``plainto_tsquery`` would match nothing useful / raise noise).
-        Distance is set to ``1 - rank`` (clipped) so lower-is-better still holds.
+        Terms are OR-ed: ``plainto_tsquery`` ANDs every lexeme, so a
+        multi-sentence ticket (title + description) matched nothing unless a
+        single chunk contained *all* its words. OR-ing lets ``ts_rank_cd``
+        reward chunks that hit the most terms instead.
+
+        Returns an empty list when the query has no useful terms. Distance is
+        set to ``1 - rank`` (clipped) so lower-is-better still holds.
         """
-        q = (query or "").strip()
-        if not q:
+        terms = _tsquery_or_terms(query)
+        if not terms:
             return []
 
         # Use a single SQL statement so the GIN expression index can be used.
@@ -88,14 +94,14 @@ class VectorStore:
             SELECT id, content, source,
                    ts_rank_cd(to_tsvector('english', content), query) AS rank
             FROM kb_chunks,
-                 plainto_tsquery('english', :q) AS query
+                 to_tsquery('english', :q) AS query
             WHERE to_tsvector('english', content) @@ query
             ORDER BY rank DESC
             LIMIT :k
             """
         )
         with self.engine.connect() as conn:
-            rows = conn.execute(sql, {"q": q, "k": k}).all()
+            rows = conn.execute(sql, {"q": terms, "k": k}).all()
         return [
             KBChunk(
                 id=int(r.id),
@@ -105,6 +111,22 @@ class VectorStore:
             )
             for r in rows
         ]
+
+
+_TERM_RE = re.compile(r"[a-z0-9]+")
+
+
+def _tsquery_or_terms(query: str) -> str:
+    """Build an OR-ed ``to_tsquery`` input from free text.
+
+    Tokens are restricted to alphanumerics so user text can't inject tsquery
+    syntax; duplicates are dropped (order-preserving). Stopwords are left for
+    ``to_tsquery('english', ...)`` to discard.
+    """
+    seen: dict[str, None] = {}
+    for token in _TERM_RE.findall((query or "").lower()):
+        seen.setdefault(token)
+    return " | ".join(seen)
 
 
 def _metadata():
