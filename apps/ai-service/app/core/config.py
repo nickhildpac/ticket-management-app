@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     auto_answer_confidence_threshold: float = Field(
         default=0.75, alias="AUTO_ANSWER_CONFIDENCE_THRESHOLD"
     )
+    # Max model turns in the agentic triage loop before we fail safe and escalate.
+    triage_max_iterations: int = Field(default=6, alias="TRIAGE_MAX_ITERATIONS")
     embedding_dim: int = Field(default=384, alias="EMBEDDING_DIM")
     # Semantic embeddings via OpenAI when set; otherwise falls back to the
     # offline HashingEmbedder (see app/ai/embeddings.py:build_embedder).

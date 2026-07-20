@@ -10,7 +10,6 @@ from sqlalchemy import create_engine
 from app.ai.agent import TriageAgent
 from app.ai.embeddings import build_embedder
 from app.ai.rerank import OpenRouterReranker
-from app.ai.retrieval import HybridRetriever
 from app.ai.schemas import TicketContext, TriageResult
 from app.ai.ticket_client import TicketServiceClient
 from app.ai.vectorstore import VectorStore
@@ -45,20 +44,18 @@ def build_agent(settings: Settings) -> TriageAgent:
         settings.openrouter_api_key,
         model=settings.cross_encoder_model,
     )
-    retriever = HybridRetriever(
-        store,
-        reranker,
-        candidate_k=settings.rag_candidate_k,
-        rerank_pool=settings.rag_rerank_pool,
-        rrf_k=settings.rrf_k,
-    )
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     return TriageAgent(
         client,
-        retriever,
+        store,
+        reranker,
         model=settings.triage_model,
         confidence_threshold=settings.auto_answer_confidence_threshold,
         rag_top_k=settings.rag_top_k,
+        candidate_k=settings.rag_candidate_k,
+        rerank_pool=settings.rag_rerank_pool,
+        rrf_k=settings.rrf_k,
+        max_iterations=settings.triage_max_iterations,
     )
 
 
@@ -71,11 +68,13 @@ def apply_result(ticket_client: TicketServiceClient, result: TriageResult) -> No
             f"[AI-suggested reply]\n\n{result.draft_reply}",
         )
     else:
-        reason = result.escalation_reason or "needs human review"
-        flags = f" (flags: {', '.join(result.safety_flags)})" if result.safety_flags else ""
+        # Customer-facing comment: the reason is already customer-safe (internal
+        # confidence/threshold metrics and raw safety-flag slugs stay in the logs above,
+        # never the ticket comment the end user can see).
+        reason = result.escalation_reason or "A teammate will follow up on this ticket."
         ticket_client.add_comment(
             result.ticket_id,
-            f"[AI triage] Escalated to a human: {reason}{flags}",
+            f"[AI triage] Escalated to a human: {reason}",
         )
 
 
@@ -107,6 +106,7 @@ def process_message(
         result.action,
         result.confidence,
     )
+    logger.info("ticket %s draft reply: %s escalation reason: %s", ticket.ticket_id, result.draft_reply, result.escalation_reason)
     apply_result(ticket_client, result)
 
 

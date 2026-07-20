@@ -53,7 +53,10 @@ def reciprocal_rank_fusion(
 class VectorRetriever:
     """Retrieves knowledge-base passages via pure semantic (vector) search.
 
-    Kept for tests/simple callers; production triage uses ``HybridRetriever``.
+    A convenience wrapper for tests/simple callers. The triage agent instead
+    calls the underlying primitives (``search_semantic``/``search_keyword`` +
+    ``reciprocal_rank_fusion`` + the re-ranker) directly from its ``search_docs``
+    and ``rerank_results`` tools.
     """
 
     def __init__(self, store: VectorStore) -> None:
@@ -68,8 +71,9 @@ class HybridRetriever:
     """Semantic + keyword retrieval → RRF fusion → CrossEncoder re-rank.
 
     Each lane fetches ``candidate_k`` hits; RRF merges them; the top
-    ``rerank_pool`` fused docs are scored by the re-ranker; the best ``k``
-    (typically 3) are returned to the triage agent.
+    ``rerank_pool`` fused docs are scored by the re-ranker; the best ``k`` are
+    returned. Kept as a one-shot retriever for tests/simple callers; the triage
+    agent runs the same pipeline in stages across its tool calls.
     """
 
     def __init__(
@@ -120,4 +124,22 @@ def format_context(chunks: list[KBChunk]) -> str:
     parts = []
     for i, chunk in enumerate(chunks, start=1):
         parts.append(f"[{i}] source={chunk.source}\n{chunk.content}")
+    return "\n\n".join(parts)
+
+
+def format_candidates(chunks: list[KBChunk]) -> str:
+    """Render chunks for a tool result the model can cite.
+
+    Labels each passage with its KB ``id`` (so the model can cite ``[id]`` and
+    ``rerank_results`` can reference the same candidates); falls back to a 1-based
+    index for chunks without an id (e.g. stubs).
+    """
+    if not chunks:
+        return "(no relevant knowledge-base passages were found)"
+    parts = []
+    for i, chunk in enumerate(chunks, start=1):
+        label = chunk.id if chunk.id is not None else i
+        parts.append(
+            f"[{label}] source={chunk.source} (distance={chunk.distance:.4f})\n{chunk.content}"
+        )
     return "\n\n".join(parts)

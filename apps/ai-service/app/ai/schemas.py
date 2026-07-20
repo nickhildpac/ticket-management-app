@@ -41,18 +41,29 @@ class TriageDecision(BaseModel):
         description="Whether the ticket can be answered safely from the knowledge base."
     )
     confidence: float = Field(
-        ge=0.0, le=1.0, description="Confidence in the drafted answer, 0..1."
+        ge=0.0, le=1.0, description="Confidence that the drafted answer is correct and "
+        "fully grounded in the retrieved knowledge base, 0..1.",
     )
     draft_reply: str | None = Field(
-        default=None, description="Proposed reply to the customer when action is auto_answer."
+        default=None,
+        description="Proposed reply to the customer when action is auto_answer. Every "
+        "step/claim must be grounded in the retrieved passages and cite the [i] source "
+        "it relied on.",
     )
     escalation_reason: str | None = Field(
-        default=None, description="Why a human is needed when action is escalate."
+        default=None,
+        description="Brief, customer-safe explanation of why a human is needed when action "
+        "is escalate. This is shown to the end user, so do not include internal metrics "
+        "(confidence scores, thresholds) or safety-flag slugs.",
     )
     safety_flags: list[str] = Field(
         default_factory=list,
-        description="Non-empty if the request touches anything unsafe/sensitive "
-        "(account changes, refunds, legal, security, self-harm, PII exposure, etc.).",
+        description="Empty unless the ticket needs a sensitive action/decision or a "
+        "human/Anthropic-side remedy. Use only these values: account_or_billing_change, "
+        "refund_or_cancellation, security_incident_or_compromise, credential_or_key_leak, "
+        "account_access_lockout, data_deletion_or_pii, legal_or_compliance, "
+        "user_distress_or_self_harm, requires_anthropic_side_action. Do NOT flag "
+        "documented self-service troubleshooting (e.g. an access toggle or API-key scope).",
     )
 
 

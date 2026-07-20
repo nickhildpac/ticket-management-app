@@ -5,7 +5,7 @@ import json
 import pytest
 
 from app.ai.agent import TriageAgent
-from app.ai.schemas import KBChunk, TriageDecision, TriageResult
+from app.ai.schemas import KBChunk, TriageResult
 from app.ai.worker import _PROCESSED_PREFIX, _handle, apply_result, process_message
 
 
@@ -132,7 +132,29 @@ def test_apply_result_posts_ai_reply_for_auto_answer():
     assert "AI-suggested reply" in client.comments[0][1]
 
 
-def test_created_ticket_retrieves_chunks_and_adds_them_to_model_context():
+def test_apply_result_escalation_comment_hides_internal_flags():
+    client = StubTicketClient()
+    apply_result(
+        client,
+        TriageResult(
+            ticket_id="t-1",
+            action="escalate",
+            confidence=0.0,
+            escalation_reason="This request needs review by our team before we can respond.",
+            safety_flags=["refund_or_cancellation"],
+        ),
+    )
+    comment = client.comments[0][1]
+    assert "Escalated to a human" in comment
+    # The end user must not see raw safety-flag slugs in the comment.
+    assert "refund_or_cancellation" not in comment
+    assert "flags:" not in comment
+
+
+def test_created_ticket_drives_the_tool_loop_and_posts_ai_reply():
+    """End-to-end through the worker: a created ticket runs the agentic loop, the
+    model's search_docs tool hits the store, and an auto-answer comment is posted."""
+
     class RecordingStore:
         def __init__(self) -> None:
             self.semantic_calls = []
@@ -164,53 +186,57 @@ def test_created_ticket_retrieves_chunks_and_adds_them_to_model_context():
         def score(self, query, passages):
             return [1.0] * len(passages)
 
-    class RecordingMessages:
-        def __init__(self) -> None:
-            self.parse_kwargs = None
+    # Fake Tool Runner: the model searches, then drafts a cited reply.
+    class FakeMessage:
+        stop_reason = "tool_use"
 
-        def parse(self, **kwargs):
-            self.parse_kwargs = kwargs
-            return type(
-                "Response",
-                (),
-                {
-                    "stop_reason": "end_turn",
-                    "parsed_output": TriageDecision(
-                        action="auto_answer",
-                        confidence=0.95,
-                        draft_reply="Use the reset link.",
-                    ),
-                },
-            )()
+    class FakeRunner:
+        def __init__(self, funcs, script):
+            self._by_name = {f.__name__: f for f in funcs}
+            self._script = script
+            self._i = -1
 
-    class RecordingClient:
-        def __init__(self) -> None:
-            self.messages = RecordingMessages()
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            self._i += 1
+            if self._i >= len(self._script):
+                raise StopIteration
+            return FakeMessage()
+
+        def generate_tool_call_response(self):
+            tool, kwargs = self._script[self._i]
+            self._by_name[tool](**kwargs)
+            return {"role": "user", "content": "ok"}
+
+    script = [
+        ("search_docs", {"query": "reset password"}),
+        ("draft_reply", {"reply": "Use the reset link [1].", "confidence": 0.95}),
+    ]
+
+    def runner_factory(funcs, *, system, messages, max_tokens):
+        return FakeRunner(funcs, script)
 
     store = RecordingStore()
-    from app.ai.retrieval import HybridRetriever
-
-    retriever = HybridRetriever(store, StubReranker(), candidate_k=3, rerank_pool=3, rrf_k=60)
-    model_client = RecordingClient()
     agent = TriageAgent(
-        model_client,
-        retriever,
+        object(),
+        store,
+        StubReranker(),
         model="test-model",
         confidence_threshold=0.75,
-        rag_top_k=3,
+        candidate_k=3,
+        runner_factory=runner_factory,
     )
     ticket_client = StubTicketClient()
 
     process_message(agent, ticket_client, _fields())
 
+    # The model's search_docs call reached both retrieval lanes with candidate_k.
     assert len(store.semantic_calls) == 1
     assert len(store.keyword_calls) == 1
-    retrieval_query, top_k = store.semantic_calls[0]
-    assert retrieval_query == "Password reset\n\nI forgot my password."
-    assert top_k == 3
-
-    prompt = model_client.messages.parse_kwargs["messages"][0]["content"]
-    assert "source=kb/password-reset.md" in prompt
-    assert "Use the reset link on the login page." in prompt
+    assert store.semantic_calls[0] == ("reset password", 3)
+    # ...and the drafted reply was posted as a suggested comment.
     assert len(ticket_client.comments) == 1
     assert "AI-suggested reply" in ticket_client.comments[0][1]
+    assert "Use the reset link [1]." in ticket_client.comments[0][1]
