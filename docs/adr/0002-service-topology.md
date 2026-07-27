@@ -1,8 +1,16 @@
-# ADR 0002: Service Topology — Go Tickets, Python AI/RAG, Vite Web
+# ADR 0002: Service Topology — Go Tickets, AI/RAG Service, Vite Web
 
 ## Status
 
 Accepted (2026-07-02). Supersedes [ADR 0001](0001-backend-direction.md).
+
+**Amended 2026-07-26:** the ai-service has been reimplemented in Go. The topology below — three
+services, one concern each, event-driven integration, ticket-service authoritative — is unchanged;
+only the ai-service's implementation language is. Read "Python/FastAPI shell" below as historical:
+the service is now a Go module (`cmd/{api,worker,ingest}`) using anthropic-sdk-go, go-redis and
+golang-migrate. The rationale for the change was operational rather than architectural — one
+toolchain and one deployment story across both backend services, and a single shared JWT/HTTP idiom
+on the callback path.
 
 ## Context
 

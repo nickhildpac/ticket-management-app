@@ -1,6 +1,6 @@
 # Compose topology (profiles):
 #   (default) core → postgres + ticket-service (Go, authoritative) + web (Vite/React)
-#   ai            → redis broker + ai-service (FastAPI RAG/triage worker)
+#   ai            → redis broker + ai-service (Go RAG API) + worker (triage consumer)
 #   obs           → prometheus + grafana
 #
 # Run:
@@ -126,8 +126,9 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # AI/RAG support-triage service (FastAPI). Consumes ticket events, decides
-  # answer-safely vs escalate-to-human, and calls back into the ticket service.
+  # AI/RAG support-triage service (Go). Serves on-demand triage and the
+  # knowledge-base ingest endpoint the ticket-service proxies to; the `worker`
+  # service below is the primary event-driven triage path.
   ai-service:
     build:
       context: ../../apps/ai-service
@@ -140,7 +141,8 @@ services:
       - ../../apps/ai-service/.env
     environment:
       APP_ENV: ${APP_ENV:-local}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}
+      PORT: 8081
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       TICKET_SERVICE_URL: http://ticket-service:8080
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -176,20 +178,20 @@ services:
 
   # AI triage worker: consumes the `ticket-events` Redis stream and applies
   # triage decisions via callback into ticket-service. Same image/env as
-  # ai-service, just a different entrypoint — the FastAPI process does not
-  # consume events on its own.
+  # ai-service, just a different entrypoint — the API process does not consume
+  # events on its own.
   worker:
     build:
       context: ../../apps/ai-service
       dockerfile: Dockerfile
     container_name: ticket-ai-worker
     profiles: ["ai"]
-    command: ["uv", "run", "python", "-m", "app.ai.worker"]
+    command: ["./worker"]
     env_file:
       - ../../apps/ai-service/.env
     environment:
       APP_ENV: ${APP_ENV:-local}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       TICKET_SERVICE_URL: http://ticket-service:8080
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

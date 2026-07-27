@@ -1,8 +1,7 @@
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-.ruff_cache/
 .env
-openapi.json
+.env.example
+# The knowledge base is bind-mounted by `make ingest` rather than baked into
+# the image (it is several megabytes of markdown).
 knowledge/
+postman_collection.json
+README.md

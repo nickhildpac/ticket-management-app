@@ -92,27 +92,62 @@ jobs:
   test-ai-service:
     runs-on: ubuntu-latest
 
+    services:
+      # pgvector image: the RAG integration tests exercise the vector column
+      # and the FTS lane against a real database.
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ticket_management_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v5
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.5'
 
-    - name: Set up Python
-      run: uv python install 3.12
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
 
     - name: Install dependencies
       working-directory: ./apps/ai-service
-      run: uv sync --extra dev
+      run: go mod download
 
     - name: Run linting
       working-directory: ./apps/ai-service
-      run: uv run ruff check .
+      run: go vet ./...
+
+    - name: Apply migrations
+      working-directory: ./apps/ai-service
+      run: go run ./cmd/api -migrate-only
+      env:
+        APP_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/ticket_management_test?sslmode=disable
 
     - name: Run tests
       working-directory: ./apps/ai-service
-      run: uv run pytest
+      run: go test -v -cover ./...
+      env:
+        # Unset, the RAG integration tests skip; set, they run against pgvector.
+        TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ticket_management_test?sslmode=disable
 
   test-web:
     runs-on: ubuntu-latest
@@ -140,6 +175,9 @@ jobs:
     needs: [contracts-drift, test-ticket-service, test-ai-service, test-web]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
 
     strategy:
       matrix:

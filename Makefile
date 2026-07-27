@@ -20,7 +20,7 @@ help: ## List available targets
 .PHONY: setup
 setup: ## Install dependencies for all apps
 	cd $(TICKET) && go mod download
-	cd $(AI) && uv sync --extra dev
+	cd $(AI) && go mod download
 	cd $(WEB) && bun install
 
 # ---- run (compose profiles) --------------------------------------------
@@ -53,8 +53,8 @@ test-ticket: ## Run Go ticket-service tests
 	cd $(TICKET) && go test ./...
 
 .PHONY: test-ai
-test-ai: ## Run Python ai-service tests
-	cd $(AI) && uv run pytest
+test-ai: ## Run Go ai-service tests
+	cd $(AI) && go test ./...
 
 .PHONY: test-web
 test-web: ## Type-check + build the web app
@@ -63,7 +63,7 @@ test-web: ## Type-check + build the web app
 .PHONY: lint
 lint: ## Lint all apps
 	cd $(TICKET) && go vet ./...
-	cd $(AI) && uv run ruff check .
+	cd $(AI) && go vet ./...
 	cd $(WEB) && bun run lint
 
 # ---- contracts ----------------------------------------------------------
@@ -72,13 +72,13 @@ contracts: ## Regenerate all generated contract artifacts from contracts/
 	python3 tools/generate_ticket_state_contract.py
 
 # ---- database -----------------------------------------------------------
-# The Go ticket-service owns the ticket/user/comment schema and applies its own
-# migrations automatically on startup (AUTO_MIGRATE). This target applies the
-# AI-service's Alembic migrations (kb_chunks and other AI-owned tables).
+# Both services apply their own migrations on startup and track them in separate
+# tables (schema_migrations vs ai_schema_migrations) in the same database. This
+# target applies the AI-owned ones (kb_chunks) out of band.
 .PHONY: migrate
-migrate: ## Apply AI-service Alembic migrations (Go schema auto-migrates on startup)
+migrate: ## Apply AI-service migrations (both services also auto-migrate on startup)
 	$(COMPOSE) up -d postgres
-	cd $(AI) && uv run alembic upgrade head
+	cd $(AI) && go run ./cmd/api -migrate-only
 
 # ---- knowledge base -----------------------------------------------------
 # knowledge/ is in .dockerignore, so compose ingest bind-mounts the host tree.
@@ -87,8 +87,8 @@ ingest: ## Ingest KB into pgvector via ai-service container (KB_PATH=knowledge)
 	$(COMPOSE) --profile ai run --rm --no-deps \
 		-v "$(CURDIR)/$(AI)/$(KB_PATH):/app/knowledge:ro" \
 		ai-service \
-		uv run python -m app.ai.ingest /app/knowledge
+		./ingest /app/knowledge
 
 .PHONY: worker
 worker: ## Run the AI triage worker (Redis Streams consumer)
-	cd $(AI) && uv run python -m app.ai.worker
+	cd $(AI) && go run ./cmd/worker

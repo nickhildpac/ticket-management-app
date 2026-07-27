@@ -7,7 +7,7 @@ A full-stack ticket management application with containerization, CI/CD, and mon
 See `docs/adr/0002-service-topology.md` for the authoritative description. In short:
 
 - **ticket-service** (`apps/ticket-service`, Go): authoritative ticket API, port 8080
-- **ai-service** (`apps/ai-service`, FastAPI): RAG/triage worker + endpoint, port 8081 (compose profile `ai`)
+- **ai-service** (`apps/ai-service`, Go): RAG/triage API on port 8081 plus a separate `worker` container (compose profile `ai`)
 - **web** (`apps/web`, React/Vite): SPA pointed at the Go API
 - **Monitoring**: Prometheus and Grafana (compose profile `obs`)
 - **Orchestration**: Docker Compose profiles + root `Makefile`; images built per app
@@ -38,7 +38,7 @@ make up-obs    # + prometheus + grafana
 3. Access the applications:
 - Frontend: http://localhost:3000
 - Ticket API (Go): http://localhost:8080
-- AI service (FastAPI): http://localhost:8081 (profile `ai`)
+- AI service (Go): http://localhost:8081 (profile `ai`)
 - Grafana: http://localhost:3001 (admin/admin, profile `obs`)
 - Prometheus: http://localhost:9090 (profile `obs`)
 
@@ -97,20 +97,21 @@ GitHub Actions workflow includes:
 
 ## Database Migrations
 
-The Go **ticket-service applies its own migrations on startup** (owns the
-ticket/user/comment schema); set `AUTO_MIGRATE=false` to disable. The
-**ai-service applies its Alembic migrations** (AI-owned tables like `kb_chunks`)
-on container start, or run them manually:
+Both services apply their own migrations on startup and track them in separate
+tables in the same database: the **ticket-service** owns the ticket/user/comment
+schema (`schema_migrations`; set `AUTO_MIGRATE=false` to disable), and the
+**ai-service** owns AI tables like `kb_chunks` (`ai_schema_migrations`). Run the
+AI-owned ones manually with:
 
 ```bash
-make migrate                          # AI-service Alembic (from repo root)
+make migrate                          # from the repo root
 # or against a running stack:
-docker compose -f infra/compose/docker-compose.yml exec ai-service uv run alembic upgrade head
+docker compose -f infra/compose/docker-compose.yml exec ai-service ./api -migrate-only
 ```
 
-To disable the Go service's auto-migration (e.g. externally managed DB), set
+To disable the ticket-service's auto-migration (e.g. externally managed DB), set
 `AUTO_MIGRATE=false` and apply `apps/ticket-service/migrations/` with the
-golang-migrate CLI.
+golang-migrate CLI; `apps/ai-service/migrations/` can be applied the same way.
 
 ## Production Deployment
 
@@ -192,12 +193,12 @@ go test ./...
 make sqlc  # Generate SQLC code
 ```
 
-### ai-service (Python)
+### ai-service (Go)
 ```bash
 cd apps/ai-service
-uv run uvicorn app.main:app --reload --port 8081
-uv run python -m app.ai.worker
-uv run pytest
+go run ./cmd/api        # :8081 — also applies the kb_chunks migrations
+go run ./cmd/worker     # Redis Streams triage consumer
+go test ./...
 ```
 
 ### web (React + Vite)
