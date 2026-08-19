@@ -4,8 +4,11 @@ A full-stack ticket management application with containerization, CI/CD, and mon
 
 ## Architecture
 
-See `docs/adr/0002-service-topology.md` for the authoritative description. In short:
+See `docs/adr/0002-service-topology.md` (topology) and `docs/adr/0003-keycloak-authentication.md`
+(authentication) for the authoritative descriptions. In short:
 
+- **keycloak**: identity provider, port 8090. Authoritative for authentication and realm roles;
+  both Go services validate its tokens and hold no signing key.
 - **ticket-service** (`apps/ticket-service`, Go): authoritative ticket API, port 8080
 - **ai-service** (`apps/ai-service`, Go): RAG/triage API on port 8081 plus a separate `worker` container (compose profile `ai`)
 - **web** (`apps/web`, React/Vite): SPA pointed at the Go API
@@ -30,13 +33,14 @@ cd ticket-management-system
 
 2. Start the stack (root Makefile wraps `infra/compose/docker-compose.yml`):
 ```bash
-make up        # core: postgres + ticket-service + web
+make up        # core: postgres + keycloak + ticket-service + web
 make up-ai     # + redis + ai-service (triage)
 make up-obs    # + prometheus + grafana
 ```
 
 3. Access the applications:
 - Frontend: http://localhost:3000
+- Keycloak admin console: http://localhost:8090 (admin/admin)
 - Ticket API (Go): http://localhost:8080
 - AI service (Go): http://localhost:8081 (profile `ai`)
 - Grafana: http://localhost:3001 (admin/admin, profile `obs`)
@@ -44,13 +48,36 @@ make up-obs    # + prometheus + grafana
 
 ### Environment Variables
 
-Create a `.env` file in the root directory:
+Copy `.env.example` to `.env` and fill it in. The security-relevant values:
 
 ```env
-JWT_SECRET=your-jwt-secret-key
 APP_ENV=production
-GRAFANA_PASSWORD=your-grafana-password
+
+# Public URL of Keycloak. Must be https outside local/test — it goes into every
+# token's `iss`, and both services reject a plain-http issuer in production.
+KEYCLOAK_PUBLIC_URL=https://sso.example.com
+KEYCLOAK_REALM=ticket-management
+KEYCLOAK_AUDIENCE=ticket-service
+
+# Confidential client secrets. Generate with: openssl rand -base64 32
+# The values in .env.example are the dev ones baked into the realm export and
+# are rejected outside local/test.
+AI_KEYCLOAK_CLIENT_SECRET=<generated>
+KEYCLOAK_ADMIN_CLIENT_SECRET=<generated>
+
+KEYCLOAK_ADMIN_PASSWORD=<generated>
+POSTGRES_PASSWORD=<generated>
+GRAFANA_PASSWORD=<generated>
 ```
+
+There is no `JWT_SECRET` any more — the services verify RS256 tokens against the realm's JWKS.
+
+### Keycloak in production
+
+The compose service runs `start-dev` with a file-backed database, which is for local work only.
+For a real deployment: run `start` with `KC_DB=postgres` against a dedicated database, terminate TLS
+in front of it with `KC_HOSTNAME` set to the public URL, inject client secrets from your secret
+store, and remove the seeded dev users from the imported realm. See `infra/keycloak/README.md`.
 
 ## Docker Images
 

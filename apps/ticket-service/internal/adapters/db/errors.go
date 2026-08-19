@@ -18,8 +18,13 @@ func normalizeDBError(err error) error {
 	}
 
 	var pqErr *pq.Error
-	if errors.As(err, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "users_email_key" {
-		return apperrors.ErrDuplicateEmail
+	if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+		switch pqErr.Constraint {
+		case "users_email_key":
+			return apperrors.ErrDuplicateEmail
+		case "idx_users_keycloak_id":
+			return apperrors.ErrDuplicateIdentity
+		}
 	}
 
 	return err

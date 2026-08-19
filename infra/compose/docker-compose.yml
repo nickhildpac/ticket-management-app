@@ -1,5 +1,5 @@
 # Compose topology (profiles):
-#   (default) core → postgres + ticket-service (Go, authoritative) + web (Vite/React)
+#   (default) core → postgres + keycloak (IdP) + ticket-service (Go, authoritative) + web (Vite/React)
 #   ai            → redis broker + ai-service (Go RAG API) + worker (triage consumer)
 #   obs           → prometheus + grafana
 #
@@ -40,6 +40,55 @@ services:
           cpus: '0.5'
           memory: 256M
 
+  # Identity provider. Authoritative for authentication and for the admin/agent/user
+  # realm roles; ticket-service is a pure resource server that validates its tokens.
+  # The realm (clients, roles, dev users) is imported from infra/keycloak/realm-export.json
+  # on first boot only — delete the keycloak_data volume to re-import after editing it.
+  #
+  # start-dev + the dev-file database are local-only. See infra/keycloak/README.md
+  # for the production shape (start, KC_DB=postgres, TLS, injected secrets).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: ticket-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Tokens must carry the URL the *browser* uses, otherwise `iss` won't match
+      # what the SPA and the API expect. Services reach the same realm in-network
+      # via KEYCLOAK_INTERNAL_ISSUER_URL.
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8090}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      # 8080 on the host is taken by ticket-service.
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - ../../infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - ticket-network
+    healthcheck:
+      # The image has no curl/wget; Keycloak 26 exposes health on the management
+      # port (9000) and ships a JRE, so probe it with a tiny Java one-liner.
+      test:
+        - "CMD-SHELL"
+        - "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\nHost: localhost\\nConnection: close\\n\\n' >&3 && cat <&3 | grep -q 'UP'"
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
   # Authoritative ticket-lifecycle service (Go). See docs/adr/0002-service-topology.md.
   ticket-service:
     build:
@@ -50,12 +99,18 @@ services:
       APP_ENV: ${APP_ENV:-local}
       PORT: 8080
       DB_ADDR: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ticket_management}?sslmode=disable
-      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
+      # Issuer as it appears in `iss` (browser-facing) vs. where this container
+      # actually fetches discovery/JWKS. See infra/keycloak/README.md.
+      KEYCLOAK_ISSUER_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8090}/realms/${KEYCLOAK_REALM:-ticket-management}
+      KEYCLOAK_INTERNAL_ISSUER_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-ticket-management}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-ticket-service}
+      KEYCLOAK_WEB_CLIENT_ID: ${KEYCLOAK_WEB_CLIENT_ID:-ticket-web}
+      # Enables writing realm role changes back via the Admin API (admin panel).
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-ticket-service}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-ticket-service-dev-secret}
       CookieDomain: ${COOKIE_DOMAIN:-localhost}
       # CORS origin = where the browser loads the web app from (host port 3000).
       FRONTEND_URL: ${WEB_ORIGIN:-http://localhost:3000}
-      # Local dev is plain http, so don't mark the refresh cookie Secure.
-      RefreshCookieSecure: ${REFRESH_COOKIE_SECURE:-false}
       # Outbox relay target (see Phase 2/4); harmless if unused.
       REDIS_ADDR: redis:6379
       # ai-service base URL for the admin document-ingest proxy (profile "ai").
@@ -64,6 +119,8 @@ services:
       - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - ticket-network
@@ -148,7 +205,16 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
       AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
-      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
+      # Inbound token validation on /triage and /ingest: `iss` is the
+      # browser-facing URL, discovery/JWKS come from the in-network one.
+      KEYCLOAK_ISSUER_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8090}/realms/${KEYCLOAK_REALM:-ticket-management}
+      KEYCLOAK_INTERNAL_ISSUER_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-ticket-management}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-ticket-service}
+      # Outbound: callbacks into ticket-service authenticate with a Keycloak
+      # client_credentials token, not a shared signing secret.
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-ticket-management}/protocol/openid-connect/token
+      KEYCLOAK_CLIENT_ID: ${AI_KEYCLOAK_CLIENT_ID:-ai-service}
+      KEYCLOAK_CLIENT_SECRET: ${AI_KEYCLOAK_CLIENT_SECRET:-ai-service-dev-secret}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       RAG_TOP_K: ${RAG_TOP_K:-5}
       RAG_CANDIDATE_K: ${RAG_CANDIDATE_K:-20}
@@ -161,6 +227,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
       ticket-service:
         condition: service_started
@@ -197,7 +265,16 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TRIAGE_MODEL: ${TRIAGE_MODEL:-claude-opus-4-8}
       AUTO_ANSWER_CONFIDENCE_THRESHOLD: ${AUTO_ANSWER_CONFIDENCE_THRESHOLD:-0.75}
-      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret}
+      # Inbound token validation on /triage and /ingest: `iss` is the
+      # browser-facing URL, discovery/JWKS come from the in-network one.
+      KEYCLOAK_ISSUER_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8090}/realms/${KEYCLOAK_REALM:-ticket-management}
+      KEYCLOAK_INTERNAL_ISSUER_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-ticket-management}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-ticket-service}
+      # Outbound: callbacks into ticket-service authenticate with a Keycloak
+      # client_credentials token, not a shared signing secret.
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-ticket-management}/protocol/openid-connect/token
+      KEYCLOAK_CLIENT_ID: ${AI_KEYCLOAK_CLIENT_ID:-ai-service}
+      KEYCLOAK_CLIENT_SECRET: ${AI_KEYCLOAK_CLIENT_SECRET:-ai-service-dev-secret}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       RAG_TOP_K: ${RAG_TOP_K:-5}
       RAG_CANDIDATE_K: ${RAG_CANDIDATE_K:-20}
@@ -208,6 +285,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
       ticket-service:
         condition: service_started
@@ -264,6 +343,10 @@ services:
 
 volumes:
   postgres_data:
+  # Explicitly named so `make keycloak-reset` can remove it without depending on
+  # the compose project name.
+  keycloak_data:
+    name: ticket-keycloak-data
   redis_data:
   prometheus_data:
   grafana_data:

@@ -5,14 +5,16 @@ go 1.24.5
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/anthropics/anthropic-sdk-go v1.61.0
+	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/go-chi/chi/v5 v5.2.2
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/go-jose/go-jose/v4 v4.0.5
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
 	github.com/pgvector/pgvector-go v0.3.0
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/oauth2 v0.30.0
 )
 
 require (
@@ -31,6 +33,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

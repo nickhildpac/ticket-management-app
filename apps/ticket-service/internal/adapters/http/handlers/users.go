@@ -3,12 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/nickhildpac/ticket-management-app/internal/adapters/auth"
+	"github.com/nickhildpac/ticket-management-app/internal/application/service"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 	"github.com/nickhildpac/ticket-management-app/pkg/configs"
 	"github.com/nickhildpac/ticket-management-app/pkg/util"
@@ -20,76 +20,6 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	}{
 		Status: "ok",
 	})
-}
-
-// @Summary		Login user
-// @Description	Authenticate user with email and password
-// @Tags			Authentication
-// @Accept			json
-// @Produce		json
-// @Param			request	body		object{email=string,password=string}	true	"Login credentials"
-// @Success		200		{object}	object{access_token=string,user=object{id=string,first_name=string,last_name=string,email=string,role=string}}
-// @Failure		401		{object}	util.ErrorBody
-// @Router			/auth/login [post]
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	var requestPayload struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&requestPayload); err != nil {
-		util.ErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	user, err := h.userService.GetUser(r.Context(), requestPayload.Email)
-	if err != nil {
-		util.ErrorResponse(w, http.StatusUnauthorized, errors.New("invalid credentials"))
-		return
-	}
-
-	if err = util.CheckPassword(user.HashedPassword, requestPayload.Password); err != nil {
-		util.ErrorResponse(w, http.StatusUnauthorized, errors.New("invalid credentials"))
-		return
-	}
-
-	tokenPairs, err := util.GenerateTokenPair(h.config, &util.JWTUser{
-		ID:        user.ID,
-		FirstName: user.FirstName,
-		LastName:  user.LastName,
-		Email:     user.Email,
-		Role:      user.Role,
-	})
-	if err != nil {
-		writeInternalError(w, r, err)
-		return
-	}
-
-	http.SetCookie(w, util.GetRefreshCookie(h.config, tokenPairs.RefreshToken))
-	util.WriteResponse(w, http.StatusOK, struct {
-		AccessToken string       `json:"access_token"`
-		User        util.JWTUser `json:"user"`
-	}{
-		AccessToken: tokenPairs.Token,
-		User: util.JWTUser{
-			ID:        user.ID,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Email:     user.Email,
-			Role:      user.Role,
-		},
-	})
-}
-
-// @Summary		Logout user
-// @Description	Clear refresh token cookie
-// @Tags			Authentication
-// @Produce		json
-// @Success		202
-// @Router			/auth/logout [get]
-func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, util.GetExpiredRefreshCookie(h.config))
-	w.WriteHeader(http.StatusAccepted)
 }
 
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
@@ -208,127 +138,27 @@ func (h *Handler) PatchMe(w http.ResponseWriter, r *http.Request) {
 	util.WriteResponse(w, http.StatusOK, newUserResponse(user))
 }
 
-// @Summary		Create new user
-// @Description	Register a new user account
-// @Tags			Authentication
-// @Accept			json
-// @Produce		json
-// @Param			request	body		object{first_name=string,last_name=string,email=string,password=string,skills=[]string}	true	"User registration details"
-// @Success		201		{object}	UserResponse
-// @Failure		400		{object}	util.ErrorBody
-// @Failure		500		{object}	util.ErrorBody
-// @Router			/users [post]
-func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var requestPayload struct {
-		FirstName string   `json:"first_name"`
-		LastName  string   `json:"last_name"`
-		Email     string   `json:"email"`
-		Password  string   `json:"password"`
-		Skills    []string `json:"skills"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&requestPayload); err != nil {
-		util.ErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	hashedPassword, err := util.HashPassword(requestPayload.Password)
-	if err != nil {
-		writeInternalError(w, r, err)
-		return
-	}
-
-	// Validate skills
-	skills, err := domain.NewSkills(requestPayload.Skills)
-	if err != nil {
-		util.ErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	user, err := h.userService.CreateUser(r.Context(), domain.User{
-		FirstName:      requestPayload.FirstName,
-		LastName:       requestPayload.LastName,
-		Email:          requestPayload.Email,
-		HashedPassword: hashedPassword,
-		Skills:         *skills,
-	})
-	if err != nil {
-		log.Println("Error creating user:", err)
-		writeHandlerError(w, r, err)
-		return
-	}
-	util.WriteResponse(w, http.StatusCreated, newUserResponse(user))
+// AuthConfigResponse tells the SPA where to authenticate.
+type AuthConfigResponse struct {
+	Issuer   string `json:"issuer" example:"http://localhost:8090/realms/ticket-management"`
+	ClientID string `json:"client_id" example:"ticket-web"`
 }
 
-// @Summary		Refresh access token
-// @Description	Get new access token using refresh token from cookie
+// @Summary		Get authentication configuration
+// @Description	Public OIDC parameters the SPA needs to start an Authorization Code + PKCE flow
 // @Tags			Authentication
-// @Accept			json
 // @Produce		json
-// @Success		200	{object}	object{access_token=string,user=object{id=string,first_name=string,last_name=string,email=string,role=string}}
-// @Failure		401	{object}	util.ErrorBody
-// @Router			/auth/refresh [get]
-func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	refreshCookie, err := r.Cookie(h.config.CookieName)
-	if err != nil {
-		util.ErrorResponse(w, http.StatusUnauthorized, errors.New("missing refresh cookie"))
-		return
-	}
-
-	claims := &util.RefreshClaims{}
-	refreshToken := refreshCookie.Value
-	_, err = jwt.ParseWithClaims(refreshToken, claims, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-		return []byte(h.config.JWTSecret), nil
-	}, jwt.WithIssuer(h.config.JWTIssuer))
-	if err != nil {
-		util.ErrorResponse(w, http.StatusUnauthorized, err)
-		return
-	}
-	// Only tokens minted as refresh tokens may mint new pairs; an access token
-	// presented here (same secret, also parseable) must be rejected.
-	if claims.TokenType != util.RefreshTokenType {
-		util.ErrorResponse(w, http.StatusUnauthorized, errors.New("not a refresh token"))
-		return
-	}
-
-	userID, err := uuid.Parse(claims.Subject)
-	if err != nil {
-		util.ErrorResponse(w, http.StatusUnauthorized, err)
-		return
-	}
-	user, err := h.userService.GetUserByID(r.Context(), userID)
-	if err != nil {
-		writeInternalError(w, r, err)
-		return
-	}
-	tokens, err := util.GenerateTokenPair(h.config, &util.JWTUser{
-		ID:        user.ID,
-		FirstName: user.FirstName,
-		LastName:  user.LastName,
-		Email:     user.Email,
-		Role:      user.Role,
-	})
-	if err != nil {
-		writeInternalError(w, r, err)
-		return
-	}
-
-	http.SetCookie(w, util.GetRefreshCookie(h.config, tokens.RefreshToken))
-	util.WriteResponse(w, http.StatusOK, struct {
-		AccessToken string       `json:"access_token"`
-		User        util.JWTUser `json:"user"`
-	}{
-		AccessToken: tokens.Token,
-		User: util.JWTUser{
-			ID:        user.ID,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Email:     user.Email,
-			Role:      user.Role,
-		},
+// @Success		200	{object}	AuthConfigResponse
+// @Router			/auth/config [get]
+//
+// AuthConfig is served unauthenticated and contains no secrets: the issuer URL
+// and the public client id are both visible in the browser's redirect anyway.
+// Serving them rather than baking them into the bundle means the SPA does not
+// need rebuilding per environment.
+func (h *Handler) AuthConfig(w http.ResponseWriter, r *http.Request) {
+	util.WriteResponse(w, http.StatusOK, AuthConfigResponse{
+		Issuer:   h.config.KeycloakIssuerURL,
+		ClientID: h.config.KeycloakWebClientID,
 	})
 }
 
@@ -345,7 +175,12 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 // @Failure		401		{object}	util.ErrorBody
 // @Failure		403		{object}	util.ErrorBody
 // @Failure		500		{object}	util.ErrorBody
+// @Failure		501		{object}	util.ErrorBody
 // @Router			/admin/users/{id}/role [put]
+//
+// Roles live in Keycloak, so this writes there first and mirrors the result
+// locally. Writing only locally would look like it worked and then silently
+// revert the next time the user presented a token.
 func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	userID, err := uuid.Parse(idParam)
@@ -370,7 +205,16 @@ func (h *Handler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.UpdateUserRole(r.Context(), userID, role)
 	if err != nil {
-		writeHandlerError(w, r, err)
+		switch {
+		case errors.Is(err, auth.ErrAdminNotConfigured):
+			util.ErrorResponse(w, http.StatusNotImplemented, errors.New(
+				"role management is unavailable: set KEYCLOAK_ADMIN_CLIENT_ID/SECRET, or change the role in the Keycloak console"))
+		case errors.Is(err, service.ErrUserNotLinked):
+			util.ErrorResponse(w, http.StatusConflict, errors.New(
+				"this user has never signed in via Keycloak, so their role cannot be changed here"))
+		default:
+			writeHandlerError(w, r, err)
+		}
 		return
 	}
 

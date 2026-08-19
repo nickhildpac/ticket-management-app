@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { Dashboard } from "@/features/dashboard";
 import { Login } from "@/features/auth/login";
 import { Signup } from "@/features/auth/signup";
+import { AuthCallback } from "@/features/auth/callback";
 import { TicketList } from "@/features/tickets/list";
 import { AllTicketsList } from "@/features/tickets/all-tickets";
 import { AssignedTicketsList } from "@/features/tickets/assigned-tickets";
@@ -11,7 +12,7 @@ import { TicketForm } from "@/features/tickets/form";
 import { AdminPanel } from "@/features/admin";
 import { DocumentUpload } from "@/features/admin/document-upload";
 import { Profile } from "@/features/profile/profile";
-import { getAuthUser, isAuthenticated } from "@/app/auth";
+import { getAuthUser, isAuthenticated, REDIRECT_PATH } from "@/app/auth";
 import type { Role } from "@/lib/types";
 import { validateTicketQueueSearch } from "@/features/tickets/queue-state";
 
@@ -89,6 +90,14 @@ const signupRoute = createRoute({
     component: Signup,
 });
 
+// Where Keycloak redirects back to after authentication. Must stay in step with
+// the client's registered redirect URIs in infra/keycloak/realm-export.json.
+const authCallbackRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: REDIRECT_PATH,
+    component: AuthCallback,
+});
+
 const ticketsListRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/tickets',
@@ -152,6 +161,7 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     loginRoute,
     signupRoute,
+    authCallbackRoute,
     ticketsListRoute,
     ticketsAllRoute,
     ticketsAssignedRoute,

@@ -52,10 +52,12 @@ func (r *UserRepository) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (ma
 
 func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) (*domain.User, error) {
 	created, err := r.store.CreateUser(ctx, sqlc.CreateUserParams{
-		FirstName:      user.FirstName,
-		LastName:       user.LastName,
-		Email:          user.Email,
-		HashedPassword: user.HashedPassword,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		// Credentials live in Keycloak; this is a placeholder so the NOT NULL
+		// column is satisfied and the value can never match a bcrypt hash.
+		HashedPassword: externalPasswordPlaceholder,
 		UpdatedAt:      user.UpdatedAt,
 		Skills:         user.Skills.ToSlice(),
 	})
@@ -64,6 +66,65 @@ func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) (*dom
 		return nil, normalizeDBError(err)
 	}
 	return mapUser(created), nil
+}
+
+// externalPasswordPlaceholder is stored in users.hashed_password now that
+// authentication is delegated to Keycloak. It is not a valid bcrypt hash.
+const externalPasswordPlaceholder = "!external"
+
+// GetUserByKeycloakID looks up the local row linked to a Keycloak subject.
+func (r *UserRepository) GetUserByKeycloakID(ctx context.Context, keycloakID uuid.UUID) (*domain.User, error) {
+	user, err := r.store.GetUserByKeycloakID(ctx, uuid.NullUUID{UUID: keycloakID, Valid: true})
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	return mapUser(user), nil
+}
+
+// CreateUserFromKeycloak provisions a new local row for a Keycloak subject.
+func (r *UserRepository) CreateUserFromKeycloak(ctx context.Context, keycloakID uuid.UUID, user domain.User) (*domain.User, error) {
+	created, err := r.store.CreateUserFromKeycloak(ctx, sqlc.CreateUserFromKeycloakParams{
+		KeycloakID: uuid.NullUUID{UUID: keycloakID, Valid: true},
+		FirstName:  user.FirstName,
+		LastName:   user.LastName,
+		Email:      user.Email,
+		Role:       sql.NullString{String: string(user.Role), Valid: user.Role != ""},
+	})
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	return mapUser(created), nil
+}
+
+// LinkUserToKeycloak claims an existing unlinked row for a Keycloak subject.
+// It returns ErrNotFound if the row was already linked to another subject.
+func (r *UserRepository) LinkUserToKeycloak(ctx context.Context, localID, keycloakID uuid.UUID, user domain.User) (*domain.User, error) {
+	linked, err := r.store.LinkUserToKeycloak(ctx, sqlc.LinkUserToKeycloakParams{
+		ID:         localID,
+		KeycloakID: uuid.NullUUID{UUID: keycloakID, Valid: true},
+		FirstName:  user.FirstName,
+		LastName:   user.LastName,
+		Role:       sql.NullString{String: string(user.Role), Valid: user.Role != ""},
+	})
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	return mapUser(linked), nil
+}
+
+// SyncUserFromKeycloak refreshes a linked row from the token's current profile.
+func (r *UserRepository) SyncUserFromKeycloak(ctx context.Context, keycloakID uuid.UUID, user domain.User) (*domain.User, error) {
+	synced, err := r.store.SyncUserFromKeycloak(ctx, sqlc.SyncUserFromKeycloakParams{
+		KeycloakID: uuid.NullUUID{UUID: keycloakID, Valid: true},
+		Email:      user.Email,
+		FirstName:  user.FirstName,
+		LastName:   user.LastName,
+		Role:       sql.NullString{String: string(user.Role), Valid: user.Role != ""},
+	})
+	if err != nil {
+		return nil, normalizeDBError(err)
+	}
+	return mapUser(synced), nil
 }
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]domain.User, error) {

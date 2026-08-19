@@ -14,6 +14,42 @@ INSERT INTO users (
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
+-- name: GetUserByKeycloakID :one
+SELECT * FROM users
+WHERE keycloak_id = $1 LIMIT 1;
+
+-- name: CreateUserFromKeycloak :one
+-- JIT provisioning: first sign-in of a Keycloak subject with no local row.
+INSERT INTO users (
+    keycloak_id,
+    first_name,
+    last_name,
+    email,
+    role,
+    hashed_password,
+    skills,
+    updated_at
+) VALUES (
+    $1, $2, $3, $4, $5, '!external', '{}', NOW()
+) RETURNING *;
+
+-- name: LinkUserToKeycloak :one
+-- Claims a pre-existing row (matched by email) for a Keycloak subject, and
+-- refreshes the profile/role from the token. The keycloak_id IS NULL guard makes
+-- this a no-op if the row was already linked to a different subject, so a second
+-- Keycloak account with the same email can never steal an existing identity.
+UPDATE users
+SET keycloak_id = $2, first_name = $3, last_name = $4, role = $5, updated_at = NOW()
+WHERE id = $1 AND keycloak_id IS NULL
+RETURNING *;
+
+-- name: SyncUserFromKeycloak :one
+-- Refreshes a linked row when the token's profile or role has drifted from it.
+UPDATE users
+SET email = $2, first_name = $3, last_name = $4, role = $5, updated_at = NOW()
+WHERE keycloak_id = $1
+RETURNING *;
+
 -- name: GetUsersByIDs :many
 SELECT * FROM users
 WHERE id = ANY($1::uuid[]);

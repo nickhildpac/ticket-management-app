@@ -1,4 +1,4 @@
-import { getAccessToken, tryRefresh } from "@/app/auth";
+import { getAccessToken, isAuthPublicPath, login, tryRefresh } from "@/app/auth";
 
 type ApiErrorEnvelope = {
     code?: string;
@@ -42,6 +42,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     let res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, config);
 
     if (res.status === 401) {
+        // Backstop for the proactive refresh timer: a suspended tab or clock
+        // skew can still let a token expire before it fires.
         const refreshed = await tryRefresh();
         if (refreshed) {
             // Retry with new token
@@ -51,6 +53,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
                 ...config,
                 headers,
             });
+        } else if (!isAuthPublicPath(window.location.pathname)) {
+            // The refresh token is gone or rejected; only Keycloak can issue a
+            // new session. This navigates away.
+            void login();
         }
     }
 

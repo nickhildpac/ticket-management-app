@@ -13,6 +13,7 @@ import (
 
 	"github.com/nickhildpac/ticket-management-ai-service/internal/app"
 	"github.com/nickhildpac/ticket-management-ai-service/internal/config"
+	"github.com/nickhildpac/ticket-management-ai-service/internal/keycloak"
 	"github.com/nickhildpac/ticket-management-ai-service/internal/ticketapi"
 	"github.com/nickhildpac/ticket-management-ai-service/internal/worker"
 )
@@ -41,13 +42,22 @@ func main() {
 	defer rdb.Close()
 
 	agent := app.NewAgent(app.NewStore(db, cfg), cfg)
+
+	// Callbacks authenticate as this service's Keycloak service account; no
+	// signing secret is shared with ticket-service.
+	tokens, err := keycloak.NewTokenSource(keycloak.TokenSourceConfig{
+		TokenURL:     cfg.KeycloakTokenURL,
+		IssuerURL:    cfg.DiscoveryIssuerURL(),
+		ClientID:     cfg.KeycloakClientID,
+		ClientSecret: cfg.KeycloakClientSecret,
+	})
+	if err != nil {
+		slog.Error("failed to configure keycloak client credentials", "error", err)
+		os.Exit(1)
+	}
 	tickets := ticketapi.New(ticketapi.Settings{
-		TicketServiceURL:   cfg.TicketServiceURL,
-		JWTSecret:          cfg.JWTSecret,
-		JWTIssuer:          cfg.JWTIssuer,
-		JWTAudience:        cfg.JWTAudience,
-		ServiceAccountID:   cfg.ServiceAccountID,
-		ServiceAccountRole: cfg.ServiceAccountRole,
+		TicketServiceURL: cfg.TicketServiceURL,
+		Tokens:           tokens,
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -59,7 +69,8 @@ func main() {
 	// operator sees one obvious error instead of a silent backlog.
 	if err := tickets.VerifyAccess(ctx); err != nil {
 		slog.Error("ticket API callback check FAILED — triage results won't be applied. "+
-			"Check AI_SERVICE_ACCOUNT_ID/ROLE, JWT_SECRET, and TICKET_SERVICE_URL.",
+			"Check KEYCLOAK_CLIENT_ID/SECRET, the service account's admin realm role, "+
+			"KEYCLOAK_AUDIENCE, and TICKET_SERVICE_URL.",
 			"error", err)
 	} else {
 		slog.Info("ticket API callback verified")

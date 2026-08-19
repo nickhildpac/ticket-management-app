@@ -110,7 +110,6 @@ type userServiceMock struct {
 	getUserFn               func(ctx context.Context, email string) (*domain.User, error)
 	getUserByIDFn           func(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	getUsersByIDsFn         func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.User, error)
-	createUserFn            func(ctx context.Context, user domain.User) (*domain.User, error)
 	getAllUsersFn           func(ctx context.Context) ([]domain.User, error)
 	getAllUsersAssignmentFn func(ctx context.Context) ([]domain.User, error)
 	updateUserRoleFn        func(ctx context.Context, id uuid.UUID, role domain.UserRole) (*domain.User, error)
@@ -145,13 +144,6 @@ func (m *userServiceMock) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (m
 		}
 	}
 	return out, nil
-}
-
-func (m *userServiceMock) CreateUser(ctx context.Context, user domain.User) (*domain.User, error) {
-	if m.createUserFn != nil {
-		return m.createUserFn(ctx, user)
-	}
-	return &user, nil
 }
 
 func (m *userServiceMock) GetAllUsers(ctx context.Context) ([]domain.User, error) {

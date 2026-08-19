@@ -49,7 +49,7 @@ export function Sidebar() {
                 </a>
                 <button
                     type="button"
-                    onClick={() => logout()}
+                    onClick={() => void logout()}
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-error transition-colors hover:bg-error/10"
                 >
                     <MaterialSymbol name="logout" />

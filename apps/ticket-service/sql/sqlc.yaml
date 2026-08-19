@@ -13,7 +13,12 @@ sql:
         overrides:
           - db_type: "uuid"
             go_type: "github.com/google/uuid.UUID"
+          # Plain bytes rather than a driver-specific JSONB wrapper: the only
+          # jsonb column is event_outbox.payload, which no sqlc query touches
+          # (the outbox relay in internal/adapters/events uses raw SQL). Pointing
+          # this at a pgtype package instead makes sqlc emit two conflicting
+          # pgtype imports in models.go.
           - db_type: "jsonb"
             go_type:
-              import: "github.com/jackc/pgx/v5/pgtype"
-              type: "JSONB" # Or a custom struct if you parse JSONB yourself
+              type: "byte"
+              slice: true

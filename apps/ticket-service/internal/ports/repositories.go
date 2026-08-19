@@ -18,6 +18,12 @@ type UserRepository interface {
 	GetAutoAssignmentCandidates(ctx context.Context, requiredSkills []string, activeStates []domain.TicketState) ([]domain.AutoAssignmentCandidate, error)
 	UpdateUser(ctx context.Context, user *domain.User) (*domain.User, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+
+	// --- Keycloak identity linking (see IdentityService) ---
+	GetUserByKeycloakID(ctx context.Context, keycloakID uuid.UUID) (*domain.User, error)
+	CreateUserFromKeycloak(ctx context.Context, keycloakID uuid.UUID, user domain.User) (*domain.User, error)
+	LinkUserToKeycloak(ctx context.Context, localID, keycloakID uuid.UUID, user domain.User) (*domain.User, error)
+	SyncUserFromKeycloak(ctx context.Context, keycloakID uuid.UUID, user domain.User) (*domain.User, error)
 }
 
 type TicketRepository interface {

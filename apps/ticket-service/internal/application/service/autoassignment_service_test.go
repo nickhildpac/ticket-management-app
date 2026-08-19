@@ -65,6 +65,22 @@ func (m *mockUserRepository) DeleteUser(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
+func (m *mockUserRepository) GetUserByKeycloakID(ctx context.Context, keycloakID uuid.UUID) (*domain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserRepository) CreateUserFromKeycloak(ctx context.Context, keycloakID uuid.UUID, user domain.User) (*domain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserRepository) LinkUserToKeycloak(ctx context.Context, localID, keycloakID uuid.UUID, user domain.User) (*domain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserRepository) SyncUserFromKeycloak(ctx context.Context, keycloakID uuid.UUID, user domain.User) (*domain.User, error) {
+	return nil, nil
+}
+
 // mockTicketRepository is a mock implementation of TicketRepository
 type mockTicketRepository struct {
 	activeTickets []domain.Ticket

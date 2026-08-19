@@ -20,6 +20,7 @@ import (
 	"github.com/nickhildpac/ticket-management-ai-service/internal/app"
 	"github.com/nickhildpac/ticket-management-ai-service/internal/config"
 	"github.com/nickhildpac/ticket-management-ai-service/internal/httpapi"
+	"github.com/nickhildpac/ticket-management-ai-service/internal/keycloak"
 )
 
 // shutdownTimeout bounds how long in-flight requests get to finish. Ingest
@@ -58,15 +59,25 @@ func main() {
 	store := app.NewStore(db, cfg)
 	agent := app.NewAgent(store, cfg)
 
+	// Inbound tokens on /triage and /ingest are verified against the realm's
+	// JWKS. Discovery may need to retry while Keycloak finishes booting.
+	verifier, err := keycloak.NewVerifier(context.Background(), keycloak.VerifierConfig{
+		IssuerURL:    cfg.KeycloakIssuerURL,
+		DiscoveryURL: cfg.KeycloakInternalIssuerURL,
+		Audience:     cfg.KeycloakAudience,
+	})
+	if err != nil {
+		slog.Error("failed to initialise keycloak verifier", "error", err)
+		os.Exit(1)
+	}
+
 	srv := &http.Server{
 		Addr: ":" + cfg.Port,
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			Agent:       agent,
 			Store:       store,
 			APIV1Prefix: cfg.APIV1Prefix,
-			JWTSecret:   cfg.JWTSecret,
-			JWTIssuer:   cfg.JWTIssuer,
-			JWTAudience: cfg.JWTAudience,
+			Verifier:    verifier,
 			CORSOrigins: cfg.CORSOrigins,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

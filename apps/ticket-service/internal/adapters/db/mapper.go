@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/google/uuid"
 	sqlc "github.com/nickhildpac/ticket-management-app/internal/adapters/db/sqlc"
 	"github.com/nickhildpac/ticket-management-app/internal/domain"
 )
@@ -13,16 +14,22 @@ func mapUser(u sqlc.User) *domain.User {
 		role = domain.RoleUser // default role
 	}
 
+	var keycloakID *uuid.UUID
+	if u.KeycloakID.Valid {
+		id := u.KeycloakID.UUID
+		keycloakID = &id
+	}
+
 	return &domain.User{
-		ID:             u.ID,
-		HashedPassword: u.HashedPassword,
-		FirstName:      u.FirstName,
-		LastName:       u.LastName,
-		Email:          u.Email,
-		Role:           role,
-		Skills:         domain.NewSkillsFromSlice(u.Skills),
-		UpdatedAt:      u.UpdatedAt,
-		CreatedAt:      u.CreatedAt,
+		ID:         u.ID,
+		KeycloakID: keycloakID,
+		FirstName:  u.FirstName,
+		LastName:   u.LastName,
+		Email:      u.Email,
+		Role:       role,
+		Skills:     domain.NewSkillsFromSlice(u.Skills),
+		UpdatedAt:  u.UpdatedAt,
+		CreatedAt:  u.CreatedAt,
 	}
 }
 

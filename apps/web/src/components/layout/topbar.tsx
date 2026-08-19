@@ -114,7 +114,7 @@ export function Topbar() {
                                     View profile
                                 </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => logout()} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => void logout()} className="cursor-pointer">
                                 <MaterialSymbol name="logout" className="mr-2 !text-lg" />
                                 Logout
                             </DropdownMenuItem>

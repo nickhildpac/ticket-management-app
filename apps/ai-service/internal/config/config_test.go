@@ -9,13 +9,16 @@ import (
 
 func TestDefaultSettingsWorkWithoutEnv(t *testing.T) {
 	t.Setenv("APP_ENV", "")
-	t.Setenv("JWT_SECRET", "")
+	t.Setenv("KEYCLOAK_CLIENT_SECRET", "")
 
 	cfg, err := Load()
 	require.NoError(t, err)
 
 	assert.Equal(t, "development", cfg.AppEnv)
-	assert.Equal(t, "local-dev-only-secret", cfg.JWTSecret)
+	assert.Equal(t, "http://localhost:8090/realms/ticket-management", cfg.KeycloakIssuerURL)
+	assert.Equal(t, "ticket-service", cfg.KeycloakAudience)
+	assert.Equal(t, "ai-service", cfg.KeycloakClientID)
+	assert.Equal(t, "ai-service-dev-secret", cfg.KeycloakClientSecret)
 	assert.Equal(t, 0.75, cfg.AutoAnswerConfidenceThreshold)
 	assert.Equal(t, 6, cfg.TriageMaxIterations)
 	assert.Equal(t, 384, cfg.EmbeddingDim)
@@ -24,27 +27,31 @@ func TestDefaultSettingsWorkWithoutEnv(t *testing.T) {
 
 func TestLocalEnvGetsDevelopmentSecretFallback(t *testing.T) {
 	t.Setenv("APP_ENV", "local")
-	t.Setenv("JWT_SECRET", "")
+	t.Setenv("KEYCLOAK_CLIENT_SECRET", "")
 
 	cfg, err := Load()
 	require.NoError(t, err)
-	assert.Equal(t, "local-dev-only-secret", cfg.JWTSecret)
+	assert.Equal(t, "ai-service-dev-secret", cfg.KeycloakClientSecret)
 }
 
-func TestProductionRejectsMissingJWTSecret(t *testing.T) {
+func TestProductionRejectsMissingClientSecret(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
-	t.Setenv("JWT_SECRET", "")
+	t.Setenv("KEYCLOAK_ISSUER_URL", "https://sso.example.com/realms/ticket-management")
+	t.Setenv("KEYCLOAK_CLIENT_SECRET", "")
 
 	_, err := Load()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "JWT_SECRET")
+	assert.Contains(t, err.Error(), "KEYCLOAK_CLIENT_SECRET")
 }
 
-func TestProductionRejectsKnownWeakJWTSecret(t *testing.T) {
-	for _, weak := range []string{"secret", "changeme", "change-me", "local-dev-only-secret"} {
+// The dev secret is checked in to the realm export, so it must never be usable
+// outside development.
+func TestProductionRejectsKnownWeakClientSecret(t *testing.T) {
+	for _, weak := range []string{"secret", "changeme", "change-me", "local-dev-only-secret", "ai-service-dev-secret"} {
 		t.Run(weak, func(t *testing.T) {
 			t.Setenv("APP_ENV", "production")
-			t.Setenv("JWT_SECRET", weak)
+			t.Setenv("KEYCLOAK_ISSUER_URL", "https://sso.example.com/realms/ticket-management")
+			t.Setenv("KEYCLOAK_CLIENT_SECRET", weak)
 
 			_, err := Load()
 			require.Error(t, err)
@@ -52,13 +59,41 @@ func TestProductionRejectsKnownWeakJWTSecret(t *testing.T) {
 	}
 }
 
-func TestProductionAcceptsStrongJWTSecret(t *testing.T) {
+func TestProductionAcceptsStrongClientSecret(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
-	t.Setenv("JWT_SECRET", "a-real-production-secret")
+	t.Setenv("KEYCLOAK_ISSUER_URL", "https://sso.example.com/realms/ticket-management")
+	t.Setenv("KEYCLOAK_CLIENT_SECRET", "a-real-production-secret")
 
 	cfg, err := Load()
 	require.NoError(t, err)
-	assert.Equal(t, "a-real-production-secret", cfg.JWTSecret)
+	assert.Equal(t, "a-real-production-secret", cfg.KeycloakClientSecret)
+}
+
+// Tokens would otherwise cross the network in the clear.
+func TestProductionRejectsPlaintextIssuer(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("KEYCLOAK_ISSUER_URL", "http://sso.example.com/realms/ticket-management")
+	t.Setenv("KEYCLOAK_CLIENT_SECRET", "a-real-production-secret")
+
+	_, err := Load()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "https")
+}
+
+// Inside Docker the browser-facing issuer is not reachable, so discovery uses
+// the in-network URL while `iss` stays the public one.
+func TestDiscoveryIssuerURLPrefersInternal(t *testing.T) {
+	t.Setenv("KEYCLOAK_ISSUER_URL", "http://localhost:8090/realms/ticket-management")
+	t.Setenv("KEYCLOAK_INTERNAL_ISSUER_URL", "http://keycloak:8080/realms/ticket-management")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, "http://keycloak:8080/realms/ticket-management", cfg.DiscoveryIssuerURL())
+
+	t.Setenv("KEYCLOAK_INTERNAL_ISSUER_URL", "")
+	cfg, err = Load()
+	require.NoError(t, err)
+	assert.Equal(t, "http://localhost:8090/realms/ticket-management", cfg.DiscoveryIssuerURL())
 }
 
 func TestInvalidNumericEnvIsRejected(t *testing.T) {

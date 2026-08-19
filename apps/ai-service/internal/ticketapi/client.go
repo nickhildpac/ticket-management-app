@@ -1,9 +1,11 @@
 // Package ticketapi calls back into the authoritative Go ticket API to apply
 // triage results.
 //
-// Auth: it mints a short-lived HS256 JWT for the AI service account. The claim
-// shape (RegisteredClaims + `role`) mirrors the ticket-service auth middleware;
-// the `sub` must be an existing agent/admin user id.
+// Auth: it presents a Keycloak service-account access token obtained with the
+// client_credentials grant. The realm grants that service account the `admin`
+// role, which ticket-service requires for commenting on tickets the caller is
+// not assigned to. This service signs nothing and shares no secret with
+// ticket-service. See docs/adr/0003-keycloak-authentication.md.
 package ticketapi
 
 import (
@@ -16,22 +18,19 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
-// tokenTTL keeps the minted service token short-lived; it is re-minted per
-// request.
-const tokenTTL = 5 * time.Minute
+// TokenSource supplies a service-account access token. Implemented by
+// keycloak.TokenSource, which caches and refreshes it.
+type TokenSource interface {
+	Token(ctx context.Context) (string, error)
+}
 
 // Settings is the slice of configuration the client needs.
 type Settings struct {
-	TicketServiceURL   string
-	JWTSecret          string
-	JWTIssuer          string
-	JWTAudience        string
-	ServiceAccountID   string
-	ServiceAccountRole string
+	TicketServiceURL string
+	// Tokens supplies the bearer credential for every call.
+	Tokens TokenSource
 }
 
 // Client is an HTTP client for the ticket-service API.
@@ -62,27 +61,6 @@ func New(s Settings, opts ...Option) *Client {
 	return c
 }
 
-// claims mirrors the ticket-service's util.Claims.
-type claims struct {
-	jwt.RegisteredClaims
-	Role string `json:"role"`
-}
-
-func (c *Client) token() (string, error) {
-	now := time.Now()
-	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   c.settings.ServiceAccountID,
-			Issuer:    c.settings.JWTIssuer,
-			Audience:  jwt.ClaimStrings{c.settings.JWTAudience},
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(tokenTTL)),
-		},
-		Role: c.settings.ServiceAccountRole,
-	})
-	return tok.SignedString([]byte(c.settings.JWTSecret))
-}
-
 // AddComment posts a comment on a ticket as the AI service account.
 func (c *Client) AddComment(ctx context.Context, ticketID, description string) error {
 	body, err := json.Marshal(map[string]string{
@@ -111,17 +89,20 @@ func (c *Client) SetState(ctx context.Context, ticketID, state string) error {
 // VerifyAccess probes the ticket API with the service token; it returns an
 // error on failure.
 //
-// This surfaces misconfiguration (unset/invalid AI_SERVICE_ACCOUNT_ID, wrong
-// role, iss/aud mismatch, or an unreachable API) loudly at worker startup
-// instead of silently 403-ing on every consumed event.
+// This surfaces misconfiguration (bad client credentials, a service account
+// missing the admin realm role, a wrong audience, or an unreachable API) loudly
+// at worker startup instead of silently 403-ing on every consumed event.
 func (c *Client) VerifyAccess(ctx context.Context) error {
 	return c.do(ctx, http.MethodGet, c.baseURL+"/tickets?limit=1&offset=0", nil, false)
 }
 
 func (c *Client) do(ctx context.Context, method, target string, body io.Reader, jsonBody bool) error {
-	token, err := c.token()
+	if c.settings.Tokens == nil {
+		return fmt.Errorf("ticketapi: no token source configured")
+	}
+	token, err := c.settings.Tokens.Token(ctx)
 	if err != nil {
-		return fmt.Errorf("mint service token: %w", err)
+		return fmt.Errorf("obtain service token: %w", err)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, target, body)
 	if err != nil {

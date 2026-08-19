@@ -24,10 +24,24 @@ type Config struct {
 	DatabaseURL string
 	CORSOrigins []string
 
-	// ---- auth: shared secret with the Go ticket-service ----------------
-	JWTSecret   string
-	JWTIssuer   string
-	JWTAudience string
+	// ---- auth: Keycloak (OIDC) -----------------------------------------
+	// Inbound: /triage and /ingest require a valid realm access token.
+	// Outbound: callbacks into ticket-service use a client_credentials token.
+	// No secret is shared with ticket-service any more.
+
+	// KeycloakIssuerURL is the realm URL as it appears in a token's `iss`.
+	KeycloakIssuerURL string
+	// KeycloakInternalIssuerURL, when set, is where discovery/JWKS and the
+	// token endpoint are reached (Docker split-horizon).
+	KeycloakInternalIssuerURL string
+	// KeycloakAudience must appear in an inbound token's `aud`.
+	KeycloakAudience string
+	// KeycloakTokenURL overrides the token endpoint derived from the issuer.
+	KeycloakTokenURL string
+	// KeycloakClientID/Secret are this service's confidential client, whose
+	// service account holds the `admin` realm role.
+	KeycloakClientID     string
+	KeycloakClientSecret string
 
 	// ---- AI / RAG / triage --------------------------------------------
 	RedisURL         string
@@ -64,16 +78,6 @@ type Config struct {
 	// them apart).
 	ConsumerGroup string
 	ConsumerName  string
-
-	// Service account the worker uses to call back into the Go ticket API.
-	// The minted JWT must satisfy the ticket-service auth middleware: an
-	// existing agent/admin user id as `sub`, matching issuer/audience, signed
-	// with the shared JWTSecret. See docs/adr/0002-service-topology.md.
-	// Defaults match the seeded AI service account (migration 000013). It is
-	// an admin because CanCommentOnTicket only lets admins comment on tickets
-	// they aren't assigned to, and the worker comments on arbitrary tickets.
-	ServiceAccountID   string
-	ServiceAccountRole string
 }
 
 // weakSecrets are rejected outside local/development/test so a placeholder
@@ -84,6 +88,7 @@ var weakSecrets = map[string]struct{}{
 	"changeme":              {},
 	"change-me":             {},
 	"local-dev-only-secret": {},
+	"ai-service-dev-secret": {},
 }
 
 // Load reads the configuration from the environment and validates it.
@@ -104,9 +109,12 @@ func Load() (*Config, error) {
 			"postgres://postgres:postgres@localhost:5432/ticket_management")),
 		CORSOrigins: splitCSV(env("CORS_ORIGINS", "http://localhost:5173")),
 
-		JWTSecret:   os.Getenv("JWT_SECRET"),
-		JWTIssuer:   env("JWT_ISSUER", "example.com"),
-		JWTAudience: env("JWT_AUDIENCE", "example.com"),
+		KeycloakIssuerURL:         env("KEYCLOAK_ISSUER_URL", "http://localhost:8090/realms/ticket-management"),
+		KeycloakInternalIssuerURL: os.Getenv("KEYCLOAK_INTERNAL_ISSUER_URL"),
+		KeycloakAudience:          env("KEYCLOAK_AUDIENCE", "ticket-service"),
+		KeycloakTokenURL:          os.Getenv("KEYCLOAK_TOKEN_URL"),
+		KeycloakClientID:          env("KEYCLOAK_CLIENT_ID", "ai-service"),
+		KeycloakClientSecret:      os.Getenv("KEYCLOAK_CLIENT_SECRET"),
 
 		RedisURL:         env("REDIS_URL", "redis://localhost:6379/0"),
 		TicketServiceURL: env("TICKET_SERVICE_URL", "http://localhost:8080"),
@@ -121,9 +129,6 @@ func Load() (*Config, error) {
 
 		ConsumerGroup: env("CONSUMER_GROUP", "ai-triage"),
 		ConsumerName:  env("CONSUMER_NAME", "worker-1"),
-
-		ServiceAccountID:   env("AI_SERVICE_ACCOUNT_ID", "00000000-0000-4000-8000-0000000000a1"),
-		ServiceAccountRole: env("AI_SERVICE_ACCOUNT_ROLE", "admin"),
 	}
 
 	var err error
@@ -149,27 +154,47 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	if err := c.validateJWTSecret(); err != nil {
+	if err := c.validateKeycloak(); err != nil {
 		return nil, err
 	}
 	return c, nil
 }
 
-// validateJWTSecret mirrors app/core/config.py: local-ish environments get a
-// dev default, everything else must supply a real secret.
-func (c *Config) validateJWTSecret() error {
+// validateKeycloak applies a dev-friendly default locally and insists on real
+// values elsewhere.
+func (c *Config) validateKeycloak() error {
+	if strings.TrimSpace(c.KeycloakIssuerURL) == "" {
+		return fmt.Errorf("KEYCLOAK_ISSUER_URL is required")
+	}
+
 	switch strings.ToLower(strings.TrimSpace(c.AppEnv)) {
 	case "", "local", "development", "test":
-		if c.JWTSecret == "" {
-			c.JWTSecret = "local-dev-only-secret"
+		if c.KeycloakClientSecret == "" {
+			c.KeycloakClientSecret = "ai-service-dev-secret"
 		}
 		return nil
 	}
-	if _, weak := weakSecrets[strings.TrimSpace(c.JWTSecret)]; weak {
+
+	if _, weak := weakSecrets[strings.TrimSpace(c.KeycloakClientSecret)]; weak {
 		return fmt.Errorf(
-			"JWT_SECRET is required and must not use a known weak value outside local/development/test")
+			"KEYCLOAK_CLIENT_SECRET is required and must not use a known weak value outside local/development/test")
+	}
+	if strings.TrimSpace(c.KeycloakAudience) == "" {
+		return fmt.Errorf("KEYCLOAK_AUDIENCE is required outside local/development/test")
+	}
+	if strings.HasPrefix(c.KeycloakIssuerURL, "http://") {
+		return fmt.Errorf("KEYCLOAK_ISSUER_URL must use https outside local/development/test")
 	}
 	return nil
+}
+
+// DiscoveryIssuerURL is where OIDC discovery and the token endpoint are
+// actually reached, which differs from the issuer inside Docker.
+func (c *Config) DiscoveryIssuerURL() string {
+	if s := strings.TrimSpace(c.KeycloakInternalIssuerURL); s != "" {
+		return s
+	}
+	return c.KeycloakIssuerURL
 }
 
 // sqlAlchemyDriver matches the "+driver" suffix SQLAlchemy DSNs carry

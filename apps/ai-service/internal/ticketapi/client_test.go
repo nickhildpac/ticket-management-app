@@ -8,20 +8,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/nickhildpac/ticket-management-ai-service/internal/keycloak"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testSecret   = "test-secret"
-	testIssuer   = "example.com"
-	testAudience = "example.com"
-	testAccount  = "00000000-0000-4000-8000-0000000000a1"
-)
+// testServiceToken stands in for the access token Keycloak issues to the
+// ai-service service account.
+const testServiceToken = "keycloak-service-account-token"
 
 // capture records the request the client made so the test can assert on the
-// method, path, body and minted token.
+// method, path, body and presented token.
 type capture struct {
 	method string
 	path   string
@@ -51,26 +48,9 @@ func newStubTicketService(t *testing.T, status int) (*Client, *capture) {
 	t.Cleanup(srv.Close)
 
 	return New(Settings{
-		TicketServiceURL:   srv.URL,
-		JWTSecret:          testSecret,
-		JWTIssuer:          testIssuer,
-		JWTAudience:        testAudience,
-		ServiceAccountID:   testAccount,
-		ServiceAccountRole: "admin",
+		TicketServiceURL: srv.URL,
+		Tokens:           keycloak.NewStaticTokenSource(testServiceToken),
 	}), got
-}
-
-// parseServiceToken verifies the bearer token the same way the ticket-service
-// middleware does, and returns its claims.
-func parseServiceToken(t *testing.T, header string) *claims {
-	t.Helper()
-	require.True(t, len(header) > len("Bearer "), "missing bearer token")
-	out := &claims{}
-	_, err := jwt.ParseWithClaims(header[len("Bearer "):], out, func(*jwt.Token) (any, error) {
-		return []byte(testSecret), nil
-	}, jwt.WithAudience(testAudience), jwt.WithIssuer(testIssuer))
-	require.NoError(t, err)
-	return out
 }
 
 func TestAddCommentPostsAsTheServiceAccount(t *testing.T) {
@@ -84,14 +64,9 @@ func TestAddCommentPostsAsTheServiceAccount(t *testing.T) {
 	assert.Equal(t, "t-1", got.body["ticket_id"])
 	assert.Equal(t, "[AI-suggested reply]\n\nUse the link.", got.body["description"])
 
-	// The minted token must satisfy the ticket-service middleware: an existing
-	// admin user id as `sub`, with matching issuer and audience.
-	c := parseServiceToken(t, got.auth)
-	assert.Equal(t, testAccount, c.Subject)
-	assert.Equal(t, "admin", c.Role)
-	assert.Equal(t, testIssuer, c.Issuer)
-	assert.Contains(t, c.Audience, testAudience)
-	assert.WithinDuration(t, c.IssuedAt.Time.Add(tokenTTL), c.ExpiresAt.Time, 0)
+	// The service-account token from Keycloak is presented as-is; this client
+	// no longer signs anything itself.
+	assert.Equal(t, "Bearer "+testServiceToken, got.auth)
 }
 
 func TestVerifyAccessProbesTheTicketList(t *testing.T) {
@@ -136,4 +111,15 @@ func TestBaseURLTolerAtesATrailingSlash(t *testing.T) {
 	client := New(Settings{TicketServiceURL: "http://ticket-service:8080/"})
 
 	assert.Equal(t, "http://ticket-service:8080/api/v1", client.baseURL)
+}
+
+// Without a token source there is nothing to authenticate with; the call must
+// fail rather than go out unauthenticated.
+func TestCallsFailWithoutATokenSource(t *testing.T) {
+	client := New(Settings{TicketServiceURL: "http://ticket-service:8080"})
+
+	err := client.AddComment(context.Background(), "t-1", "hi")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no token source")
 }

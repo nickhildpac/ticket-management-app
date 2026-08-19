@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -35,21 +34,20 @@ func TestGetMe_NotFoundReturns404(t *testing.T) {
 	}
 }
 
-func TestGetMe_ResponseOmitsHashedPassword(t *testing.T) {
+func TestGetMe_ResponseExposesNoCredentialFields(t *testing.T) {
 	userID := uuid.New()
 	now := time.Now()
 	handler := newHandlerWithMocks(nil, &userServiceMock{
 		getUserByIDFn: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 			return &domain.User{
-				ID:             id,
-				FirstName:      "Jane",
-				LastName:       "Doe",
-				Email:          "jane@example.com",
-				Role:           domain.RoleAdmin,
-				HashedPassword: "secret-hash",
-				Skills:         domain.NewSkillsFromSlice([]string{"incident-management"}),
-				CreatedAt:      now,
-				UpdatedAt:      now,
+				ID:        id,
+				FirstName: "Jane",
+				LastName:  "Doe",
+				Email:     "jane@example.com",
+				Role:      domain.RoleAdmin,
+				Skills:    domain.NewSkillsFromSlice([]string{"incident-management"}),
+				CreatedAt: now,
+				UpdatedAt: now,
 			}, nil
 		},
 	}, nil)
@@ -69,65 +67,9 @@ func TestGetMe_ResponseOmitsHashedPassword(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
-	if _, ok := body["hashed_password"]; ok {
-		t.Fatalf("expected hashed_password to be omitted from response")
-	}
-}
-
-func TestCreateUser_DuplicateEmailReturns409(t *testing.T) {
-	handler := newHandlerWithMocks(nil, &userServiceMock{
-		createUserFn: func(ctx context.Context, user domain.User) (*domain.User, error) {
-			return nil, apperrors.ErrDuplicateEmail
-		},
-	}, nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewBufferString(`{
-		"first_name":"Jane",
-		"last_name":"Doe",
-		"email":"jane@example.com",
-		"password":"password123"
-	}`))
-
-	rr := httptest.NewRecorder()
-	handler.CreateUser(rr, req)
-
-	if rr.Code != http.StatusConflict {
-		t.Fatalf("expected status %d, got %d", http.StatusConflict, rr.Code)
-	}
-}
-
-func TestCreateUser_ResponseOmitsHashedPassword(t *testing.T) {
-	now := time.Now()
-	handler := newHandlerWithMocks(nil, &userServiceMock{
-		createUserFn: func(ctx context.Context, user domain.User) (*domain.User, error) {
-			user.ID = uuid.New()
-			user.Role = domain.RoleUser
-			user.HashedPassword = "secret-hash"
-			user.CreatedAt = now
-			user.UpdatedAt = now
-			return &user, nil
-		},
-	}, nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewBufferString(`{
-		"first_name":"Jane",
-		"last_name":"Doe",
-		"email":"jane@example.com",
-		"password":"password123"
-	}`))
-
-	rr := httptest.NewRecorder()
-	handler.CreateUser(rr, req)
-
-	if rr.Code != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d", http.StatusCreated, rr.Code)
-	}
-
-	var body map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
-		t.Fatalf("unmarshal response: %v", err)
-	}
-	if _, ok := body["hashed_password"]; ok {
-		t.Fatalf("expected hashed_password to be omitted from response")
+	for _, field := range []string{"hashed_password", "password", "keycloak_id"} {
+		if _, ok := body[field]; ok {
+			t.Fatalf("expected %q to be absent from the response", field)
+		}
 	}
 }

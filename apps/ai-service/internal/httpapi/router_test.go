@@ -8,20 +8,31 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/nickhildpac/ticket-management-ai-service/internal/keycloak"
 	"github.com/nickhildpac/ticket-management-ai-service/internal/triage"
 )
 
-const (
-	testSecret   = "test-secret"
-	testIssuer   = "example.com"
-	testAudience = "example.com"
-)
+// validToken is the one token stubVerifier accepts. Real token validation
+// (signature, issuer, audience, expiry) is covered in internal/keycloak; these
+// tests only care that the router refuses anything the verifier rejects.
+const validToken = "valid-keycloak-token"
+
+type stubVerifier struct{}
+
+func (stubVerifier) Verify(_ context.Context, raw string) (*keycloak.Claims, error) {
+	if raw != validToken {
+		return nil, keycloak.ErrInvalidToken
+	}
+	return &keycloak.Claims{
+		Subject:  "00000000-0000-4000-8000-0000000000a1",
+		Username: "service-account-ai-service",
+		Roles:    []string{"admin"},
+	}, nil
+}
 
 type stubAgent struct {
 	result  triage.TriageResult
@@ -39,28 +50,9 @@ func newTestRouter(agent Triager) http.Handler {
 	return NewRouter(Deps{
 		Agent:       agent,
 		APIV1Prefix: "/api/v1",
-		JWTSecret:   testSecret,
-		JWTIssuer:   testIssuer,
-		JWTAudience: testAudience,
+		Verifier:    stubVerifier{},
 		CORSOrigins: []string{"http://localhost:5173"},
 	})
-}
-
-func signedToken(t *testing.T, mutate func(*jwt.RegisteredClaims)) string {
-	t.Helper()
-	claims := jwt.RegisteredClaims{
-		Subject:   "00000000-0000-4000-8000-0000000000a1",
-		Issuer:    testIssuer,
-		Audience:  jwt.ClaimStrings{testAudience},
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
-	}
-	if mutate != nil {
-		mutate(&claims)
-	}
-	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(testSecret))
-	require.NoError(t, err)
-	return signed
 }
 
 func do(t *testing.T, h http.Handler, req *http.Request) *httptest.ResponseRecorder {
@@ -96,19 +88,10 @@ func TestTriageRequiresAValidToken(t *testing.T) {
 		header string
 	}{
 		{"no header", ""},
-		{"wrong scheme", "Basic abc"},
+		{"wrong scheme", "Basic " + validToken},
+		{"empty credential", "Bearer "},
 		{"garbage token", "Bearer not-a-jwt"},
-		{
-			name: "signed with the wrong secret",
-			header: "Bearer " + func() string {
-				s, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-					Issuer:    testIssuer,
-					Audience:  jwt.ClaimStrings{testAudience},
-					ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
-				}).SignedString([]byte("a-different-secret"))
-				return s
-			}(),
-		},
+		{"token the verifier rejects", "Bearer some-other-realms-token"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -125,23 +108,6 @@ func TestTriageRequiresAValidToken(t *testing.T) {
 	}
 }
 
-func TestTriageRejectsWrongIssuerAndAudience(t *testing.T) {
-	h := newTestRouter(&stubAgent{})
-
-	for name, mutate := range map[string]func(*jwt.RegisteredClaims){
-		"wrong issuer":   func(c *jwt.RegisteredClaims) { c.Issuer = "evil.test" },
-		"wrong audience": func(c *jwt.RegisteredClaims) { c.Audience = jwt.ClaimStrings{"evil.test"} },
-		"expired":        func(c *jwt.RegisteredClaims) { c.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-time.Hour)) },
-	} {
-		t.Run(name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/triage", bytes.NewReader([]byte(`{}`)))
-			req.Header.Set("Authorization", "Bearer "+signedToken(t, mutate))
-
-			assert.Equal(t, http.StatusUnauthorized, do(t, h, req).Code)
-		})
-	}
-}
-
 func TestTriageReturnsTheGatedDecision(t *testing.T) {
 	agent := &stubAgent{result: triage.TriageResult{
 		TicketID:    "t-1",
@@ -154,7 +120,7 @@ func TestTriageReturnsTheGatedDecision(t *testing.T) {
 
 	body := `{"ticket_id":"t-1","title":"Reset","description":"help","state":"open"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/triage", bytes.NewReader([]byte(body)))
-	req.Header.Set("Authorization", "Bearer "+signedToken(t, nil))
+	req.Header.Set("Authorization", "Bearer "+validToken)
 
 	rec := do(t, h, req)
 
@@ -171,7 +137,7 @@ func TestTriageValidationErrorUsesStructuredEnvelope(t *testing.T) {
 	h := newTestRouter(&stubAgent{})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/triage", bytes.NewReader([]byte(`{}`)))
-	req.Header.Set("Authorization", "Bearer "+signedToken(t, nil))
+	req.Header.Set("Authorization", "Bearer "+validToken)
 
 	rec := do(t, h, req)
 
@@ -192,7 +158,7 @@ func TestTriageRejectsMalformedJSON(t *testing.T) {
 	h := newTestRouter(&stubAgent{})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/triage", bytes.NewReader([]byte(`{`)))
-	req.Header.Set("Authorization", "Bearer "+signedToken(t, nil))
+	req.Header.Set("Authorization", "Bearer "+validToken)
 
 	rec := do(t, h, req)
 
@@ -205,14 +171,12 @@ func TestPanicIsRecoveredWithoutLeakingInternals(t *testing.T) {
 	h := NewRouter(Deps{
 		Agent:       panickingAgent{},
 		APIV1Prefix: "/api/v1",
-		JWTSecret:   testSecret,
-		JWTIssuer:   testIssuer,
-		JWTAudience: testAudience,
+		Verifier:    stubVerifier{},
 	})
 
 	body := `{"ticket_id":"t-1","title":"t","description":"d","state":"open"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/triage", bytes.NewReader([]byte(body)))
-	req.Header.Set("Authorization", "Bearer "+signedToken(t, nil))
+	req.Header.Set("Authorization", "Bearer "+validToken)
 
 	rec := do(t, h, req)
 
@@ -235,7 +199,7 @@ func TestIngestRequiresMultipartBody(t *testing.T) {
 	h := newTestRouter(&stubAgent{})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ingest", bytes.NewReader([]byte(`{}`)))
-	req.Header.Set("Authorization", "Bearer "+signedToken(t, nil))
+	req.Header.Set("Authorization", "Bearer "+validToken)
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := do(t, h, req)
@@ -253,7 +217,7 @@ func TestIngestRejectsAnUploadWithoutFilesField(t *testing.T) {
 	require.NoError(t, mw.Close())
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ingest", &buf)
-	req.Header.Set("Authorization", "Bearer "+signedToken(t, nil))
+	req.Header.Set("Authorization", "Bearer "+validToken)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 
 	rec := do(t, h, req)

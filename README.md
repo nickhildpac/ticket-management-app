@@ -3,17 +3,19 @@
 A ticket management system built as a disciplined polyglot monorepo: three deployable services
 sharing a contracts boundary and a single `make`-based entrypoint.
 
-The current architecture is defined by **[ADR 0002](docs/adr/0002-service-topology.md)**, which
-supersedes ADR 0001. See [`CLAUDE.md`](CLAUDE.md) for the full engineering guide and
+The current architecture is defined by **[ADR 0002](docs/adr/0002-service-topology.md)** (service
+topology, supersedes ADR 0001) and **[ADR 0003](docs/adr/0003-keycloak-authentication.md)**
+(Keycloak authentication). See [`CLAUDE.md`](CLAUDE.md) for the full engineering guide and
 [`DEPLOYMENT.md`](DEPLOYMENT.md) for deployment.
 
 ## Services
 
 | Service | Stack | Role |
 | --- | --- | --- |
-| [`apps/ticket-service/`](apps/ticket-service) | Go 1.24, Chi, SQLC, PostgreSQL | **Authoritative API of record** — ticket lifecycle FSM, RBAC, auth, tickets/comments/users. |
+| [`apps/ticket-service/`](apps/ticket-service) | Go 1.24, Chi, SQLC, PostgreSQL | **Authoritative API of record** — ticket lifecycle FSM, RBAC, tickets/comments/users. |
 | [`apps/ai-service/`](apps/ai-service) | Go 1.24, Chi, pgvector, anthropic-sdk-go | RAG support triage — decides whether a ticket can be **answered safely** or must be **escalated to a human**, then calls back into the ticket service. |
 | [`apps/web/`](apps/web) | React 19, Vite, TanStack Query/Router, Tailwind v4 | SPA pointed at the Go ticket API. |
+| [`infra/keycloak/`](infra/keycloak) | Keycloak 26 | Identity provider — authentication and the `admin`/`agent`/`user` realm roles. |
 
 Integration is event-driven: the Go service writes domain events to a transactional outbox, a relay
 publishes them to Redis Streams, and the AI worker consumes them and applies triage results.
@@ -24,7 +26,7 @@ Prerequisites: Docker + Compose, and (for local non-Docker runs) Go 1.24 and [Bu
 
 ```bash
 make setup   # install deps for all apps
-make up      # core stack: postgres + ticket-service + web
+make up      # core stack: postgres + keycloak + ticket-service + web
 make up-ai   # + redis + ai-service + worker (AI triage)
 make up-obs  # + prometheus + grafana
 make down    # stop everything
@@ -33,6 +35,11 @@ make down    # stop everything
 - Web: http://localhost:5173
 - ticket-service API: http://localhost:8080 (base path `/api/v1`)
 - ai-service API: http://localhost:8081 (`/api/v1/triage`, `/api/v1/ingest`, `/health`)
+- Keycloak: http://localhost:8090 (admin console, `admin`/`admin`)
+
+Sign-in redirects to Keycloak. Dev users are seeded by
+[`infra/keycloak/realm-export.json`](infra/keycloak/README.md) — e.g. `alice@admin.com` /
+`password123` for an admin.
 
 ## Common commands
 
@@ -45,6 +52,7 @@ make contracts   # regenerate state-machine artifacts from contracts/
 make migrate     # apply ai-service (kb_chunks) migrations
 make ingest KB_PATH=knowledge   # ingest a knowledge base into the vector store
 make worker      # run the AI triage worker (Redis Streams consumer)
+make keycloak-reset             # re-import the Keycloak realm after editing it
 ```
 
 For live-reload / debugger workflows, run each service directly from its app directory — see the
@@ -56,6 +64,9 @@ Cross-language sources of truth live in [`contracts/`](contracts):
 
 - `ticket_state_machine.json` — the ticket state machine, generated into Go and TypeScript.
 - `events/ticket_events.json` — the outbox → Redis event envelope.
+
+The Keycloak realm ([`infra/keycloak/realm-export.json`](infra/keycloak/README.md)) is the source of
+truth for clients, roles and dev users; it is imported on first boot only.
 
 Edit the JSON, then run `make contracts`. Never hand-edit generated artifacts; CI fails on drift.
 

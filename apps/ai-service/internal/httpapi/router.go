@@ -23,9 +23,8 @@ type Deps struct {
 	Agent       Triager
 	Store       *rag.VectorStore
 	APIV1Prefix string
-	JWTSecret   string
-	JWTIssuer   string
-	JWTAudience string
+	// Verifier validates inbound Keycloak access tokens on the secured routes.
+	Verifier    TokenVerifier
 	CORSOrigins []string
 }
 
@@ -45,7 +44,7 @@ func NewRouter(d Deps) http.Handler {
 		api.Get("/health", healthHandler)
 
 		api.Group(func(secured chi.Router) {
-			secured.Use(requireAuth(d.JWTSecret, d.JWTIssuer, d.JWTAudience))
+			secured.Use(requireAuth(d.Verifier))
 			secured.Post("/triage", triageHandler(d.Agent))
 			secured.Post("/ingest", ingestHandler(d.Store))
 		})

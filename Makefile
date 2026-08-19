@@ -92,3 +92,17 @@ ingest: ## Ingest KB into pgvector via ai-service container (KB_PATH=knowledge)
 .PHONY: worker
 worker: ## Run the AI triage worker (Redis Streams consumer)
 	cd $(AI) && go run ./cmd/worker
+
+# ---- identity -----------------------------------------------------------
+# The realm is imported from infra/keycloak/realm-export.json on FIRST boot only.
+# Editing that file has no effect until the volume is recreated, which is what
+# this target does. It destroys any changes made in the admin console.
+.PHONY: keycloak-reset
+keycloak-reset: ## Re-import the Keycloak realm (destroys console-made changes)
+	$(COMPOSE) rm -sf keycloak
+	docker volume rm -f ticket-keycloak-data 2>/dev/null || true
+	$(COMPOSE) up -d keycloak
+
+.PHONY: keycloak-logs
+keycloak-logs: ## Tail Keycloak logs
+	$(COMPOSE) logs -f keycloak

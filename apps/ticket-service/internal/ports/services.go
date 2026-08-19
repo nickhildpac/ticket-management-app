@@ -12,7 +12,6 @@ type UserService interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.User, error)
 	UpdateMySkills(ctx context.Context, skills []string) (*domain.User, error)
-	CreateUser(ctx context.Context, user domain.User) (*domain.User, error)
 	GetAllUsers(ctx context.Context) ([]domain.User, error)
 	GetAllUsersForAssignment(ctx context.Context) ([]domain.User, error)
 	UpdateUserRole(ctx context.Context, id uuid.UUID, role domain.UserRole) (*domain.User, error)

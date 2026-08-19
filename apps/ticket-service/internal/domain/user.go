@@ -17,15 +17,19 @@ const (
 )
 
 type User struct {
-	ID             uuid.UUID `json:"id"`
-	HashedPassword string    `json:"hashed_password,omitempty"`
-	FirstName      string    `json:"first_name"`
-	LastName       string    `json:"last_name"`
-	Email          string    `json:"email"`
-	Role           UserRole  `json:"role"`
-	Skills         Skills    `json:"skills"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID uuid.UUID `json:"id"`
+	// KeycloakID links this row to the Keycloak subject (`sub`) that
+	// authenticates as it. Nil for rows that predate Keycloak and have not been
+	// claimed by a sign-in yet. The local ID stays the identity used by
+	// tickets/comments foreign keys; see docs/adr/0003-keycloak-authentication.md.
+	KeycloakID *uuid.UUID `json:"-"`
+	FirstName  string     `json:"first_name"`
+	LastName   string     `json:"last_name"`
+	Email      string     `json:"email"`
+	Role       UserRole   `json:"role"`
+	Skills     Skills     `json:"skills"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 func GetRole(s string) (UserRole, error) {

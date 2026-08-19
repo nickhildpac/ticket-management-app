@@ -1,20 +1,43 @@
 import { useState, useEffect } from "react";
-import { tryRefresh } from "./auth";
+import { isAuthPublicPath, login, restoreSession } from "./auth";
 
+/**
+ * Establishes the session before the router renders, so route guards never see
+ * a half-initialised auth state.
+ *
+ * Tokens live in memory, so a page reload starts with no session. On a
+ * protected path that means redirecting to Keycloak — invisible to the user
+ * when their SSO session is still valid, since Keycloak redirects straight
+ * back. Public paths (including the OAuth callback) are left alone so this
+ * can't fight with the code exchange or loop on the login page.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [initializing, setInitializing] = useState(true);
 
     useEffect(() => {
+        let cancelled = false;
+
         async function initAuth() {
             try {
-                await tryRefresh();
+                const restored = await restoreSession();
+                if (cancelled) return;
+
+                if (!restored && !isAuthPublicPath(window.location.pathname)) {
+                    // Navigates away; don't clear the spinner first or the app
+                    // flashes an unauthenticated frame.
+                    await login();
+                    return;
+                }
             } catch (err) {
-                console.error("Failed to refresh token on init", err);
-            } finally {
-                setInitializing(false);
+                console.error("Failed to restore session on init", err);
             }
+            if (!cancelled) setInitializing(false);
         }
-        initAuth();
+
+        void initAuth();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     if (initializing) {
